@@ -1,0 +1,7 @@
+node_modules/
+dist/
+data/
+.playwright-mcp/
+.env
+.env.local
+npm-debug.log*
