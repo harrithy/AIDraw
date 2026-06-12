@@ -137,6 +137,7 @@ button:disabled {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 8 8;
+  animation: flow-link 1.4s linear infinite;
   filter: none;
 }
 
@@ -232,6 +233,7 @@ button:disabled {
 .dock-toggle:hover {
   border-color: var(--line-strong);
   background: var(--hover);
+  transform: translateY(-50%) scale(1.04);
 }
 
 .dock-toggle.left {
@@ -353,13 +355,18 @@ button:disabled {
   border-radius: 7px;
   background: var(--panel-strong);
   color: var(--ink);
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
 .floating-toolbar button:not(:disabled):hover,
 .folder-form button:not(:disabled):hover {
   border-color: var(--line-strong);
   background: var(--hover);
+  transform: translateY(-1px);
 }
 
 .floating-toolbar button,
@@ -459,10 +466,18 @@ button:disabled {
   background: var(--panel-strong);
   color: var(--ink);
   text-align: left;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
 }
 
 .folder-item small {
   grid-column: 2;
+}
+
+.folder-item:not(:disabled):hover {
+  transform: translateX(2px);
 }
 
 .folder-item.active {
@@ -626,6 +641,13 @@ button:disabled {
   object-fit: cover;
   pointer-events: none;
   -webkit-user-drag: none;
+  transform: scale(1.001);
+  transition: transform 360ms ease;
+}
+
+.job-card:hover .job-image img,
+.job-card:hover .job-image-button img {
+  transform: scale(1.035);
 }
 
 .job-placeholder {
@@ -732,6 +754,7 @@ button:disabled {
 .job-actions button:not(:disabled):hover {
   background: var(--hover);
   color: var(--ink);
+  transform: translateY(-1px);
 }
 
 .job-tools-toggle {
@@ -783,6 +806,16 @@ button:disabled {
   background: var(--panel-strong);
   color: var(--ink);
   box-shadow: 0 10px 24px rgba(16, 21, 19, 0.1);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.image-preview-close:hover {
+  border-color: var(--line-strong);
+  background: var(--hover);
+  transform: scale(1.04);
 }
 
 .image-preview-caption {
@@ -891,6 +924,15 @@ button:disabled {
   background: transparent;
   color: var(--muted);
   font-weight: 800;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.mode-switch button:not(.selected):hover {
+  transform: translateY(-1px);
+  color: var(--ink);
 }
 
 .mode-switch button.selected {
@@ -969,6 +1011,9 @@ button:disabled {
   background: var(--strong-button-bg);
   color: var(--strong-button-text);
   box-shadow: none;
+  transition:
+    filter 180ms ease,
+    transform 180ms ease;
 }
 
 .secondary-submit {
@@ -976,6 +1021,24 @@ button:disabled {
   border: 1px solid var(--line);
   background: var(--panel-strong);
   color: var(--ink);
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.submit-button:not(:disabled):hover,
+.secondary-submit:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.submit-button:not(:disabled):hover {
+  filter: brightness(1.04);
+}
+
+.secondary-submit:not(:disabled):hover {
+  border-color: var(--line-strong);
+  background: var(--hover);
 }
 
 .panel-empty {
@@ -1008,11 +1071,25 @@ button:disabled {
   }
 }
 
+@keyframes flow-link {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .floating-panel,
   .dock-toggle,
   .canvas-board,
-  .job-card {
+  .job-card,
+  .workflow-link,
+  .job-image img,
+  .job-image-button img,
+  .folder-item,
+  .mode-switch button,
+  .submit-button,
+  .secondary-submit {
+    animation: none !important;
     transition-duration: 1ms !important;
   }
 }
@@ -1089,6 +1166,12 @@ button:disabled {
 @media (max-width: 720px) {
   .metrics {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .right-panel {
+    top: 170px;
+    max-height: calc(100vh - 182px);
+    max-height: calc(100dvh - 182px);
   }
 
   .floating-toolbar {

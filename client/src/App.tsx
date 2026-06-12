@@ -1,3 +1,5 @@
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import {
   AlertCircle,
   ArrowDown,
@@ -51,6 +53,8 @@ import type {
   QueueStats,
   UpdateImageProviderSettingsPayload
 } from "./types";
+
+gsap.registerPlugin(useGSAP);
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("zh-CN", {
@@ -178,6 +182,7 @@ const getConnectionPath = (from: PositionedJob, to: PositionedJob) => {
 };
 
 function App() {
+  const appRef = useRef<HTMLElement | null>(null);
   const [folders, setFolders] = useState<DrawFolder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [jobs, setJobs] = useState<DrawJob[]>([]);
@@ -190,7 +195,7 @@ function App() {
   const [canvasDrag, setCanvasDrag] = useState<DragState | null>(null);
   const [cardDrag, setCardDrag] = useState<CardDragState | null>(null);
   const [previewJob, setPreviewJob] = useState<DrawJob | null>(null);
-  const [leftOpen, setLeftOpen] = useState(true);
+  const [leftOpen, setLeftOpen] = useState(() => window.matchMedia?.("(min-width: 721px)").matches ?? true);
   const [rightOpen, setRightOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = window.localStorage.getItem("aidraw-theme");
@@ -200,6 +205,8 @@ function App() {
   const pendingCanvasRef = useRef({ panX: 0, panY: 0 });
   const pendingCardRef = useRef<{ jobId: string; posX: number; posY: number } | null>(null);
   const lockedCardPositionRef = useRef<{ jobId: string; posX: number; posY: number } | null>(null);
+  const animatedJobIdsRef = useRef<Set<string>>(new Set());
+  const animatedJobStatusRef = useRef<Map<string, DrawJob["status"]>>(new Map());
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
@@ -232,6 +239,10 @@ function App() {
       height: maxY + BOARD_PADDING
     };
   }, [positionedJobs]);
+  const jobAnimationKey = useMemo(
+    () => jobs.map((job) => `${job.id}:${job.status}:${job.outputImageUrl ?? ""}`).join("|"),
+    [jobs]
+  );
 
   const loadFolders = useCallback(async () => {
     const nextFolders = await api.listFolders();
@@ -326,6 +337,158 @@ function App() {
 
     return () => window.clearInterval(timer);
   }, [activeFolderId, loadJobs, loadQueue]);
+
+  useEffect(() => {
+    const shell = appRef.current;
+    if (!shell) return;
+
+    // 面板开合依赖 CSS transform，清掉历史动效留下的内联样式。
+    const panels = Array.from(shell.querySelectorAll<HTMLElement>(".left-panel, .right-panel"));
+    if (panels.length === 0) return;
+
+    gsap.killTweensOf(panels);
+    gsap.set(panels, { clearProps: "transform,opacity,visibility" });
+  }, [leftOpen, rightOpen]);
+
+  useGSAP(
+    () => {
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+      const timeline = gsap.timeline({
+        defaults: { duration: 0.56, ease: "power3.out" }
+      });
+      const animateIn = (selector: string, vars: gsap.TweenVars, position?: gsap.Position) => {
+        const targets = gsap.utils.toArray<HTMLElement>(selector);
+        if (targets.length > 0) {
+          timeline.from(targets, vars, position);
+        }
+      };
+
+      animateIn(".canvas-stage", { autoAlpha: 0, duration: 0.36, ease: "power1.out", clearProps: "opacity,visibility" });
+      animateIn(".left-panel.open > *", { y: 10, autoAlpha: 0, stagger: 0.04, clearProps: "transform,opacity,visibility" }, "<0.08");
+      animateIn(".right-panel.open > *", { y: 10, autoAlpha: 0, stagger: 0.04, clearProps: "transform,opacity,visibility" }, "<");
+      animateIn(".floating-toolbar", { y: -12, autoAlpha: 0, clearProps: "transform,opacity,visibility" }, "<0.08");
+      animateIn(".dock-toggle", { scale: 0.86, autoAlpha: 0, stagger: 0.05, clearProps: "transform,opacity,visibility" }, "<0.05");
+      animateIn(".metric", { y: -10, autoAlpha: 0, stagger: 0.06, clearProps: "transform,opacity,visibility" }, "<0.04");
+    },
+    { scope: appRef }
+  );
+
+  useGSAP(
+    () => {
+      const shell = appRef.current;
+      if (!shell) return;
+
+      const knownJobIds = animatedJobIdsRef.current;
+      const knownStatuses = animatedJobStatusRef.current;
+      const nextJobIds = new Set(jobs.map((job) => job.id));
+      const cardElements = Array.from(shell.querySelectorAll<HTMLElement>(".job-card"));
+      const cardByJobId = new Map(cardElements.map((card) => [card.dataset.jobId, card]));
+      const enteringCards: HTMLElement[] = [];
+      const changedCards: HTMLElement[] = [];
+
+      jobs.forEach((job) => {
+        const card = cardByJobId.get(job.id);
+        if (!card) return;
+
+        if (!knownJobIds.has(job.id)) {
+          enteringCards.push(card);
+        } else if (knownStatuses.get(job.id) !== job.status) {
+          changedCards.push(card);
+        }
+
+        knownJobIds.add(job.id);
+        knownStatuses.set(job.id, job.status);
+      });
+
+      for (const jobId of Array.from(knownJobIds)) {
+        if (!nextJobIds.has(jobId)) {
+          knownJobIds.delete(jobId);
+          knownStatuses.delete(jobId);
+        }
+      }
+
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+      if (enteringCards.length > 0) {
+        // 新任务卡片出现时，轻轻上浮进入画布。
+        gsap.fromTo(
+          enteringCards,
+          { y: 24, scale: 0.97, autoAlpha: 0 },
+          {
+            y: 0,
+            scale: 1,
+            autoAlpha: 1,
+            duration: 0.5,
+            ease: "back.out(1.45)",
+            stagger: 0.07,
+            clearProps: "transform,visibility"
+          }
+        );
+      }
+
+      if (changedCards.length > 0) {
+        const changedImages = changedCards
+          .map((card) => card.querySelector<HTMLElement>(".job-image"))
+          .filter((element): element is HTMLElement => Boolean(element));
+
+        gsap.fromTo(
+          changedCards,
+          { borderColor: "rgba(47, 118, 96, 0.52)" },
+          {
+            borderColor: "var(--line)",
+            duration: 0.7,
+            ease: "power2.out",
+            clearProps: "borderColor"
+          }
+        );
+
+        gsap.fromTo(
+          changedImages,
+          { scale: 0.985, filter: "brightness(1.12)" },
+          {
+            scale: 1,
+            filter: "brightness(1)",
+            duration: 0.7,
+            ease: "power2.out",
+            clearProps: "transform,filter"
+          }
+        );
+      }
+    },
+    { dependencies: [jobAnimationKey], scope: appRef }
+  );
+
+  useGSAP(
+    () => {
+      if (!previewJob?.outputImageUrl || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+      gsap.fromTo(
+        ".image-preview-backdrop",
+        { autoAlpha: 0 },
+        { autoAlpha: 1, duration: 0.18, ease: "power1.out" }
+      );
+      gsap.fromTo(
+        ".image-preview-panel",
+        { y: 18, scale: 0.97, autoAlpha: 0 },
+        { y: 0, scale: 1, autoAlpha: 1, duration: 0.34, ease: "power3.out" }
+      );
+    },
+    { dependencies: [previewJob?.id], scope: appRef }
+  );
+
+  useGSAP(
+    () => {
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+      gsap.fromTo(
+        ".notice-line",
+        { y: 6, autoAlpha: 0.72 },
+        { y: 0, autoAlpha: 1, duration: 0.26, ease: "power2.out", clearProps: "transform,visibility" }
+      );
+    },
+    { dependencies: [notice], scope: appRef }
+  );
 
   const createFolder = async (event: FormEvent) => {
     event.preventDefault();
@@ -597,7 +760,7 @@ function App() {
   };
 
   return (
-    <main className={`app-shell ${darkMode ? "dark" : ""}`}>
+    <main ref={appRef} className={`app-shell ${darkMode ? "dark" : ""}`}>
       <section className="canvas-layer">
         <div
           className={`canvas-stage ${canvasDrag || cardDrag ? "dragging" : ""}`}
