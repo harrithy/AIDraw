@@ -20,6 +20,7 @@ export type DrawJob = {
   prompt: string;
   negativePrompt: string;
   inputImageUrl?: string;
+  inputImageUrls?: string[];
   outputImageUrl?: string;
   width: number;
   height: number;
@@ -49,7 +50,7 @@ export type QueueStats = {
 
 export type ImageProviderStatus = {
   textToImage: "nowcoding" | "mock";
-  imageToImage: "mock";
+  imageToImage: "nowcoding" | "mock";
   hasNowcodingKey: boolean;
   nowcodingBaseUrl: string;
   nowcodingModel: string;
@@ -67,6 +68,7 @@ export type CreateJobPayload = {
   mode: DrawMode;
   prompt: string;
   inputImageUrl?: string;
+  inputImageUrls?: string[];
   width: number;
   height: number;
   count: number;

@@ -249,6 +249,11 @@ const normalizeBase64 = (value: unknown) => {
   return markerIndex >= 0 ? raw.slice(markerIndex + marker.length) : raw;
 };
 
+const dataUrlToBlob = async (dataUrl: string) => {
+  const response = await fetch(dataUrl);
+  return response.blob();
+};
+
 const extractBase64Image = (payload: unknown) => {
   const data = payload as {
     data?: Array<{ b64_json?: string; b64Json?: string }>;
@@ -309,11 +314,55 @@ const callNowcodingGeneration = async (job: DrawJob, settings: StoredSettings) =
   }
 };
 
+const callNowcodingEdit = async (job: DrawJob, settings: StoredSettings) => {
+  const baseUrl = settings.baseUrl.replace(/\/+$/, "");
+  const inputImages = job.inputImageUrls?.length ? job.inputImageUrls : job.inputImageUrl ? [job.inputImageUrl] : [];
+  if (inputImages.length === 0) throw new Error("图生图需要先添加参考图片");
+
+  try {
+    const body = new FormData();
+    body.set("model", job.model || settings.model || DEFAULT_MODEL);
+    body.set("prompt", job.prompt.trim());
+    body.set("size", "auto");
+    body.set("n", "1");
+    body.set("thinking", job.thinking || "high");
+    body.set("response_format", "b64_json");
+
+    const imageBlobs = await Promise.all(inputImages.map((imageUrl) => dataUrlToBlob(imageUrl)));
+    imageBlobs.forEach((blob, index) => {
+      const extension = blob.type.split("/")[1] || "png";
+      body.append("image[]", blob, `reference-${index + 1}.${extension}`);
+    });
+
+    const response = await fetch(`${baseUrl}/images/edits`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${settings.apiKey}`
+      },
+      body
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(getErrorMessage(payload, `Nowcoding image edit failed with HTTP ${response.status}`));
+    }
+
+    const b64 = extractBase64Image(payload);
+    return `data:image/png;base64,${b64}`;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error("浏览器直连 Nowcoding 图生图失败：可能是 CORS 限制、网络不可达，或 Base URL 无法从浏览器访问");
+    }
+    throw error;
+  }
+};
+
 const generateDrawing = async (job: DrawJob) => {
   const state = await loadState();
   const settings = state.settings;
 
-  if (settings.apiKey && job.mode === "text-to-image") {
+  if (settings.apiKey) {
+    if (job.mode === "image-to-image") return callNowcodingEdit(job, settings);
     return callNowcodingGeneration(job, settings);
   }
 
@@ -374,7 +423,7 @@ export const api = {
       },
       imageProvider: {
         textToImage: state.settings.apiKey ? "nowcoding" : "mock",
-        imageToImage: "mock",
+        imageToImage: state.settings.apiKey ? "nowcoding" : "mock",
         hasNowcodingKey: Boolean(state.settings.apiKey),
         nowcodingBaseUrl: state.settings.baseUrl || DEFAULT_BASE_URL,
         nowcodingModel: state.settings.model || DEFAULT_MODEL,
@@ -437,9 +486,14 @@ export const api = {
     const state = await loadState();
     const folder = ensureFolder(state, folderId);
     const prompt = payload.prompt.trim();
+    const inputImageUrls = payload.inputImageUrls?.length
+      ? payload.inputImageUrls
+      : payload.inputImageUrl
+        ? [payload.inputImageUrl]
+        : [];
+    const mode = inputImageUrls.length > 0 ? "image-to-image" : "text-to-image";
     if (!prompt) throw new Error("提示词不能为空");
     if (!["text-to-image", "image-to-image"].includes(payload.mode)) throw new Error("绘图模式无效");
-    if (payload.mode === "image-to-image" && !payload.inputImageUrl) throw new Error("图生图需要先上传原图");
 
     const count = Math.min(Math.max(Math.floor(payload.count || 1), 1), 8);
     const width = Math.min(Math.max(payload.width || 1024, 256), 1024);
@@ -452,11 +506,12 @@ export const api = {
       const job: DrawJob = {
         id: createId(),
         folderId: folder.id,
-        mode: payload.mode,
+        mode,
         status: "pending",
         prompt,
         negativePrompt: "",
-        inputImageUrl: payload.inputImageUrl,
+        inputImageUrl: inputImageUrls[0],
+        inputImageUrls,
         width,
         height,
         count: 1,
