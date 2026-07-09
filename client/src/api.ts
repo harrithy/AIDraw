@@ -20,8 +20,9 @@ const DEFAULT_SIZE: DrawSize = "auto";
 const DUOMI_API_PREFIX = "/v1";
 const IMAGE_UPLOAD_BASE_URL = "https://image.harrio.xyz";
 const IMAGE_UPLOAD_PROXY_PATH = "/image-upload/upload";
-const TASK_POLL_INTERVAL_MS = 2500;
-const TASK_TIMEOUT_MS = 10 * 60 * 1000;
+const TASK_POLL_INTERVAL_MS = 10 * 1000;
+const TASK_TIMEOUT_MINUTES = 30;
+const TASK_TIMEOUT_MS = TASK_TIMEOUT_MINUTES * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 60 * 1000;
 
 type StoredSettings = {
@@ -522,7 +523,7 @@ const waitForDuomiTaskResult = async (taskId: string, settings: StoredSettings) 
     await delay(TASK_POLL_INTERVAL_MS);
   }
 
-  throw new Error("多米API任务查询超时，已等待 10 分钟");
+  throw new Error(`多米API任务查询超时，已等待 ${TASK_TIMEOUT_MINUTES} 分钟`);
 };
 
 const callDuomiGeneration = async (job: DrawJob, settings: StoredSettings) => {

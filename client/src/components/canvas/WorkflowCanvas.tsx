@@ -1,4 +1,4 @@
-import type { PointerEventHandler, WheelEventHandler } from "react";
+import { useEffect, useRef, type PointerEventHandler } from "react";
 import { type PositionedJob } from "../../lib/canvas";
 import type { DrawFolder, DrawJob } from "../../types";
 import { EmptyCanvas } from "./EmptyCanvas";
@@ -19,7 +19,7 @@ type WorkflowCanvasProps = {
   onPointerMove: PointerEventHandler<HTMLDivElement>;
   onPointerUp: PointerEventHandler<HTMLDivElement>;
   onPointerCancel: PointerEventHandler<HTMLDivElement>;
-  onWheel: WheelEventHandler<HTMLDivElement>;
+  onWheel: (event: WheelEvent) => void;
   onMoveJob: (jobId: string, direction: -1 | 1) => void;
   onPreviewJob: (job: DrawJob) => void;
   onRetryJob: (jobId: string) => void;
@@ -41,15 +41,34 @@ export function WorkflowCanvas({
   onPreviewJob,
   onRetryJob
 }: WorkflowCanvasProps) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const wheelHandlerRef = useRef(onWheel);
+
+  useEffect(() => {
+    wheelHandlerRef.current = onWheel;
+  }, [onWheel]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      wheelHandlerRef.current(event);
+    };
+
+    stage.addEventListener("wheel", handleWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", handleWheel);
+  }, []);
+
   return (
     <section className="canvas-layer">
       <div
+        ref={stageRef}
         className={`canvas-stage ${isDragging ? "dragging" : ""}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
-        onWheel={onWheel}
       >
         {positionedJobs.length === 0 ? (
           <EmptyCanvas isLoading={isLoading} />

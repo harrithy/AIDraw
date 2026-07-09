@@ -1,4 +1,4 @@
-import { PointerEvent, useCallback, useRef, useState, WheelEvent } from "react";
+import { PointerEvent, useCallback, useRef, useState } from "react";
 import { api } from "../api";
 import { getDefaultCardPosition } from "../lib/canvas";
 import type { DrawFolder, DrawJob } from "../types";
@@ -192,9 +192,9 @@ export function useCanvasInteractions({
   );
 
   const wheelCanvas = useCallback(
-    (event: WheelEvent<HTMLDivElement>) => {
+    (event: WheelEvent) => {
       if (!activeFolder) return;
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
       zoomCanvas(event.deltaY > 0 ? -0.08 : 0.08);
     },
     [activeFolder, zoomCanvas]
