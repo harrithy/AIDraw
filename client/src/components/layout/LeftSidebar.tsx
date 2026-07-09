@@ -40,8 +40,8 @@ export function LeftSidebar({
   return (
     <aside className={`floating-panel left-panel ${isOpen ? "open" : "closed"}`}>
       <div className="brand">
-        <div className="brand-mark">
-          <Palette size={24} />
+        <div className="brand-mark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="AIDraw Logo" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'cover' }} />
         </div>
         <div>
           <p>AIDraw</p>
