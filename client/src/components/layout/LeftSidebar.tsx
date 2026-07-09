@@ -34,7 +34,7 @@ export function LeftSidebar({
         </div>
       </div>
 
-      <form className="folder-form" onSubmit={onCreateFolder}>
+      <form className="folder-form" onSubmit={onCreateFolder} data-tour="folder-create">
         <input
           value={folderName}
           onChange={(event) => onFolderNameChange(event.target.value)}

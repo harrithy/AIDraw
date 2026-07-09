@@ -1,9 +1,7 @@
 import {
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   FolderPlus,
-  HelpCircle,
   ImageUp,
   KeyRound,
   MousePointer2,
@@ -11,14 +9,8 @@ import {
   Sparkles,
   X
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "../ui/dialog";
+import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type OnboardingGuideProps = {
   open: boolean;
@@ -26,38 +18,164 @@ type OnboardingGuideProps = {
   onFinish: () => void;
 };
 
-const guideSteps = [
+type TourPlacement = "top" | "right" | "bottom" | "left";
+
+type TourRect = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+type TourSize = {
+  width: number;
+  height: number;
+};
+
+type PopoverLayout = {
+  placement: TourPlacement;
+  style: CSSProperties;
+};
+
+const tourSteps = [
   {
-    title: "先建一个文件夹",
-    summary: "左侧输入文件夹名并创建，后续生成的任务都会保存在当前文件夹里。",
-    detail: "不同项目可以拆成不同文件夹，方便回头查找和继续调整。",
+    target: '[data-tour="folder-create"]',
+    placement: "right" as TourPlacement,
+    title: "创建文件夹",
+    body: "先在左侧创建或选择一个文件夹，生成任务会保存在当前文件夹中。",
+    tip: "不同主题可以分开建文件夹，后续查找会更轻松。",
     icon: FolderPlus
   },
   {
-    title: "配置多米 API",
-    summary: "点击顶部工具栏的设置按钮，填入 API Key、Base URL 和模型。",
-    detail: "没有 Key 时也能体验本地示例图；填好 Key 后会走真实生成接口。",
+    target: '[data-tour="api-settings"]',
+    placement: "bottom" as TourPlacement,
+    title: "配置接口",
+    body: "点击接口设置，填写多米 API Key、Base URL 和模型。",
+    tip: "没有 Key 时可以先体验本地示例；填好后会走真实生成。",
     icon: KeyRound
   },
   {
-    title: "输入提示词或添加参考图",
-    summary: "底部输入框写画面描述；粘贴、拖拽或上传图片后会自动作为图生图参考。",
-    detail: "参考图会先上传成 URL，生成后的卡片旁边也会保留缩略图。",
+    target: '[data-tour="composer"]',
+    placement: "top" as TourPlacement,
+    title: "输入提示词",
+    body: "在底部输入想生成的画面，也可以粘贴、拖拽或上传参考图。",
+    tip: "有参考图时会自动切换成图生图，并在结果旁保留缩略图。",
     icon: ImageUp
   },
   {
-    title: "选择尺寸与质量",
-    summary: "按需要选择 Size、Quality 和数量，再点击加入队列。",
-    detail: "任务会自动排队处理；当前等待、运行和完成数量会显示在右上角。",
+    target: '[data-tour="composer-options"]',
+    placement: "top" as TourPlacement,
+    title: "设置参数",
+    body: "这里可以调整数量、Quality、Size 和模型，再加入绘制队列。",
+    tip: "任务会自动排队处理，右上角会显示运行、等待和完成数量。",
     icon: SlidersHorizontal
   },
   {
-    title: "查看、下载和继续迭代",
-    summary: "生成卡片可以放大预览、下载、重新绘制，也可以拖动画布整理流程。",
-    detail: "图生图任务会在结果旁展示参考图，方便对照输出效果。",
+    target: '[data-tour="canvas"]',
+    placement: "right" as TourPlacement,
+    title: "整理结果",
+    body: "生成后的卡片会出现在画布中，可以放大预览、下载、重绘或拖拽整理。",
+    tip: "鼠标滚轮可以缩放画布，工具栏也能排序和重置视图。",
     icon: MousePointer2
   }
 ];
+
+const SPOTLIGHT_PADDING = 8;
+const POPOVER_GAP = 14;
+const POPOVER_WIDTH = 322;
+const DEFAULT_POPOVER_HEIGHT = 214;
+const VIEWPORT_PADDING = 12;
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const toTourRect = (rect: DOMRect): TourRect => ({
+  top: rect.top,
+  right: rect.right,
+  bottom: rect.bottom,
+  left: rect.left,
+  width: rect.width,
+  height: rect.height
+});
+
+const getSpotlightStyle = (rect: TourRect): CSSProperties => {
+  const left = Math.max(VIEWPORT_PADDING, rect.left - SPOTLIGHT_PADDING);
+  const top = Math.max(VIEWPORT_PADDING, rect.top - SPOTLIGHT_PADDING);
+  const right = Math.min(window.innerWidth - VIEWPORT_PADDING, rect.right + SPOTLIGHT_PADDING);
+  const bottom = Math.min(window.innerHeight - VIEWPORT_PADDING, rect.bottom + SPOTLIGHT_PADDING);
+
+  return {
+    left,
+    top,
+    width: Math.max(28, right - left),
+    height: Math.max(28, bottom - top)
+  };
+};
+
+const getPopoverLayout = (
+  rect: TourRect | null,
+  placement: TourPlacement,
+  popoverSize: TourSize | null
+): PopoverLayout => {
+  const width = Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_PADDING * 2);
+  const height = popoverSize?.height ?? DEFAULT_POPOVER_HEIGHT;
+  const fallback = {
+    left: (window.innerWidth - width) / 2,
+    top: Math.max(VIEWPORT_PADDING, window.innerHeight * 0.18),
+    width
+  };
+
+  if (!rect) {
+    return {
+      placement: "bottom",
+      style: fallback
+    };
+  }
+
+  let resolvedPlacement = placement;
+  let left = rect.left + rect.width / 2 - width / 2;
+  let top = rect.bottom + POPOVER_GAP;
+
+  if (placement === "top") {
+    top = rect.top - POPOVER_GAP - height;
+  }
+  if (placement === "right") {
+    left = rect.right + POPOVER_GAP;
+    top = rect.top + rect.height / 2 - height / 2;
+  }
+  if (placement === "left") {
+    left = rect.left - POPOVER_GAP - width;
+    top = rect.top + rect.height / 2 - height / 2;
+  }
+
+  if (placement === "top" && top < VIEWPORT_PADDING) {
+    resolvedPlacement = "bottom";
+    top = rect.bottom + POPOVER_GAP;
+  }
+  if (placement === "bottom" && top + height > window.innerHeight - VIEWPORT_PADDING) {
+    resolvedPlacement = "top";
+    top = rect.top - POPOVER_GAP - height;
+  }
+  if (
+    (placement === "left" || placement === "right") &&
+    (left < VIEWPORT_PADDING || left + width > window.innerWidth - VIEWPORT_PADDING)
+  ) {
+    const hasBottomSpace = rect.bottom + POPOVER_GAP + height <= window.innerHeight - VIEWPORT_PADDING;
+    resolvedPlacement = hasBottomSpace ? "bottom" : "top";
+    left = rect.left + rect.width / 2 - width / 2;
+    top = hasBottomSpace ? rect.bottom + POPOVER_GAP : rect.top - POPOVER_GAP - height;
+  }
+
+  return {
+    placement: resolvedPlacement,
+    style: {
+      left: clamp(left, VIEWPORT_PADDING, window.innerWidth - width - VIEWPORT_PADDING),
+      top: clamp(top, VIEWPORT_PADDING, Math.max(VIEWPORT_PADDING, window.innerHeight - VIEWPORT_PADDING - height)),
+      width
+    }
+  };
+};
 
 export function OnboardingGuide({
   open,
@@ -65,94 +183,146 @@ export function OnboardingGuide({
   onFinish
 }: OnboardingGuideProps) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const activeStep = guideSteps[activeIndex];
+  const [targetRect, setTargetRect] = useState<TourRect | null>(null);
+  const [popoverSize, setPopoverSize] = useState<TourSize | null>(null);
+  const popoverRef = useRef<HTMLElement | null>(null);
+  const activeStep = tourSteps[activeIndex];
   const ActiveIcon = activeStep.icon;
-  const isLastStep = activeIndex === guideSteps.length - 1;
-  const progress = useMemo(() => `${activeIndex + 1}/${guideSteps.length}`, [activeIndex]);
+  const isLastStep = activeIndex === tourSteps.length - 1;
+  const progress = useMemo(() => `${activeIndex + 1}/${tourSteps.length}`, [activeIndex]);
 
-  const closeGuide = () => {
+  const closeGuide = useCallback(() => {
+    onOpenChange(false);
     onFinish();
-  };
+  }, [onFinish, onOpenChange]);
+
+  const measureTarget = useCallback(
+    (scrollIntoView = false) => {
+      const target = document.querySelector<HTMLElement>(activeStep.target);
+      if (!target) {
+        setTargetRect(null);
+        return;
+      }
+
+      if (scrollIntoView) {
+        target.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+      }
+
+      setTargetRect(toTourRect(target.getBoundingClientRect()));
+    },
+    [activeStep.target]
+  );
 
   useEffect(() => {
     if (open) setActiveIndex(0);
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    measureTarget(true);
+    const timer = window.setTimeout(() => measureTarget(false), 260);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, measureTarget, open]);
+
+  useLayoutEffect(() => {
+    if (!open || !popoverRef.current) return;
+
+    const updateSize = () => {
+      const { width, height } = popoverRef.current?.getBoundingClientRect() ?? { width: POPOVER_WIDTH, height: DEFAULT_POPOVER_HEIGHT };
+      setPopoverSize({ width, height });
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(popoverRef.current);
+    return () => observer.disconnect();
+  }, [activeIndex, open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const update = () => measureTarget(false);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeGuide();
+    };
+
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [closeGuide, measureTarget, open]);
+
   const moveStep = (direction: -1 | 1) => {
-    setActiveIndex((current) => Math.min(Math.max(current + direction, 0), guideSteps.length - 1));
+    setActiveIndex((current) => Math.min(Math.max(current + direction, 0), tourSteps.length - 1));
   };
 
-  return (
-    <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : closeGuide())}>
-      <DialogContent className="onboarding-dialog" showCloseButton={false}>
-        <DialogHeader>
-          <div className="dialog-title-row onboarding-title-row">
-            <div>
-              <p className="eyebrow">首次指引</p>
-              <DialogTitle>从第一个任务开始</DialogTitle>
-            </div>
-            <HelpCircle size={22} />
-          </div>
-          <DialogDescription>
-            按下面的顺序走一遍，就能完成从配置到出图的完整流程。
-          </DialogDescription>
-        </DialogHeader>
+  if (!open) return null;
 
-        <div className="onboarding-body">
-          <nav className="onboarding-steps" aria-label="指引步骤">
-            {guideSteps.map((step, index) => {
-              const StepIcon = step.icon;
-              const selected = index === activeIndex;
-              const completed = index < activeIndex;
+  const popoverLayout = getPopoverLayout(targetRect, activeStep.placement, popoverSize);
 
-              return (
-                <button
-                  key={step.title}
-                  type="button"
-                  className={`onboarding-step${selected ? " active" : ""}${completed ? " completed" : ""}`}
-                  onClick={() => setActiveIndex(index)}
-                  aria-current={selected ? "step" : undefined}
-                >
-                  <span className="onboarding-step-icon">
-                    {completed ? <CheckCircle2 size={17} /> : <StepIcon size={17} />}
-                  </span>
-                  <span>{step.title}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <section className="onboarding-card" aria-live="polite">
-            <div className="onboarding-card-head">
-              <span className="onboarding-card-icon">
-                <ActiveIcon size={26} />
-              </span>
-              <span className="onboarding-progress">{progress}</span>
-            </div>
-            <h3>{activeStep.title}</h3>
-            <p>{activeStep.summary}</p>
-            <small>{activeStep.detail}</small>
-          </section>
+  return createPortal(
+    <div className={`onboarding-tour-layer${targetRect ? "" : " no-target"}`} role="dialog" aria-modal="true" aria-label="首次指引">
+      <div className="onboarding-tour-guard" onClick={closeGuide} />
+      {targetRect ? <div className="onboarding-tour-spotlight" style={getSpotlightStyle(targetRect)} /> : null}
+      <section
+        ref={popoverRef}
+        className="onboarding-tour-popover"
+        data-placement={popoverLayout.placement}
+        style={popoverLayout.style}
+      >
+        <div className="onboarding-tour-head">
+          <span className="onboarding-tour-icon">
+            <ActiveIcon size={21} />
+          </span>
+          <span className="onboarding-tour-progress">{progress}</span>
+          <button type="button" className="onboarding-tour-close" onClick={closeGuide} title="关闭指引">
+            <X size={16} />
+          </button>
         </div>
 
-        <div className="onboarding-footer">
+        <div className="onboarding-tour-copy">
+          <p className="eyebrow">首次指引</p>
+          <h3>{activeStep.title}</h3>
+          <p>{activeStep.body}</p>
+          <small>{activeStep.tip}</small>
+        </div>
+
+        <div className="onboarding-tour-steps" aria-label="指引步骤">
+          {tourSteps.map((step, index) => (
+            <button
+              key={step.title}
+              type="button"
+              className={`onboarding-tour-dot${index === activeIndex ? " active" : ""}${index < activeIndex ? " completed" : ""}`}
+              onClick={() => setActiveIndex(index)}
+              aria-label={`第 ${index + 1} 步：${step.title}`}
+              aria-current={index === activeIndex ? "step" : undefined}
+            />
+          ))}
+        </div>
+
+        <div className="onboarding-tour-actions">
           <button type="button" className="secondary-submit" onClick={closeGuide}>
-            <X size={16} />
             跳过
           </button>
-          <div className="onboarding-footer-actions">
+          <div className="onboarding-tour-nav">
             <button
               type="button"
               className="secondary-submit"
               onClick={() => moveStep(-1)}
               disabled={activeIndex === 0}
+              title="上一步"
             >
               <ChevronLeft size={16} />
-              上一步
             </button>
             <button
               type="button"
-              className="submit-button onboarding-primary"
+              className="submit-button onboarding-tour-primary"
               onClick={() => (isLastStep ? closeGuide() : moveStep(1))}
             >
               {isLastStep ? (
@@ -169,7 +339,8 @@ export function OnboardingGuide({
             </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </section>
+    </div>,
+    document.body
   );
 }

@@ -61,7 +61,7 @@ export function WorkflowCanvas({
   }, []);
 
   return (
-    <section className="canvas-layer">
+    <section className="canvas-layer" data-tour="canvas">
       <div
         ref={stageRef}
         className={`canvas-stage ${isDragging ? "dragging" : ""}`}

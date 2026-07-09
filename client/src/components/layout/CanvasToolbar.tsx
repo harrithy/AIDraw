@@ -52,7 +52,7 @@ export function CanvasToolbar({
         <button type="button" onClick={onOpenGuide} title="新手指引">
           <CircleHelp size={17} />
         </button>
-        <button type="button" onClick={onOpenApiSettings} title="接口设置">
+        <button type="button" onClick={onOpenApiSettings} title="接口设置" data-tour="api-settings">
           <Settings size={17} />
         </button>
       </div>

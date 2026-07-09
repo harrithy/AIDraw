@@ -159,6 +159,10 @@ function App() {
   }, [darkMode]);
 
   useEffect(() => {
+    if (onboardingOpen) setLeftOpen(true);
+  }, [onboardingOpen]);
+
+  useEffect(() => {
     if (!previewJob) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -372,7 +376,7 @@ function App() {
           onUploadImage={api.uploadImage}
         />
       ) : (
-        <div className="bottom-composer-empty panel-empty">先创建文件夹，再开始绘图任务。</div>
+        <div className="bottom-composer-empty panel-empty" data-tour="composer">先创建文件夹，再开始绘图任务。</div>
       )}
 
       <ApiSettingsDialog

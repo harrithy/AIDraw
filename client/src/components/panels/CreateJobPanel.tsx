@@ -377,7 +377,7 @@ export function CreateJobPanel({
           noValidate
         >
           <div className="composer-floating-controls">
-            <div className={`composer-fields ${sizeMode === "custom" ? "has-custom-size" : ""}`}>
+            <div className={`composer-fields ${sizeMode === "custom" ? "has-custom-size" : ""}`} data-tour="composer-options">
               <Field orientation="horizontal">
                 <FieldLabel htmlFor="composer-count">数量</FieldLabel>
                 <Input
@@ -443,7 +443,7 @@ export function CreateJobPanel({
 
           <Field className="composer-input-field" data-invalid={Boolean(uploadError)}>
             <FieldLabel htmlFor="composer-prompt" className="sr-only">提示词</FieldLabel>
-            <InputGroup className={`composer-input-shell ${inputImages.length > 0 ? "has-attachments" : ""}${isDragActive ? " is-dragging" : ""}`} onPaste={pasteImages}>
+            <InputGroup className={`composer-input-shell ${inputImages.length > 0 ? "has-attachments" : ""}${isDragActive ? " is-dragging" : ""}`} onPaste={pasteImages} data-tour="composer">
               {imageAttachments}
               <InputGroupTextarea
                 id="composer-prompt"
