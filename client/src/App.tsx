@@ -228,6 +228,29 @@ function App() {
     }
   };
 
+  const renameFolder = async (folderId: string, newName: string) => {
+    try {
+      const updated = await api.updateFolder(folderId, { name: newName });
+      setFolders((current) => current.map((f) => (f.id === folderId ? updated : f)));
+      setNotice(`已重命名文件夹：${updated.name}`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "重命名失败");
+    }
+  };
+
+  const deleteFolder = async (folderId: string) => {
+    try {
+      await api.deleteFolder(folderId);
+      setFolders((current) => current.filter((f) => f.id !== folderId));
+      if (activeFolderId === folderId) {
+        setActiveFolderId(null);
+      }
+      setNotice("文件夹已删除");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "删除失败");
+    }
+  };
+
   const sortJobs = async (mode: "time" | "name") => {
     if (!activeFolder) return;
     const ordered = [...jobs].sort((a, b) => {
@@ -367,6 +390,8 @@ function App() {
         onFolderNameChange={setFolderName}
         onCreateFolder={createFolder}
         onSelectFolder={setActiveFolderId}
+        onRenameFolder={renameFolder}
+        onDeleteFolder={deleteFolder}
       />
 
       {activeFolder ? (

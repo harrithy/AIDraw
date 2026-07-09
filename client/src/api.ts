@@ -649,6 +649,14 @@ export const api = {
     return updated;
   },
 
+  deleteFolder: async (id: string) => {
+    const state = await loadState();
+    ensureFolder(state, id);
+    state.folders = state.folders.filter((item) => item.id !== id);
+    state.jobs = state.jobs.filter((job) => job.folderId !== id);
+    await saveState();
+  },
+
   listJobs: async (folderId: string) => {
     const state = await loadState();
     ensureFolder(state, folderId);

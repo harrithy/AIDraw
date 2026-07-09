@@ -1,7 +1,16 @@
-import { FolderPlus, Layers, Palette } from "lucide-react";
-import { FormEvent } from "react";
+import { Edit2, FolderPlus, Layers, Palette, Trash2 } from "lucide-react";
+import { FormEvent, useState } from "react";
 import { formatDate } from "../../lib/format";
 import type { DrawFolder } from "../../types";
+import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "../ui/dialog";
 
 type LeftSidebarProps = {
   isOpen: boolean;
@@ -11,6 +20,8 @@ type LeftSidebarProps = {
   onFolderNameChange: (value: string) => void;
   onCreateFolder: (event: FormEvent) => void;
   onSelectFolder: (folderId: string) => void;
+  onRenameFolder: (folderId: string, newName: string) => void;
+  onDeleteFolder: (folderId: string) => void;
 };
 
 export function LeftSidebar({
@@ -20,8 +31,12 @@ export function LeftSidebar({
   folderName,
   onFolderNameChange,
   onCreateFolder,
-  onSelectFolder
+  onSelectFolder,
+  onRenameFolder,
+  onDeleteFolder
 }: LeftSidebarProps) {
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [deleteFolderId, setDeleteFolderId] = useState<string | null>(null);
   return (
     <aside className={`floating-panel left-panel ${isOpen ? "open" : "closed"}`}>
       <div className="brand">
@@ -47,18 +62,87 @@ export function LeftSidebar({
 
       <div className="folder-list">
         {folders.map((folder) => (
-          <button
-            type="button"
+          <div
             key={folder.id}
             className={`folder-item ${folder.id === activeFolderId ? "active" : ""}`}
             onClick={() => onSelectFolder(folder.id)}
           >
-            <Layers size={17} />
-            <span>{folder.name}</span>
+            <Layers size={17} className="folder-icon" />
+            
+            {editingFolderId === folder.id ? (
+              <input
+                className="folder-name-input"
+                defaultValue={folder.name}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const newName = e.currentTarget.value.trim();
+                    if (newName && newName !== folder.name) {
+                      onRenameFolder(folder.id, newName);
+                    }
+                    setEditingFolderId(null);
+                  } else if (e.key === "Escape") {
+                    setEditingFolderId(null);
+                  }
+                }}
+                onBlur={(e) => {
+                  const newName = e.target.value.trim();
+                  if (newName && newName !== folder.name) {
+                    onRenameFolder(folder.id, newName);
+                  }
+                  setEditingFolderId(null);
+                }}
+              />
+            ) : (
+              <span className="folder-name">{folder.name}</span>
+            )}
+
             <small>{formatDate(folder.createdAt)}</small>
-          </button>
+
+            {!editingFolderId && (
+              <div className="folder-actions" onClick={(e) => e.stopPropagation()}>
+                <button type="button" className="folder-action-btn" onClick={() => setEditingFolderId(folder.id)} title="重命名">
+                  <Edit2 size={13} />
+                </button>
+                <button
+                  type="button"
+                  className="folder-action-btn"
+                  onClick={() => setDeleteFolderId(folder.id)}
+                  title="删除"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </div>
+
+      <Dialog open={!!deleteFolderId} onOpenChange={(open) => { if (!open) setDeleteFolderId(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除文件夹</DialogTitle>
+            <DialogDescription>
+              确定要删除这个文件夹吗？内部的所有绘图记录也会丢失。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteFolderId(null)}>取消</Button>
+            <Button
+              variant="default"
+              onClick={() => {
+                if (deleteFolderId) {
+                  onDeleteFolder(deleteFolderId);
+                  setDeleteFolderId(null);
+                }
+              }}
+            >
+              确定
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }

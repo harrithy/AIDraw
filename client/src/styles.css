@@ -787,6 +787,74 @@ button:disabled {
     background-color 180ms ease,
     border-color 180ms ease,
     transform 180ms ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.folder-item .folder-name-input {
+  grid-column: 2;
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 14px;
+  padding: 2px 4px;
+  outline: none;
+}
+.folder-item .folder-name-input:focus {
+  border-color: var(--muted);
+}
+
+.folder-item .folder-name {
+  grid-column: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-item .folder-icon {
+  grid-column: 1;
+}
+
+.folder-item .folder-actions {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  background: var(--panel-strong);
+  padding: 4px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.folder-item.active .folder-actions {
+  background: var(--subtle-strong);
+}
+
+.folder-item:hover .folder-actions {
+  opacity: 1;
+}
+
+.folder-action-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.folder-action-btn:hover {
+  background: var(--hover);
+  color: var(--ink);
 }
 
 .folder-item small {
