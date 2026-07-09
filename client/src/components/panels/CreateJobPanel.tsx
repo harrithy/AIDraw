@@ -314,12 +314,11 @@ export function CreateJobPanel({
     const height = parseCustomDimension(customHeight);
     const customSizeError = sizeMode === "custom" ? getCustomSizeError(width, height) : "";
     if (customSizeError) {
-      setUploadError(customSizeError);
+      Message.error(customSizeError);
       return;
     }
 
     const requestSize: DrawSize = sizeMode === "custom" ? `${width}x${height}` : sizeMode;
-    setUploadError("");
     await onSubmit({
       mode: currentMode,
       prompt: nextPrompt,
@@ -614,7 +613,7 @@ export function CreateJobPanel({
         </Field>
       </div>
 
-      {uploadError ? <small className="error-text">{uploadError}</small> : null}
+
 
       <Button type="submit" disabled={isSubmitting || isUploading}>
         {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <ImageUp data-icon="inline-start" />}
