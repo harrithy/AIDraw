@@ -1,4 +1,4 @@
-import { Download, Loader2, X } from "lucide-react";
+import { Download, ImagePlus, Loader2, X } from "lucide-react";
 import { useState } from "react";
 import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
@@ -7,9 +7,11 @@ import type { DrawJob } from "../../types";
 export function ImagePreview({
   job,
   onClose,
+  onUseImage,
 }: {
   job: DrawJob | null;
   onClose: () => void;
+  onUseImage?: (url: string) => void;
 }) {
   const [isDownloading, setIsDownloading] = useState(false);
   if (!job?.outputImageUrl) return null;
@@ -49,6 +51,16 @@ export function ImagePreview({
           >
             {isDownloading ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
           </button>
+          {onUseImage && (
+            <button
+              type="button"
+              className="image-preview-action"
+              onClick={() => onUseImage(imageUrl)}
+              title="作为参考图引用"
+            >
+              <ImagePlus size={18} />
+            </button>
+          )}
           <button
             type="button"
             className="image-preview-action image-preview-close"

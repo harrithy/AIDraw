@@ -57,6 +57,7 @@ function App() {
     document.documentElement.classList.toggle("dark", prefersDark);
     return prefersDark;
   });
+  const [imageToUse, setImageToUse] = useState<string | null>(null);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
@@ -324,6 +325,7 @@ function App() {
         onMoveJob={moveJob}
         onPreviewJob={setPreviewJob}
         onRetryJob={retryDrawing}
+        onUseImage={setImageToUse}
       />
 
       <header className="floating-top">
@@ -372,8 +374,10 @@ function App() {
           variant="composer"
           notice={notice}
           isSubmitting={isSubmitting}
+          usedImage={imageToUse}
           onSubmit={submitJobs}
           onUploadImage={api.uploadImage}
+          onImageUsed={() => setImageToUse(null)}
         />
       ) : (
         <div className="bottom-composer-empty panel-empty" data-tour="composer">先创建文件夹，再开始绘图任务。</div>
@@ -386,7 +390,7 @@ function App() {
         onSave={saveProviderSettings}
       />
 
-      <ImagePreview job={previewJob} onClose={() => setPreviewJob(null)} />
+      <ImagePreview job={previewJob} onClose={() => setPreviewJob(null)} onUseImage={(url) => { setImageToUse(url); setPreviewJob(null); }} />
 
       <OnboardingGuide
         open={onboardingOpen}

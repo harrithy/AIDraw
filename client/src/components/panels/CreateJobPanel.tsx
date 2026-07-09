@@ -21,8 +21,10 @@ type CreateJobPanelProps = {
   isSubmitting: boolean;
   notice?: string;
   variant?: "panel" | "composer";
+  usedImage?: string | null;
   onSubmit: (payload: CreateJobPayload) => Promise<void>;
   onUploadImage: (file: File) => Promise<UploadResult>;
+  onImageUsed?: () => void;
 };
 
 type SizeMode = PresetDrawSize | "custom";
@@ -116,8 +118,10 @@ export function CreateJobPanel({
   isSubmitting,
   notice,
   variant = "panel",
+  usedImage,
   onSubmit,
-  onUploadImage
+  onUploadImage,
+  onImageUsed
 }: CreateJobPanelProps) {
   const panelRef = useRef<HTMLFormElement | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -144,6 +148,19 @@ export function CreateJobPanel({
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [previewImage]);
+
+  useEffect(() => {
+    if (usedImage) {
+      setInputImages((current) => {
+        if (current.some((img) => img.url === usedImage)) return current;
+        return [
+          ...current,
+          { url: usedImage, originalName: "参考图片" }
+        ];
+      });
+      onImageUsed?.();
+    }
+  }, [usedImage, onImageUsed]);
 
   useGSAP(
     () => {

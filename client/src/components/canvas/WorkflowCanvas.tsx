@@ -23,6 +23,7 @@ type WorkflowCanvasProps = {
   onMoveJob: (jobId: string, direction: -1 | 1) => void;
   onPreviewJob: (job: DrawJob) => void;
   onRetryJob: (jobId: string) => void;
+  onUseImage?: (url: string) => void;
 };
 
 export function WorkflowCanvas({
@@ -39,7 +40,8 @@ export function WorkflowCanvas({
   onWheel,
   onMoveJob,
   onPreviewJob,
-  onRetryJob
+  onRetryJob,
+  onUseImage
 }: WorkflowCanvasProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const wheelHandlerRef = useRef(onWheel);
@@ -97,6 +99,7 @@ export function WorkflowCanvas({
                 onMove={onMoveJob}
                 onPreview={onPreviewJob}
                 onRetry={onRetryJob}
+                onUseImage={onUseImage}
               />
             ))}
           </div>

@@ -6,6 +6,7 @@ import {
   ArrowUp,
   Clock,
   Download,
+  ImagePlus,
   Loader2,
   MoreHorizontal,
   RotateCcw,
@@ -32,6 +33,7 @@ type JobCardProps = {
   onMove: (jobId: string, direction: -1 | 1) => void;
   onPreview: (job: DrawJob) => void;
   onRetry: (jobId: string) => void;
+  onUseImage?: (url: string) => void;
 };
 
 const statusIcon = (status: DrawJob["status"]) => {
@@ -51,7 +53,8 @@ export function JobCard({
   isDragging,
   onMove,
   onPreview,
-  onRetry
+  onRetry,
+  onUseImage
 }: JobCardProps) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -161,9 +164,16 @@ export function JobCard({
                 <ArrowDown size={15} />
               </button>
               {job.outputImageUrl ? (
-                <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
-                  {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
-                </button>
+                <>
+                  <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
+                    {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
+                  </button>
+                  {onUseImage && (
+                    <button type="button" onClick={() => onUseImage(job.outputImageUrl!)} title="作为参考图引用">
+                      <ImagePlus size={15} />
+                    </button>
+                  )}
+                </>
               ) : null}
               {canRetry ? (
                 <button type="button" onClick={() => onRetry(job.id)} title="重新绘制">

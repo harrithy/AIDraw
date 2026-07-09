@@ -1130,7 +1130,7 @@ button:disabled {
   height: 30px;
   border-color: transparent;
   background: transparent;
-  color: #2b302d;
+  color: var(--muted);
   transform-origin: center;
 }
 
