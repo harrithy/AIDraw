@@ -105,7 +105,7 @@ export function ApiSettingsPanel({
         <div className="panel-title compact">
           <div>
             <p className="eyebrow">接口设置</p>
-            <h2>Nowcoding</h2>
+            <h2>多米API</h2>
           </div>
           <Settings size={22} />
         </div>
@@ -126,7 +126,7 @@ export function ApiSettingsPanel({
         <input
           value={baseUrl}
           onChange={(event) => setBaseUrl(event.target.value)}
-          placeholder="https://nowcoding.ai/v1"
+          placeholder="https://duomiapi.com"
         />
       </label>
 

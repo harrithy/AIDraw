@@ -13,4 +13,4 @@ export type CardDragState = {
   posY: number;
 };
 
-export type ThinkingValue = "high" | "medium" | "low" | "standard";
+export type ThinkingValue = "high" | "medium" | "low";

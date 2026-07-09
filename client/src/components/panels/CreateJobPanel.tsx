@@ -1,7 +1,7 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { ImagePlus, ImageUp, Loader2, MousePointer2, Play, X } from "lucide-react";
-import { ChangeEvent, ClipboardEvent, FormEvent, useRef, useState } from "react";
+import { ImagePlus, ImageUp, Link2, Loader2, MousePointer2, Play, X } from "lucide-react";
+import { ChangeEvent, ClipboardEvent, FormEvent, KeyboardEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { prefersReducedMotion } from "../../lib/motion";
-import type { CreateJobPayload, DrawMode } from "../../types";
+import type { CreateJobPayload, DrawMode, DrawSize, PresetDrawSize } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
 
 type UploadResult = {
@@ -25,12 +25,65 @@ type CreateJobPanelProps = {
   onUploadImage: (file: File) => Promise<UploadResult>;
 };
 
-export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubmit, onUploadImage }: CreateJobPanelProps) {
+type SizeMode = PresetDrawSize | "custom";
+
+const imageSizeOptions: Array<{ label: string; value: SizeMode }> = [
+  { label: "auto", value: "auto" },
+  { label: "1024x1024", value: "1024x1024" },
+  { label: "1792x1024", value: "1792x1024" },
+  { label: "1024x1792", value: "1024x1792" },
+  { label: "自定义宽x高", value: "custom" },
+  { label: "1:1", value: "1:1" },
+  { label: "3:2", value: "3:2" },
+  { label: "2:3", value: "2:3" },
+  { label: "16:9", value: "16:9" },
+  { label: "9:16", value: "9:16" },
+  { label: "1:2", value: "1:2" },
+  { label: "2:1", value: "2:1" },
+  { label: "4:3", value: "4:3" },
+  { label: "3:4", value: "3:4" },
+  { label: "5:4", value: "5:4" },
+  { label: "4:5", value: "4:5" }
+];
+
+const qualityOptions: ThinkingValue[] = ["high", "medium", "low"];
+
+const parseCustomDimension = (value: string) => Number.parseInt(value.trim(), 10);
+
+const isRemoteImageUrl = (value: string) => {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const getCustomSizeError = (width: number, height: number) => {
+  if (!Number.isInteger(width) || !Number.isInteger(height)) return "自定义尺寸需要填写整数宽高";
+  if (width < 16 || height < 16 || width > 3840 || height > 3840) return "自定义尺寸每条边需在 16 到 3840 之间";
+  if (width % 16 !== 0 || height % 16 !== 0) return "自定义尺寸的宽和高都必须能被 16 整除";
+  const pixels = width * height;
+  if (pixels < 655360 || pixels > 8294400) return "自定义尺寸像素预算需在 655,360 到 8,294,400 之间";
+  return "";
+};
+
+export function CreateJobPanel({
+  isSubmitting,
+  notice,
+  variant = "panel",
+  onSubmit,
+  onUploadImage
+}: CreateJobPanelProps) {
   const panelRef = useRef<HTMLFormElement | null>(null);
   const [prompt, setPrompt] = useState("");
   const [count, setCount] = useState(1);
+  const [sizeMode, setSizeMode] = useState<SizeMode>("auto");
+  const [customWidth, setCustomWidth] = useState("1024");
+  const [customHeight, setCustomHeight] = useState("1024");
   const [thinking, setThinking] = useState<ThinkingValue>("high");
   const [inputImages, setInputImages] = useState<UploadResult[]>([]);
+  const [referenceImageUrl, setReferenceImageUrl] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const currentMode: DrawMode = inputImages.length > 0 ? "image-to-image" : "text-to-image";
@@ -78,13 +131,21 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
   };
 
   const pasteImages = (event: ClipboardEvent<HTMLElement>) => {
+    const pastedText = event.clipboardData.getData("text").trim();
     const filesFromItems = Array.from(event.clipboardData.items)
       .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
       .map((item) => item.getAsFile())
       .filter((file): file is File => Boolean(file));
     const files = filesFromItems.length > 0 ? filesFromItems : Array.from(event.clipboardData.files);
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-    if (imageFiles.length === 0) return;
+    if (imageFiles.length === 0) {
+      if (pastedText && isRemoteImageUrl(pastedText)) {
+        event.preventDefault();
+        event.stopPropagation();
+        addReferenceImageUrl(pastedText);
+      }
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();
@@ -93,6 +154,39 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
 
   const removeImage = (url: string) => {
     setInputImages((current) => current.filter((image) => image.url !== url));
+  };
+
+  const addReferenceImageUrl = (rawValue = referenceImageUrl) => {
+    const url = rawValue.trim();
+    if (!url) {
+      setUploadError("请先填写参考图片 URL");
+      return;
+    }
+    if (!isRemoteImageUrl(url)) {
+      setUploadError("参考图片 URL 需要以 http:// 或 https:// 开头");
+      return;
+    }
+
+    const hostname = new URL(url).hostname;
+    setInputImages((current) =>
+      current.some((image) => image.url === url)
+        ? current
+        : [
+            ...current,
+            {
+              url,
+              originalName: hostname || "参考图片 URL"
+            }
+          ]
+    );
+    setReferenceImageUrl("");
+    setUploadError("");
+  };
+
+  const addReferenceImageUrlOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    addReferenceImageUrl();
   };
 
   const submit = async (event: FormEvent) => {
@@ -104,6 +198,15 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
     }
 
     const inputImageUrls = inputImages.map((image) => image.url);
+    const width = parseCustomDimension(customWidth);
+    const height = parseCustomDimension(customHeight);
+    const customSizeError = sizeMode === "custom" ? getCustomSizeError(width, height) : "";
+    if (customSizeError) {
+      setUploadError(customSizeError);
+      return;
+    }
+
+    const requestSize: DrawSize = sizeMode === "custom" ? `${width}x${height}` : sizeMode;
     setUploadError("");
     await onSubmit({
       mode: currentMode,
@@ -112,6 +215,7 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
       inputImageUrls,
       width: 1024,
       height: 1024,
+      size: requestSize,
       count,
       strength: currentMode === "image-to-image" ? 0.55 : undefined,
       thinking,
@@ -132,11 +236,61 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
     </div>
   ) : null;
 
+  const referenceUrlEntry = (
+    <div className="reference-url-row">
+      <Input
+        value={referenceImageUrl}
+        onChange={(event) => setReferenceImageUrl(event.target.value)}
+        onKeyDown={addReferenceImageUrlOnEnter}
+        placeholder="https://example.com/image.png"
+        aria-label="参考图片 URL"
+      />
+      <Button type="button" variant="outline" size="sm" className="reference-url-button" onClick={() => addReferenceImageUrl()}>
+        <Link2 data-icon="inline-start" />
+        添加 URL
+      </Button>
+    </div>
+  );
+
+  const renderQualitySelect = (id?: string, side: "top" | "bottom" = "bottom") => (
+    <Select value={thinking} onValueChange={(value) => setThinking(value as ThinkingValue)}>
+      <SelectTrigger id={id} aria-label="Quality" className="composer-select-trigger">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent side={side} sideOffset={6} position="popper" align="start" className="composer-select-content">
+        <SelectGroup>
+          {qualityOptions.map((option) => (
+            <SelectItem key={option} value={option} className="composer-select-item">
+              {option}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+
+  const renderSizeSelect = (id?: string, side: "top" | "bottom" = "bottom") => (
+    <Select value={sizeMode} onValueChange={(value) => setSizeMode(value as SizeMode)}>
+      <SelectTrigger id={id} aria-label="Size" className="composer-select-trigger">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent side={side} sideOffset={6} position="popper" align="start" className="composer-select-content size-select-content">
+        <SelectGroup>
+          {imageSizeOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value} className="composer-select-item">
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+
   if (variant === "composer") {
     return (
-      <form ref={panelRef} className="create-panel composer-panel" onSubmit={submit}>
+      <form ref={panelRef} className="create-panel composer-panel" onSubmit={submit} noValidate>
         <div className="composer-floating-controls">
-          <div className="composer-fields">
+          <div className={`composer-fields ${sizeMode === "custom" ? "has-custom-size" : ""}`}>
             <Field orientation="horizontal">
               <FieldLabel htmlFor="composer-count">数量</FieldLabel>
               <Input
@@ -149,21 +303,43 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
               />
             </Field>
             <Field orientation="horizontal">
-              <FieldLabel>Thinking</FieldLabel>
-              <Select value={thinking} onValueChange={(value) => setThinking(value as ThinkingValue)}>
-                <SelectTrigger aria-label="Thinking" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="high">high</SelectItem>
-                    <SelectItem value="medium">medium</SelectItem>
-                    <SelectItem value="low">low</SelectItem>
-                    <SelectItem value="standard">standard</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              <FieldLabel htmlFor="composer-quality">Quality</FieldLabel>
+              {renderQualitySelect("composer-quality", "top")}
             </Field>
+            <Field orientation="horizontal">
+              <FieldLabel htmlFor="composer-size">Size</FieldLabel>
+              {renderSizeSelect("composer-size", "top")}
+            </Field>
+            {sizeMode === "custom" ? (
+              <>
+                <Field orientation="horizontal" className="custom-size-field">
+                  <FieldLabel htmlFor="composer-custom-width">宽</FieldLabel>
+                  <Input
+                    id="composer-custom-width"
+                    inputMode="numeric"
+                    min={16}
+                    max={3840}
+                    step={16}
+                    type="number"
+                    value={customWidth}
+                    onChange={(event) => setCustomWidth(event.target.value)}
+                  />
+                </Field>
+                <Field orientation="horizontal" className="custom-size-field">
+                  <FieldLabel htmlFor="composer-custom-height">高</FieldLabel>
+                  <Input
+                    id="composer-custom-height"
+                    inputMode="numeric"
+                    min={16}
+                    max={3840}
+                    step={16}
+                    type="number"
+                    value={customHeight}
+                    onChange={(event) => setCustomHeight(event.target.value)}
+                  />
+                </Field>
+              </>
+            ) : null}
             <Field orientation="horizontal">
               <FieldLabel htmlFor="composer-model">模型</FieldLabel>
               <Input id="composer-model" value="gpt-image-2" readOnly />
@@ -187,11 +363,11 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               onPaste={pasteImages}
-              placeholder="描述你想生成的画面，或直接粘贴图片作为参考"
+              placeholder="描述你想生成的画面"
               aria-invalid={Boolean(uploadError)}
             />
             <InputGroupAddon align="inline-end" className="composer-actions">
-              <Button type="button" variant="outline" size="icon" asChild title="添加参考图片">
+              <Button type="button" variant="outline" size="icon" asChild title="上传参考图片">
                 <label>
                   <input className="sr-only" type="file" accept="image/*" multiple onChange={uploadImage} />
                   {isUploading ? <Loader2 className="spin" /> : <ImagePlus />}
@@ -203,6 +379,7 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
               </Button>
             </InputGroupAddon>
           </InputGroup>
+          {referenceUrlEntry}
           {uploadError ? <FieldError className="composer-error">{uploadError}</FieldError> : null}
         </Field>
       </form>
@@ -210,7 +387,7 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
   }
 
   return (
-    <form ref={panelRef} className="create-panel" onSubmit={submit}>
+    <form ref={panelRef} className="create-panel" onSubmit={submit} noValidate>
       <div className="panel-title">
         <div>
           <p className="eyebrow">绘图任务</p>
@@ -222,8 +399,10 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
       <label className="upload-box">
         <input type="file" accept="image/*" multiple onChange={uploadImage} />
         {isUploading ? <Loader2 className="spin" size={22} /> : <ImagePlus size={22} />}
-        <span>{inputImages.length > 0 ? `${inputImages.length} 张参考图` : "可选参考图片"}</span>
+        <span>{inputImages.length > 0 ? `${inputImages.length} 张参考图` : "上传参考图片"}</span>
       </label>
+
+      {referenceUrlEntry}
 
       {imageAttachments}
 
@@ -250,26 +429,43 @@ export function CreateJobPanel({ isSubmitting, notice, variant = "panel", onSubm
         </Field>
         <Field>
           <FieldLabel>Size</FieldLabel>
-          <Input value="auto" readOnly />
+          {renderSizeSelect()}
         </Field>
       </div>
 
+      {sizeMode === "custom" ? (
+        <div className="form-grid">
+          <Field>
+            <FieldLabel>自定义宽</FieldLabel>
+            <Input
+              inputMode="numeric"
+              min={16}
+              max={3840}
+              step={16}
+              type="number"
+              value={customWidth}
+              onChange={(event) => setCustomWidth(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>自定义高</FieldLabel>
+            <Input
+              inputMode="numeric"
+              min={16}
+              max={3840}
+              step={16}
+              type="number"
+              value={customHeight}
+              onChange={(event) => setCustomHeight(event.target.value)}
+            />
+          </Field>
+        </div>
+      ) : null}
+
       <div className="form-grid">
         <Field>
-          <FieldLabel>Thinking</FieldLabel>
-          <Select value={thinking} onValueChange={(value) => setThinking(value as ThinkingValue)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="high">high</SelectItem>
-                <SelectItem value="medium">medium</SelectItem>
-                <SelectItem value="low">low</SelectItem>
-                <SelectItem value="standard">standard</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <FieldLabel>Quality</FieldLabel>
+          {renderQualitySelect()}
         </Field>
         <Field>
           <FieldLabel>模型</FieldLabel>

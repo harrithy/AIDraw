@@ -2,6 +2,25 @@ export type DrawMode = "text-to-image" | "image-to-image";
 
 export type DrawJobStatus = "pending" | "running" | "completed" | "failed";
 
+export type PresetDrawSize =
+  | "auto"
+  | "1024x1024"
+  | "1792x1024"
+  | "1024x1792"
+  | "1:1"
+  | "3:2"
+  | "2:3"
+  | "16:9"
+  | "9:16"
+  | "1:2"
+  | "2:1"
+  | "4:3"
+  | "3:4"
+  | "5:4"
+  | "4:5";
+
+export type DrawSize = PresetDrawSize | `${number}x${number}`;
+
 export type DrawFolder = {
   id: string;
   name: string;
@@ -24,6 +43,7 @@ export type DrawJob = {
   outputImageUrl?: string;
   width: number;
   height: number;
+  size?: DrawSize;
   count: number;
   strength?: number;
   thinking: "high" | "medium" | "low" | "standard";
@@ -49,11 +69,11 @@ export type QueueStats = {
 };
 
 export type ImageProviderStatus = {
-  textToImage: "nowcoding" | "mock";
-  imageToImage: "nowcoding" | "mock";
-  hasNowcodingKey: boolean;
-  nowcodingBaseUrl: string;
-  nowcodingModel: string;
+  textToImage: "duomi" | "mock";
+  imageToImage: "duomi" | "mock";
+  hasDuomiKey: boolean;
+  duomiBaseUrl: string;
+  duomiModel: string;
   apiKeyMasked: string;
   usesSavedConfig: boolean;
 };
@@ -71,9 +91,10 @@ export type CreateJobPayload = {
   inputImageUrls?: string[];
   width: number;
   height: number;
+  size?: DrawSize;
   count: number;
   strength?: number;
-  thinking?: "high" | "medium" | "low" | "standard";
+  thinking?: "high" | "medium" | "low";
   model?: string;
 };
 

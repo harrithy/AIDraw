@@ -49,7 +49,8 @@ export function JobCard({
   const cardRef = useRef<HTMLElement | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const canRetry = job.status === "completed" || job.status === "failed";
-  const sizeLabel = job.width && job.height ? `${job.width}x${job.height}` : "auto";
+  const sizeLabel = job.size || (job.width && job.height ? `${job.width}x${job.height}` : "auto");
+  const qualityLabel = job.thinking === "low" || job.thinking === "medium" || job.thinking === "high" ? job.thinking : "high";
 
   useGSAP(
     () => {
@@ -136,8 +137,8 @@ export function JobCard({
             <strong>{formatDate(job.createdAt)}</strong>
           </span>
           <span className="job-meta-item">
-            <em>Thinking</em>
-            <strong>{job.thinking || "high"}</strong>
+            <em>Quality</em>
+            <strong>{qualityLabel}</strong>
           </span>
           <span className="job-meta-item">
             <em>尺寸</em>

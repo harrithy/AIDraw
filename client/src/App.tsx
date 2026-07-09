@@ -27,7 +27,7 @@ const emptyQueue: QueueStats = {
 };
 
 const emptyProviderSettings: ImageProviderSettings = {
-  baseUrl: "https://nowcoding.ai/v1",
+  baseUrl: "https://duomiapi.com",
   model: "gpt-image-2",
   hasApiKey: false,
   apiKeyMasked: ""
@@ -137,9 +137,9 @@ function App() {
     const health = await api.health();
     setQueue(health.queue);
     setProviderSettings({
-      baseUrl: health.imageProvider.nowcodingBaseUrl,
-      model: health.imageProvider.nowcodingModel,
-      hasApiKey: health.imageProvider.hasNowcodingKey,
+      baseUrl: health.imageProvider.duomiBaseUrl,
+      model: health.imageProvider.duomiModel,
+      hasApiKey: health.imageProvider.hasDuomiKey,
       apiKeyMasked: health.imageProvider.apiKeyMasked
     });
   }, []);
@@ -286,7 +286,7 @@ function App() {
     try {
       const settings = await api.updateImageProviderSettings(payload);
       setProviderSettings(settings);
-      setNotice(settings.hasApiKey ? "API 设置已保存，文生图将使用 Nowcoding" : "API 设置已保存");
+      setNotice(settings.hasApiKey ? "API 设置已保存，绘图将使用多米API" : "API 设置已保存");
       await loadQueue();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "API 设置保存失败");

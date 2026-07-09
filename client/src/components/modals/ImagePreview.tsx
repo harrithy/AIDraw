@@ -10,6 +10,8 @@ export function ImagePreview({
   onClose: () => void;
 }) {
   if (!job?.outputImageUrl) return null;
+  const qualityLabel = job.thinking === "low" || job.thinking === "medium" || job.thinking === "high" ? job.thinking : "high";
+  const sizeLabel = job.size || `${job.width}x${job.height}`;
 
   return (
     <div
@@ -35,8 +37,8 @@ export function ImagePreview({
         <div className="image-preview-caption">
           <strong>{job.prompt}</strong>
           <span>
-            {formatDate(job.createdAt)} · thinking {job.thinking || "high"} ·{" "}
-            {job.width}x{job.height}
+            {formatDate(job.createdAt)} · quality {qualityLabel} ·{" "}
+            {sizeLabel}
           </span>
         </div>
       </div>

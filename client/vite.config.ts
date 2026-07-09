@@ -15,6 +15,13 @@ export default defineConfig({
     emptyOutDir: true
   },
   server: {
-    port: 5173
+    port: 5173,
+    proxy: {
+      "/image-upload": {
+        target: "https://image.harrio.xyz",
+        changeOrigin: true,
+        rewrite: (requestPath) => requestPath.replace(/^\/image-upload/, "")
+      }
+    }
   }
 });

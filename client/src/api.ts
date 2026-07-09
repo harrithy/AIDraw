@@ -1,5 +1,6 @@
 import type {
   CreateJobPayload,
+  DrawSize,
   DrawFolder,
   DrawJob,
   HealthPayload,
@@ -12,8 +13,16 @@ const DB_VERSION = 1;
 const STATE_STORE = "state";
 const STATE_KEY = "app-state";
 const MAX_CONCURRENT = 10;
-const DEFAULT_BASE_URL = "https://nowcoding.ai/v1";
+const LEGACY_DEFAULT_BASE_URL = "https://nowcoding.ai/v1";
+const DEFAULT_BASE_URL = "https://duomiapi.com";
 const DEFAULT_MODEL = "gpt-image-2";
+const DEFAULT_SIZE: DrawSize = "auto";
+const DUOMI_API_PREFIX = "/v1";
+const IMAGE_UPLOAD_BASE_URL = "https://image.harrio.xyz";
+const IMAGE_UPLOAD_PROXY_PATH = "/image-upload/upload";
+const TASK_POLL_INTERVAL_MS = 2500;
+const TASK_TIMEOUT_MS = 10 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 60 * 1000;
 
 type StoredSettings = {
   baseUrl: string;
@@ -95,9 +104,14 @@ const loadState = async () => {
 
   const stored = await readStateRecord();
   stateCache = stored ?? defaultState();
+  let changed = !stored;
+
+  if (stateCache.settings.baseUrl === LEGACY_DEFAULT_BASE_URL) {
+    stateCache.settings.baseUrl = DEFAULT_BASE_URL;
+    changed = true;
+  }
 
   // 浏览器刷新后无法继续旧的 fetch，重置未完成的运行任务。
-  let changed = false;
   stateCache.jobs = stateCache.jobs.map((job) => {
     if (job.status !== "running") return job;
     changed = true;
@@ -109,7 +123,7 @@ const loadState = async () => {
     };
   });
 
-  if (!stored || changed) await writeStateRecord(stateCache);
+  if (changed) await writeStateRecord(stateCache);
   return stateCache;
 };
 
@@ -162,13 +176,55 @@ const updateJob = async (jobId: string, patch: Partial<DrawJob>) => {
   return ensureJob(state, jobId);
 };
 
-const fileToDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(reader.error ?? new Error("图片读取失败"));
-    reader.readAsDataURL(file);
-  });
+type ImageUploadResponse = Array<{
+  src?: string;
+  url?: string;
+}>;
+
+const extractUploadedImageUrl = (payload: ImageUploadResponse | null) => {
+  const uploaded = payload?.find((item) => typeof item.src === "string" || typeof item.url === "string");
+  const rawUrl = uploaded?.src ?? uploaded?.url;
+  if (!rawUrl) throw new Error("图床上传成功，但未返回图片地址");
+  return new URL(rawUrl, IMAGE_UPLOAD_BASE_URL).toString();
+};
+
+const uploadImageToHost = async (file: File) => {
+  const body = new FormData();
+  body.append("file", file);
+
+  try {
+    const response = await fetch(IMAGE_UPLOAD_PROXY_PATH, {
+      method: "POST",
+      body
+    });
+    const payload = (await response.json().catch(() => null)) as ImageUploadResponse | null;
+    if (!response.ok) {
+      throw new Error(getErrorMessage(payload, `图床上传失败：HTTP ${response.status}`));
+    }
+    return extractUploadedImageUrl(payload);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error("上传到图床失败：可能是网络不可达、CORS 限制，或 image.harrio.xyz 暂时不可用");
+    }
+    throw error;
+  }
+};
+
+const isRemoteImageUrl = (value: string) => {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+const assertDuomiImageUrls = (imageUrls: string[]) => {
+  const hasInvalidImage = imageUrls.some((imageUrl) => !isRemoteImageUrl(imageUrl));
+  if (hasInvalidImage) {
+    throw new Error("多米API的参考图只支持公网 http(s) 图片 URL，不能直接发送本地图片或 data URL");
+  }
+};
 
 const escapeXml = (value: string) =>
   value
@@ -199,11 +255,83 @@ const paletteFromPrompt = (prompt: string) => {
   };
 };
 
+const MIN_IMAGE_SIDE = 16;
+const MAX_IMAGE_SIDE = 3840;
+const MIN_IMAGE_PIXELS = 655360;
+const MAX_IMAGE_PIXELS = 8294400;
+
+const presetSizeOptions = new Set<string>([
+  "auto",
+  "1024x1024",
+  "1792x1024",
+  "1024x1792",
+  "1:1",
+  "3:2",
+  "2:3",
+  "16:9",
+  "9:16",
+  "1:2",
+  "2:1",
+  "4:3",
+  "3:4",
+  "5:4",
+  "4:5"
+]);
+
+const isValidCustomSize = (width: number, height: number) => {
+  const pixels = width * height;
+  return (
+    Number.isInteger(width) &&
+    Number.isInteger(height) &&
+    width >= MIN_IMAGE_SIDE &&
+    height >= MIN_IMAGE_SIDE &&
+    width <= MAX_IMAGE_SIDE &&
+    height <= MAX_IMAGE_SIDE &&
+    width % 16 === 0 &&
+    height % 16 === 0 &&
+    pixels >= MIN_IMAGE_PIXELS &&
+    pixels <= MAX_IMAGE_PIXELS
+  );
+};
+
+const normalizeSize = (value: unknown): DrawSize => {
+  const size = String(value ?? "").trim() as DrawSize;
+  if (presetSizeOptions.has(size)) return size;
+
+  const customSize = /^(\d+)x(\d+)$/.exec(size);
+  if (!customSize) return DEFAULT_SIZE;
+
+  const width = Number(customSize[1]);
+  const height = Number(customSize[2]);
+  return isValidCustomSize(width, height) ? `${width}x${height}` : DEFAULT_SIZE;
+};
+
+const dimensionsFromSize = (size: DrawSize) => {
+  const fixedSize = /^(\d+)x(\d+)$/.exec(size);
+  if (fixedSize) {
+    const rawWidth = Number(fixedSize[1]);
+    const rawHeight = Number(fixedSize[2]);
+    const ratio = rawWidth / rawHeight;
+    if (ratio >= 1) return { width: 1024, height: Math.round(1024 / ratio) };
+    return { width: Math.round(1024 * ratio), height: 1024 };
+  }
+
+  const ratioSize = /^(\d+):(\d+)$/.exec(size);
+  if (ratioSize) {
+    const rawWidth = Number(ratioSize[1]);
+    const rawHeight = Number(ratioSize[2]);
+    const ratio = rawWidth / rawHeight;
+    if (ratio >= 1) return { width: 1024, height: Math.round(1024 / ratio) };
+    return { width: Math.round(1024 * ratio), height: 1024 };
+  }
+
+  return { width: 1024, height: 1024 };
+};
+
 const simulateDrawing = async (job: DrawJob) => {
   await new Promise((resolve) => window.setTimeout(resolve, 1100 + Math.floor(Math.random() * 900)));
 
-  const width = Math.min(Math.max(job.width, 256), 1024);
-  const height = Math.min(Math.max(job.height, 256), 1024);
+  const { width, height } = dimensionsFromSize(normalizeSize(job.size));
   const palette = paletteFromPrompt(job.prompt);
   const modeLabel = job.mode === "image-to-image" ? "图生图" : "文生图";
   const prompt = escapeXml(job.prompt || "Untitled prompt");
@@ -242,119 +370,164 @@ const simulateDrawing = async (job: DrawJob) => {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
-const normalizeBase64 = (value: unknown) => {
-  const raw = String(value ?? "").trim();
-  const marker = ";base64,";
-  const markerIndex = raw.indexOf(marker);
-  return markerIndex >= 0 ? raw.slice(markerIndex + marker.length) : raw;
-};
-
-const dataUrlToBlob = async (dataUrl: string) => {
-  const response = await fetch(dataUrl);
-  return response.blob();
-};
-
-const extractBase64Image = (payload: unknown) => {
-  const data = payload as {
-    data?: Array<{ b64_json?: string; b64Json?: string }>;
-    output?: Array<{ b64_json?: string; b64Json?: string }>;
-    b64_json?: string;
-    b64Json?: string;
-  };
-  const candidates = [
-    data?.data?.[0]?.b64_json,
-    data?.data?.[0]?.b64Json,
-    data?.output?.[0]?.b64_json,
-    data?.output?.[0]?.b64Json,
-    data?.b64_json,
-    data?.b64Json
-  ];
-  const b64 = candidates.find((value) => typeof value === "string" && value.trim());
-  if (!b64) throw new Error("Nowcoding response did not include b64_json");
-  return normalizeBase64(b64);
-};
-
 const getErrorMessage = (payload: unknown, fallback: string) => {
-  const data = payload as { error?: { message?: string }; message?: string } | null;
-  return data?.error?.message ?? data?.message ?? fallback;
+  const data = payload as {
+    error?: { code?: string; message?: string; type?: string };
+    message?: string;
+    data?: { description?: string };
+  } | null;
+  const message = data?.error?.message ?? data?.message ?? data?.data?.description;
+  const details = [data?.error?.code, data?.error?.type].filter(Boolean).join(" / ");
+  if (message && details) return `${message}（${details}）`;
+  return message ?? fallback;
 };
 
-const callNowcodingGeneration = async (job: DrawJob, settings: StoredSettings) => {
-  const baseUrl = settings.baseUrl.replace(/\/+$/, "");
+type DuomiCreateTaskResponse = {
+  id?: string;
+  task_id?: string;
+  taskId?: string;
+  data?: {
+    id?: string;
+    task_id?: string;
+    taskId?: string;
+  };
+};
+
+type DuomiTaskResponse = {
+  id?: string;
+  state?: string;
+  data?: {
+    images?: Array<{
+      url?: string;
+      file_name?: string;
+    }>;
+    description?: string;
+  };
+  progress?: number;
+  error?: {
+    message?: string;
+  };
+  message?: string;
+};
+
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
+const getDuomiEndpoint = (settings: StoredSettings, path: string) => {
+  const configuredBaseUrl = (settings.baseUrl || DEFAULT_BASE_URL).trim().replace(/\/+$/, "");
+  const versionedBaseUrl = configuredBaseUrl.endsWith(DUOMI_API_PREFIX)
+    ? configuredBaseUrl
+    : `${configuredBaseUrl}${DUOMI_API_PREFIX}`;
+  return `${versionedBaseUrl}${path}`;
+};
+
+const normalizeQuality = (value: DrawJob["thinking"]) => {
+  if (value === "low" || value === "medium" || value === "high") return value;
+  return "high";
+};
+
+const fetchJson = async <T>(url: string, init: RequestInit, context: string) => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${baseUrl}/images/generations`, {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+    const payload = (await response.json().catch(() => null)) as T | null;
+    if (!response.ok) {
+      throw new Error(getErrorMessage(payload, `${context}失败：HTTP ${response.status}`));
+    }
+    return payload;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`${context}超时，请稍后重试`);
+    }
+    if (error instanceof TypeError) {
+      throw new Error("浏览器直连多米API失败：可能是 CORS 限制、网络不可达，或 Base URL 无法从浏览器访问");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
+const extractTaskId = (payload: DuomiCreateTaskResponse | null) => {
+  const taskId = payload?.id ?? payload?.task_id ?? payload?.taskId ?? payload?.data?.id ?? payload?.data?.task_id ?? payload?.data?.taskId;
+  if (!taskId) throw new Error("多米API未返回任务 id");
+  return taskId;
+};
+
+const extractTaskImageUrl = (payload: DuomiTaskResponse | null) => {
+  const imageUrl = payload?.data?.images?.find((image) => typeof image.url === "string" && image.url.trim())?.url;
+  if (!imageUrl) throw new Error("多米API任务已完成，但未返回图片地址");
+  return imageUrl;
+};
+
+const createDuomiTask = async (job: DrawJob, settings: StoredSettings) => {
+  const inputImages = job.inputImageUrls?.length ? job.inputImageUrls : job.inputImageUrl ? [job.inputImageUrl] : [];
+  if (inputImages.length > 0) assertDuomiImageUrls(inputImages);
+
+  const requestBody: Record<string, unknown> = {
+    model: job.model || settings.model || DEFAULT_MODEL,
+    prompt: job.prompt.trim(),
+    size: normalizeSize(job.size),
+    quality: normalizeQuality(job.thinking),
+    oversea: false
+  };
+
+  if (inputImages.length > 0) {
+    requestBody.image = inputImages;
+  }
+
+  const payload = await fetchJson<DuomiCreateTaskResponse>(
+    getDuomiEndpoint(settings, "/images/generations"),
+    {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${settings.apiKey}`,
+        Authorization: settings.apiKey,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        model: job.model || settings.model || DEFAULT_MODEL,
-        prompt: job.prompt.trim(),
-        size: "auto",
-        n: 1,
-        thinking: job.thinking || "high",
-        response_format: "b64_json"
-      })
-    });
+      body: JSON.stringify(requestBody)
+    },
+    "提交多米API图片生成任务"
+  );
 
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(getErrorMessage(payload, `Nowcoding image generation failed with HTTP ${response.status}`));
-    }
-
-    const b64 = extractBase64Image(payload);
-    return `data:image/png;base64,${b64}`;
-  } catch (error) {
-    if (error instanceof TypeError) {
-      throw new Error("浏览器直连 Nowcoding 失败：可能是 CORS 限制、网络不可达，或 Base URL 无法从浏览器访问");
-    }
-    throw error;
-  }
+  return extractTaskId(payload);
 };
 
-const callNowcodingEdit = async (job: DrawJob, settings: StoredSettings) => {
-  const baseUrl = settings.baseUrl.replace(/\/+$/, "");
-  const inputImages = job.inputImageUrls?.length ? job.inputImageUrls : job.inputImageUrl ? [job.inputImageUrl] : [];
-  if (inputImages.length === 0) throw new Error("图生图需要先添加参考图片");
+const waitForDuomiTaskResult = async (taskId: string, settings: StoredSettings) => {
+  const startedAt = Date.now();
 
-  try {
-    const body = new FormData();
-    body.set("model", job.model || settings.model || DEFAULT_MODEL);
-    body.set("prompt", job.prompt.trim());
-    body.set("size", "auto");
-    body.set("n", "1");
-    body.set("thinking", job.thinking || "high");
-    body.set("response_format", "b64_json");
-
-    const imageBlobs = await Promise.all(inputImages.map((imageUrl) => dataUrlToBlob(imageUrl)));
-    imageBlobs.forEach((blob, index) => {
-      const extension = blob.type.split("/")[1] || "png";
-      body.append("image[]", blob, `reference-${index + 1}.${extension}`);
-    });
-
-    const response = await fetch(`${baseUrl}/images/edits`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${settings.apiKey}`
+  while (Date.now() - startedAt <= TASK_TIMEOUT_MS) {
+    const payload = await fetchJson<DuomiTaskResponse>(
+      getDuomiEndpoint(settings, `/tasks/${encodeURIComponent(taskId)}`),
+      {
+        method: "GET",
+        headers: {
+          Authorization: settings.apiKey
+        }
       },
-      body
-    });
+      "查询多米API异步结果"
+    );
 
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(getErrorMessage(payload, `Nowcoding image edit failed with HTTP ${response.status}`));
+    if (payload?.state === "succeeded") return extractTaskImageUrl(payload);
+    if (payload?.state === "error") {
+      throw new Error(getErrorMessage(payload, `多米API任务失败：${taskId}`));
     }
 
-    const b64 = extractBase64Image(payload);
-    return `data:image/png;base64,${b64}`;
-  } catch (error) {
-    if (error instanceof TypeError) {
-      throw new Error("浏览器直连 Nowcoding 图生图失败：可能是 CORS 限制、网络不可达，或 Base URL 无法从浏览器访问");
-    }
-    throw error;
+    await delay(TASK_POLL_INTERVAL_MS);
   }
+
+  throw new Error("多米API任务查询超时，已等待 10 分钟");
+};
+
+const callDuomiGeneration = async (job: DrawJob, settings: StoredSettings) => {
+  const taskId = await createDuomiTask(job, settings);
+  return waitForDuomiTaskResult(taskId, settings);
 };
 
 const generateDrawing = async (job: DrawJob) => {
@@ -362,8 +535,7 @@ const generateDrawing = async (job: DrawJob) => {
   const settings = state.settings;
 
   if (settings.apiKey) {
-    if (job.mode === "image-to-image") return callNowcodingEdit(job, settings);
-    return callNowcodingGeneration(job, settings);
+    return callDuomiGeneration(job, settings);
   }
 
   return simulateDrawing(job);
@@ -422,11 +594,11 @@ export const api = {
         pending: state.jobs.filter((job) => job.status === "pending").length
       },
       imageProvider: {
-        textToImage: state.settings.apiKey ? "nowcoding" : "mock",
-        imageToImage: state.settings.apiKey ? "nowcoding" : "mock",
-        hasNowcodingKey: Boolean(state.settings.apiKey),
-        nowcodingBaseUrl: state.settings.baseUrl || DEFAULT_BASE_URL,
-        nowcodingModel: state.settings.model || DEFAULT_MODEL,
+        textToImage: state.settings.apiKey ? "duomi" : "mock",
+        imageToImage: state.settings.apiKey ? "duomi" : "mock",
+        hasDuomiKey: Boolean(state.settings.apiKey),
+        duomiBaseUrl: state.settings.baseUrl || DEFAULT_BASE_URL,
+        duomiModel: state.settings.model || DEFAULT_MODEL,
         apiKeyMasked: maskSecret(state.settings.apiKey),
         usesSavedConfig: Boolean(state.settings.apiKey || state.settings.baseUrl || state.settings.model)
       }
@@ -491,13 +663,15 @@ export const api = {
       : payload.inputImageUrl
         ? [payload.inputImageUrl]
         : [];
+    if (state.settings.apiKey && inputImageUrls.length > 0) assertDuomiImageUrls(inputImageUrls);
+
     const mode = inputImageUrls.length > 0 ? "image-to-image" : "text-to-image";
     if (!prompt) throw new Error("提示词不能为空");
     if (!["text-to-image", "image-to-image"].includes(payload.mode)) throw new Error("绘图模式无效");
 
     const count = Math.min(Math.max(Math.floor(payload.count || 1), 1), 8);
-    const width = Math.min(Math.max(payload.width || 1024, 256), 1024);
-    const height = Math.min(Math.max(payload.height || 1024, 256), 1024);
+    const size = normalizeSize(payload.size);
+    const { width, height } = dimensionsFromSize(size);
     const now = nowIso();
     const created: DrawJob[] = [];
     const baseOrderIndex = getNextOrderIndex(state, folder.id);
@@ -514,6 +688,7 @@ export const api = {
         inputImageUrls,
         width,
         height,
+        size,
         count: 1,
         strength: payload.strength,
         thinking: payload.thinking || "high",
@@ -580,7 +755,7 @@ export const api = {
   },
 
   uploadImage: async (file: File) => ({
-    url: await fileToDataUrl(file),
+    url: await uploadImageToHost(file),
     originalName: file.name
   }),
 
@@ -598,7 +773,7 @@ export const api = {
     const state = await loadState();
 
     if (payload.baseUrl !== undefined) {
-      const baseUrl = payload.baseUrl.trim();
+      const baseUrl = payload.baseUrl.trim() || DEFAULT_BASE_URL;
       try {
         const parsed = new URL(baseUrl);
         if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();

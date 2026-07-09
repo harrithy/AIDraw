@@ -32,12 +32,12 @@ export function ApiSettingsDialog({
           <div className="dialog-title-row">
             <div>
               <p className="eyebrow">接口设置</p>
-              <DialogTitle>Nowcoding</DialogTitle>
+              <DialogTitle>多米API</DialogTitle>
             </div>
             <Settings size={22} />
           </div>
           <DialogDescription id="api-settings-description">
-            配置浏览器本地保存的 API Key、Base URL 和模型。
+            配置浏览器本地保存的多米 API Key、Base URL 和模型。
           </DialogDescription>
         </DialogHeader>
         <ApiSettingsPanel settings={settings} onSave={onSave} variant="dialog" autoFocusApiKey={open} />
