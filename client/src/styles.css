@@ -422,6 +422,183 @@ button:disabled {
   color: var(--muted);
 }
 
+.onboarding-dialog {
+  width: min(740px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--panel-strong);
+  color: var(--ink);
+  box-shadow: 0 24px 72px rgba(16, 21, 19, 0.16);
+}
+
+.onboarding-title-row {
+  padding-right: 0;
+}
+
+.onboarding-dialog [data-slot="dialog-description"] {
+  color: var(--muted);
+}
+
+.onboarding-body {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.78fr) minmax(0, 1fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.onboarding-steps {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+}
+
+.onboarding-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: var(--panel);
+  color: var(--muted);
+  text-align: left;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.onboarding-step.active,
+.onboarding-step.completed {
+  border-color: color-mix(in srgb, var(--green) 34%, var(--line));
+  background: color-mix(in srgb, var(--green) 8%, var(--panel-strong));
+  color: var(--ink);
+}
+
+.onboarding-step:not(.active):not(:disabled):hover {
+  border-color: var(--line-strong);
+  background: var(--hover);
+  transform: translateY(-1px);
+}
+
+.onboarding-step-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--subtle);
+  color: var(--green-dark);
+}
+
+.onboarding-step span:last-child {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onboarding-card {
+  display: grid;
+  min-height: 266px;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--panel);
+}
+
+.onboarding-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onboarding-card-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--green) 24%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--green) 8%, var(--panel-strong));
+  color: var(--green-dark);
+}
+
+.onboarding-progress {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.onboarding-card h3,
+.onboarding-card p,
+.onboarding-card small {
+  margin: 0;
+}
+
+.onboarding-card h3 {
+  color: var(--ink);
+  font-size: 25px;
+  line-height: 1.12;
+}
+
+.onboarding-card p {
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.onboarding-card small {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.onboarding-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.onboarding-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.onboarding-dialog .secondary-submit,
+.onboarding-dialog .submit-button {
+  width: auto;
+  min-width: 104px;
+  min-height: 38px;
+  padding: 0 13px;
+}
+
+.onboarding-primary {
+  min-width: 122px;
+}
+
 .tool-group {
   display: inline-flex;
   align-items: center;
@@ -1592,6 +1769,7 @@ button:disabled {
   .job-reference-thumb,
   .empty-canvas-icon,
   .folder-item,
+  .onboarding-step,
   .mode-switch button,
   .submit-button,
   .secondary-submit {
@@ -1662,6 +1840,27 @@ button:disabled {
   .composer-submit {
     width: 100%;
   }
+
+  .onboarding-body {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-steps {
+    grid-template-columns: repeat(5, minmax(40px, 1fr));
+  }
+
+  .onboarding-step {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    min-height: 58px;
+    padding: 7px 5px;
+    text-align: center;
+  }
+
+  .onboarding-step span:last-child {
+    max-width: 100%;
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1729,6 +1928,48 @@ button:disabled {
   }
 
   .composer-actions .composer-submit {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .onboarding-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    padding: 14px;
+  }
+
+  .onboarding-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-step {
+    grid-template-columns: 28px minmax(0, 1fr);
+    justify-items: start;
+    min-height: 40px;
+    padding: 7px 9px;
+    text-align: left;
+  }
+
+  .onboarding-card {
+    min-height: 220px;
+    padding: 14px;
+  }
+
+  .onboarding-card h3 {
+    font-size: 22px;
+  }
+
+  .onboarding-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .onboarding-footer-actions {
+    width: 100%;
+  }
+
+  .onboarding-dialog .secondary-submit,
+  .onboarding-dialog .submit-button {
     flex: 1;
     min-width: 0;
   }

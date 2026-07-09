@@ -6,6 +6,7 @@ import { CanvasToolbar } from "./components/layout/CanvasToolbar";
 import { LeftSidebar } from "./components/layout/LeftSidebar";
 import { ApiSettingsDialog } from "./components/modals/ApiSettingsDialog";
 import { ImagePreview } from "./components/modals/ImagePreview";
+import { OnboardingGuide } from "./components/modals/OnboardingGuide";
 import { CreateJobPanel } from "./components/panels/CreateJobPanel";
 import { Metric } from "./components/ui/Metric";
 import { useAppAnimations } from "./hooks/useAppAnimations";
@@ -33,6 +34,8 @@ const emptyProviderSettings: ImageProviderSettings = {
   apiKeyMasked: ""
 };
 
+const ONBOARDING_STORAGE_KEY = "aidraw-onboarding-v1";
+
 function App() {
   const appRef = useRef<HTMLElement | null>(null);
   const [folders, setFolders] = useState<DrawFolder[]>([]);
@@ -46,6 +49,7 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewJob, setPreviewJob] = useState<DrawJob | null>(null);
   const [apiSettingsOpen, setApiSettingsOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(() => window.localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "done");
   const [leftOpen, setLeftOpen] = useState(() => window.matchMedia?.("(min-width: 721px)").matches ?? true);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = window.localStorage.getItem("aidraw-theme");
@@ -294,6 +298,11 @@ function App() {
     }
   };
 
+  const finishOnboarding = () => {
+    window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "done");
+    setOnboardingOpen(false);
+  };
+
   return (
     <main ref={appRef} className={`app-shell ${darkMode ? "dark" : ""}`}>
       <WorkflowCanvas
@@ -331,6 +340,7 @@ function App() {
         onSortByTime={() => void sortJobs("time")}
         onSortByName={() => void sortJobs("name")}
         onOpenApiSettings={() => setApiSettingsOpen(true)}
+        onOpenGuide={() => setOnboardingOpen(true)}
         onToggleTheme={() => setDarkMode((value) => !value)}
       />
 
@@ -373,6 +383,12 @@ function App() {
       />
 
       <ImagePreview job={previewJob} onClose={() => setPreviewJob(null)} />
+
+      <OnboardingGuide
+        open={onboardingOpen}
+        onOpenChange={setOnboardingOpen}
+        onFinish={finishOnboarding}
+      />
     </main>
   );
 }

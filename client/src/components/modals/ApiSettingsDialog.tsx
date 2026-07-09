@@ -27,7 +27,7 @@ export function ApiSettingsDialog({
 }: ApiSettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="api-settings-dialog" aria-describedby="api-settings-description">
+      <DialogContent className="api-settings-dialog">
         <DialogHeader>
           <div className="dialog-title-row">
             <div>
@@ -36,7 +36,7 @@ export function ApiSettingsDialog({
             </div>
             <Settings size={22} />
           </div>
-          <DialogDescription id="api-settings-description">
+          <DialogDescription>
             配置浏览器本地保存的多米 API Key、Base URL 和模型。
           </DialogDescription>
         </DialogHeader>

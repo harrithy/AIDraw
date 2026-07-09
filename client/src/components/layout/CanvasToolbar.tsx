@@ -1,4 +1,4 @@
-import { Clock, Maximize2, Moon, RefreshCw, Settings, Sun, ZoomIn, ZoomOut } from "lucide-react";
+import { CircleHelp, Clock, Maximize2, Moon, RefreshCw, Settings, Sun, ZoomIn, ZoomOut } from "lucide-react";
 
 type CanvasToolbarProps = {
   zoom: number;
@@ -8,6 +8,7 @@ type CanvasToolbarProps = {
   onResetCanvas: () => void;
   onSortByTime: () => void;
   onOpenApiSettings: () => void;
+  onOpenGuide: () => void;
   onSortByName: () => void;
   onToggleTheme: () => void;
 };
@@ -20,6 +21,7 @@ export function CanvasToolbar({
   onResetCanvas,
   onSortByTime,
   onOpenApiSettings,
+  onOpenGuide,
   onSortByName,
   onToggleTheme
 }: CanvasToolbarProps) {
@@ -46,6 +48,9 @@ export function CanvasToolbar({
         </button>
         <button type="button" onClick={onToggleTheme} title="切换暗黑模式">
           {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
+        <button type="button" onClick={onOpenGuide} title="新手指引">
+          <CircleHelp size={17} />
         </button>
         <button type="button" onClick={onOpenApiSettings} title="接口设置">
           <Settings size={17} />
