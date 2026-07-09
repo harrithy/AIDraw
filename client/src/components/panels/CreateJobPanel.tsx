@@ -1,9 +1,10 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { ImagePlus, ImageUp, Loader2, MousePointer2, Play, X } from "lucide-react";
+import { ChevronDown, ImagePlus, ImageUp, Loader2, MousePointer2, PenLine, Play, X } from "lucide-react";
 import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Message } from "@/components/ui/message";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -132,9 +133,9 @@ export function CreateJobPanel({
   const [thinking, setThinking] = useState<ThinkingValue>("high");
   const [inputImages, setInputImages] = useState<UploadResult[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadResult | null>(null);
-  const [uploadError, setUploadError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const dragDepthRef = useRef(0);
   const currentMode: DrawMode = inputImages.length > 0 ? "image-to-image" : "text-to-image";
 
@@ -186,11 +187,10 @@ export function CreateJobPanel({
 
     try {
       setIsUploading(true);
-      setUploadError("");
       const uploadedImages = await Promise.all(imageFiles.map((file) => onUploadImage(file)));
       setInputImages((current) => [...current, ...uploadedImages]);
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "图片添加失败");
+      Message.error(error instanceof Error ? error.message : "图片添加失败");
     } finally {
       setIsUploading(false);
     }
@@ -261,7 +261,7 @@ export function CreateJobPanel({
 
     const imageFiles = getImageFiles(event.dataTransfer.files);
     if (imageFiles.length === 0) {
-      setUploadError("只支持拖拽图片文件");
+      Message.error("只支持拖拽图片文件");
       return;
     }
 
@@ -278,7 +278,7 @@ export function CreateJobPanel({
       return;
     }
     if (!isRemoteImageUrl(url)) {
-      setUploadError("参考图片 URL 需要以 http:// 或 https:// 开头");
+      Message.error("参考图片 URL 需要以 http:// 或 https:// 开头");
       return;
     }
 
@@ -294,14 +294,18 @@ export function CreateJobPanel({
             }
           ]
     );
-    setUploadError("");
   };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const nextPrompt = prompt.trim();
     if (!nextPrompt) {
-      setUploadError("请先填写提示词");
+      Message.error("请先填写提示词");
+      return;
+    }
+
+    if (isUploading) {
+      Message.error("正在上传图片，请稍后再试");
       return;
     }
 
@@ -381,6 +385,21 @@ export function CreateJobPanel({
   );
 
   if (variant === "composer") {
+    if (isCollapsed) {
+      return (
+        <div 
+          className="create-panel composer-panel composer-collapsed cursor-pointer flex items-center justify-between" 
+          onClick={() => setIsCollapsed(false)}
+          title="展开创作面板"
+        >
+          <div className="flex items-center gap-2 font-bold text-muted-foreground hover:text-foreground transition-colors">
+            <PenLine size={16} />
+            <span>展开创作面板...</span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <>
         <form
@@ -456,9 +475,20 @@ export function CreateJobPanel({
                 <span>{inputImages.length > 0 ? "检测到图片，将自动使用图生图" : notice}</span>
               </div>
             ) : null}
+
+            <Button 
+              type="button" 
+              variant="ghost" 
+              size="icon-sm" 
+              className="ml-auto flex-shrink-0" 
+              onClick={() => setIsCollapsed(true)} 
+              title="收起面板"
+            >
+              <ChevronDown size={18} />
+            </Button>
           </div>
 
-          <Field className="composer-input-field" data-invalid={Boolean(uploadError)}>
+          <Field className="composer-input-field">
             <FieldLabel htmlFor="composer-prompt" className="sr-only">提示词</FieldLabel>
             <InputGroup className={`composer-input-shell ${inputImages.length > 0 ? "has-attachments" : ""}${isDragActive ? " is-dragging" : ""}`} onPaste={pasteImages} data-tour="composer">
               {imageAttachments}
@@ -468,9 +498,8 @@ export function CreateJobPanel({
                 onChange={(event) => setPrompt(event.target.value)}
                 onPaste={pasteImages}
                 placeholder="描述你想生成的画面"
-                aria-invalid={Boolean(uploadError)}
               />
-              <InputGroupAddon align="inline-end" className="composer-actions">
+              <InputGroupAddon className="composer-actions absolute bottom-2 right-2 flex items-center gap-2">
                 <Button type="button" variant="outline" size="icon" asChild title="上传参考图片">
                   <label>
                     <input className="sr-only" type="file" accept="image/*" multiple onChange={uploadImage} />
@@ -483,7 +512,6 @@ export function CreateJobPanel({
                 </Button>
               </InputGroupAddon>
             </InputGroup>
-            {uploadError ? <FieldError className="composer-error">{uploadError}</FieldError> : null}
           </Field>
         </form>
         <ReferenceImagePreview image={previewImage} onClose={() => setPreviewImage(null)} />

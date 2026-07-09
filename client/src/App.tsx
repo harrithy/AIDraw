@@ -53,7 +53,7 @@ function App() {
   const [leftOpen, setLeftOpen] = useState(() => window.matchMedia?.("(min-width: 721px)").matches ?? true);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = window.localStorage.getItem("aidraw-theme");
-    const prefersDark = saved ? saved === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+    const prefersDark = saved ? saved === "dark" : true;
     document.documentElement.classList.toggle("dark", prefersDark);
     return prefersDark;
   });

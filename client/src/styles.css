@@ -1328,6 +1328,7 @@ button:disabled {
   border: 0;
   background: transparent;
   transform: translateX(-50%);
+  animation: composer-pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   gap: 8px;
   box-shadow: none;
 }
@@ -1481,11 +1482,40 @@ button:disabled {
   justify-content: center;
 }
 
+@keyframes composer-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
 .composer-floating-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(116px, 180px);
+  display: flex;
   gap: 8px;
   align-items: center;
+  justify-content: space-between;
+}
+
+.composer-collapsed {
+  min-height: 48px;
+  padding: 0 16px !important;
+  justify-content: center;
+  border-radius: 24px !important;
+  background: var(--panel) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: 0 4px 12px rgba(16, 21, 19, 0.05) !important;
+  transition: all 200ms ease;
+  backdrop-filter: blur(8px);
+}
+
+.composer-collapsed:hover {
+  background: var(--subtle) !important;
+  border-color: var(--line-strong) !important;
+  transform: translateX(-50%) translateY(-2px);
 }
 
 .create-panel label,
@@ -1505,9 +1535,10 @@ button:disabled {
 }
 
 .composer-panel textarea {
-  min-height: 78px;
-  max-height: 180px;
-  resize: vertical;
+  min-height: 120px;
+  max-height: 240px;
+  resize: none;
+  padding-bottom: 44px !important;
 }
 
 .check-line {
@@ -1602,7 +1633,7 @@ button:disabled {
 }
 
 .composer-floating-controls:has(.composer-fields.has-custom-size) {
-  grid-template-columns: 1fr;
+  /* no grid needed since we use flex */
 }
 
 .create-panel select {
@@ -1678,12 +1709,13 @@ button:disabled {
 }
 
 .composer-input-shell {
-  display: grid;
-  grid-template-columns: 1fr auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: end;
+  align-items: stretch;
   height: auto;
-  padding: 10px;
+  padding: 0;
   box-shadow: 0 18px 48px rgba(16, 21, 19, 0.12);
   transition:
     border-color 160ms ease,
@@ -1692,7 +1724,7 @@ button:disabled {
 }
 
 .composer-input-shell.has-attachments {
-  grid-template-columns: 1fr auto;
+  flex-direction: column;
 }
 
 .composer-attachments {
@@ -1745,6 +1777,9 @@ button:disabled {
 }
 
 .composer-actions {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1801,6 +1836,17 @@ button:disabled {
   min-height: 34px;
   padding: 0 14px;
   white-space: nowrap;
+  background: var(--green) !important;
+  color: var(--page-bg) !important;
+  border: none !important;
+  font-weight: 700;
+  transition: all 180ms ease;
+}
+
+.composer-submit:not(:disabled):hover {
+  background: var(--green-dark) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--green) 30%, transparent);
 }
 
 .secondary-submit:not(:disabled):hover {
