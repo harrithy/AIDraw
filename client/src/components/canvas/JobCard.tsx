@@ -5,12 +5,17 @@ import {
   ArrowDown,
   ArrowUp,
   Clock,
+  Download,
   Loader2,
   MoreHorizontal,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  X
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { type CSSProperties, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import type { JobCardSize } from "../../lib/canvas";
+import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
 import { statusLabel } from "../../lib/jobLabels";
 import { prefersReducedMotion } from "../../lib/motion";
@@ -18,6 +23,7 @@ import type { DrawJob } from "../../types";
 
 type JobCardProps = {
   job: DrawJob;
+  cardSize: JobCardSize;
   index: number;
   total: number;
   posX: number;
@@ -37,6 +43,7 @@ const statusIcon = (status: DrawJob["status"]) => {
 
 export function JobCard({
   job,
+  cardSize,
   index,
   total,
   posX,
@@ -48,9 +55,40 @@ export function JobCard({
 }: JobCardProps) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
   const canRetry = job.status === "completed" || job.status === "failed";
   const sizeLabel = job.size || (job.width && job.height ? `${job.width}x${job.height}` : "auto");
   const qualityLabel = job.thinking === "low" || job.thinking === "medium" || job.thinking === "high" ? job.thinking : "high";
+  const referenceImages =
+    job.mode === "image-to-image"
+      ? Array.from(
+          new Set(
+            (job.inputImageUrls?.length ? job.inputImageUrls : job.inputImageUrl ? [job.inputImageUrl] : [])
+              .map((url) => url.trim())
+              .filter(Boolean)
+          )
+        )
+      : [];
+  const cardStyle: CSSProperties & Record<"--job-card-width" | "--job-card-height" | "--job-image-width" | "--job-image-height", string> = {
+    left: `${posX}px`,
+    top: `${posY}px`,
+    "--job-card-width": `${cardSize.cardWidth}px`,
+    "--job-card-height": `${cardSize.cardHeight}px`,
+    "--job-image-width": `${cardSize.imageWidth}px`,
+    "--job-image-height": `${cardSize.imageHeight}px`
+  };
+
+  const handleDownload = async () => {
+    if (!job.outputImageUrl || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      await downloadImage(job.outputImageUrl, job.prompt);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   useGSAP(
     () => {
@@ -79,13 +117,28 @@ export function JobCard({
   return (
     <article
       ref={cardRef}
-      className={`job-card status-${job.status}${toolsOpen ? " tools-open" : ""}${isDragging ? " card-dragging" : ""}`}
+      className={`job-card status-${job.status}${toolsOpen ? " tools-open" : ""}${isDragging ? " card-dragging" : ""}${
+        referenceImages.length > 0 ? " has-references" : ""
+      }`}
       data-job-id={job.id}
-      style={{
-        left: `${posX}px`,
-        top: `${posY}px`
-      }}
+      style={cardStyle}
     >
+      {referenceImages.length > 0 ? (
+        <div className="job-reference-strip" aria-label="参考图片" onPointerDown={(event) => event.stopPropagation()}>
+          {referenceImages.map((imageUrl, imageIndex) => (
+            <button
+              key={`${imageUrl}-${imageIndex}`}
+              type="button"
+              className="job-reference-thumb"
+              onClick={() => setReferencePreviewUrl(imageUrl)}
+              title="放大参考图"
+            >
+              <img src={imageUrl} alt={`参考图片 ${imageIndex + 1}`} />
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div className="job-card-header">
         <h3>{job.prompt}</h3>
 
@@ -107,6 +160,11 @@ export function JobCard({
               <button type="button" onClick={() => onMove(job.id, 1)} disabled={index === total - 1} title="下移">
                 <ArrowDown size={15} />
               </button>
+              {job.outputImageUrl ? (
+                <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
+                  {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
+                </button>
+              ) : null}
               {canRetry ? (
                 <button type="button" onClick={() => onRetry(job.id)} title="重新绘制">
                   <RotateCcw size={15} />
@@ -147,6 +205,34 @@ export function JobCard({
         </div>
         {job.errorMessage ? <small className="error-text">{job.errorMessage}</small> : null}
       </div>
+
+      {referencePreviewUrl
+        ? createPortal(
+            <div
+              className="image-preview-backdrop"
+              role="dialog"
+              aria-modal="true"
+              aria-label="参考图片预览"
+              onClick={() => setReferencePreviewUrl(null)}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <div className="image-preview-panel reference-preview-panel" onClick={(event) => event.stopPropagation()}>
+                <div className="image-preview-actions">
+                  <button
+                    type="button"
+                    className="image-preview-action image-preview-close"
+                    onClick={() => setReferencePreviewUrl(null)}
+                    title="关闭预览"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <img src={referencePreviewUrl} alt="参考图片" />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </article>
   );
 }

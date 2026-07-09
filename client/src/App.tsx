@@ -10,7 +10,7 @@ import { CreateJobPanel } from "./components/panels/CreateJobPanel";
 import { Metric } from "./components/ui/Metric";
 import { useAppAnimations } from "./hooks/useAppAnimations";
 import { useCanvasInteractions } from "./hooks/useCanvasInteractions";
-import { BOARD_PADDING, CARD_HEIGHT, CARD_WIDTH, type PositionedJob } from "./lib/canvas";
+import { BOARD_PADDING, getJobCardSize, type PositionedJob } from "./lib/canvas";
 import type {
   CreateJobPayload,
   DrawFolder,
@@ -81,14 +81,14 @@ function App() {
     () =>
       jobs.map((job, index) => {
         const pos = getCardDisplayPos(job, index);
-        return { job, index, x: pos.x, y: pos.y };
+        return { job, index, x: pos.x, y: pos.y, cardSize: getJobCardSize(job) };
       }),
     [getCardDisplayPos, jobs]
   );
 
   const boardSize = useMemo(() => {
-    const maxX = Math.max(...positionedJobs.map((item) => item.x + CARD_WIDTH), 960);
-    const maxY = Math.max(...positionedJobs.map((item) => item.y + CARD_HEIGHT), 720);
+    const maxX = Math.max(...positionedJobs.map((item) => item.x + item.cardSize.cardWidth), 960);
+    const maxY = Math.max(...positionedJobs.map((item) => item.y + item.cardSize.cardHeight), 720);
     return {
       width: maxX + BOARD_PADDING,
       height: maxY + BOARD_PADDING

@@ -65,10 +65,11 @@ export function WorkflowCanvas({
             }}
           >
             <WorkflowLinks positionedJobs={positionedJobs} />
-            {positionedJobs.map(({ job, index, x, y }) => (
+            {positionedJobs.map(({ job, index, x, y, cardSize }) => (
               <JobCard
                 key={job.id}
                 job={job}
+                cardSize={cardSize}
                 index={index}
                 total={positionedJobs.length}
                 posX={x}

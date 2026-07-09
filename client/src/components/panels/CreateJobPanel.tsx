@@ -1,7 +1,7 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { ImagePlus, ImageUp, Link2, Loader2, MousePointer2, Play, X } from "lucide-react";
-import { ChangeEvent, ClipboardEvent, FormEvent, KeyboardEvent, useRef, useState } from "react";
+import { ImagePlus, ImageUp, Loader2, MousePointer2, Play, X } from "lucide-react";
+import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,17 @@ const qualityOptions: ThinkingValue[] = ["high", "medium", "low"];
 
 const parseCustomDimension = (value: string) => Number.parseInt(value.trim(), 10);
 
+const getImageFiles = (files: FileList | File[]) => Array.from(files).filter((file) => file.type.startsWith("image/"));
+
+const hasDraggedImage = (event: DragEvent<HTMLElement>) => {
+  const items = Array.from(event.dataTransfer.items ?? []);
+  if (items.length > 0) {
+    return items.some((item) => item.kind === "file" && item.type.startsWith("image/"));
+  }
+
+  return getImageFiles(event.dataTransfer.files).length > 0;
+};
+
 const isRemoteImageUrl = (value: string) => {
   try {
     const url = new URL(value.trim());
@@ -68,6 +79,39 @@ const getCustomSizeError = (width: number, height: number) => {
   return "";
 };
 
+function ReferenceImagePreview({
+  image,
+  onClose
+}: {
+  image: UploadResult | null;
+  onClose: () => void;
+}) {
+  if (!image) return null;
+
+  return (
+    <div
+      className="image-preview-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="参考图片预览"
+      onClick={onClose}
+    >
+      <div className="image-preview-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="image-preview-actions">
+          <button type="button" className="image-preview-action image-preview-close" onClick={onClose} title="关闭预览">
+            <X size={18} />
+          </button>
+        </div>
+        <img src={image.url} alt={image.originalName} />
+        <div className="image-preview-caption">
+          <strong>{image.originalName}</strong>
+          <span>参考图片</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CreateJobPanel({
   isSubmitting,
   notice,
@@ -83,10 +127,23 @@ export function CreateJobPanel({
   const [customHeight, setCustomHeight] = useState("1024");
   const [thinking, setThinking] = useState<ThinkingValue>("high");
   const [inputImages, setInputImages] = useState<UploadResult[]>([]);
-  const [referenceImageUrl, setReferenceImageUrl] = useState("");
+  const [previewImage, setPreviewImage] = useState<UploadResult | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const dragDepthRef = useRef(0);
   const currentMode: DrawMode = inputImages.length > 0 ? "image-to-image" : "text-to-image";
+
+  useEffect(() => {
+    if (!previewImage) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewImage(null);
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [previewImage]);
 
   useGSAP(
     () => {
@@ -107,7 +164,7 @@ export function CreateJobPanel({
   );
 
   const uploadFiles = async (files: File[]) => {
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    const imageFiles = getImageFiles(files);
     if (imageFiles.length === 0) return;
 
     try {
@@ -137,7 +194,7 @@ export function CreateJobPanel({
       .map((item) => item.getAsFile())
       .filter((file): file is File => Boolean(file));
     const files = filesFromItems.length > 0 ? filesFromItems : Array.from(event.clipboardData.files);
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    const imageFiles = getImageFiles(files);
     if (imageFiles.length === 0) {
       if (pastedText && isRemoteImageUrl(pastedText)) {
         event.preventDefault();
@@ -152,14 +209,55 @@ export function CreateJobPanel({
     void uploadFiles(imageFiles);
   };
 
+  const dragImages = (event: DragEvent<HTMLElement>) => {
+    if (!hasDraggedImage(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+    dragDepthRef.current += 1;
+    setIsDragActive(true);
+  };
+
+  const holdDraggedImages = (event: DragEvent<HTMLElement>) => {
+    if (!isDragActive && !hasDraggedImage(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
+  const leaveDraggedImages = (event: DragEvent<HTMLElement>) => {
+    if (!isDragActive && !hasDraggedImage(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setIsDragActive(false);
+  };
+
+  const dropImages = (event: DragEvent<HTMLElement>) => {
+    const hasFiles = event.dataTransfer.files.length > 0;
+    if (!hasFiles && !hasDraggedImage(event)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepthRef.current = 0;
+    setIsDragActive(false);
+
+    const imageFiles = getImageFiles(event.dataTransfer.files);
+    if (imageFiles.length === 0) {
+      setUploadError("只支持拖拽图片文件");
+      return;
+    }
+
+    void uploadFiles(imageFiles);
+  };
+
   const removeImage = (url: string) => {
     setInputImages((current) => current.filter((image) => image.url !== url));
   };
 
-  const addReferenceImageUrl = (rawValue = referenceImageUrl) => {
+  const addReferenceImageUrl = (rawValue: string) => {
     const url = rawValue.trim();
     if (!url) {
-      setUploadError("请先填写参考图片 URL");
       return;
     }
     if (!isRemoteImageUrl(url)) {
@@ -179,14 +277,7 @@ export function CreateJobPanel({
             }
           ]
     );
-    setReferenceImageUrl("");
     setUploadError("");
-  };
-
-  const addReferenceImageUrlOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    addReferenceImageUrl();
   };
 
   const submit = async (event: FormEvent) => {
@@ -227,7 +318,9 @@ export function CreateJobPanel({
     <div className="composer-attachments mode-sensitive" aria-label="参考图片">
       {inputImages.map((image) => (
         <div className="composer-attachment" key={image.url}>
-          <img src={image.url} alt={image.originalName} />
+          <button type="button" className="composer-attachment-preview" onClick={() => setPreviewImage(image)} title="放大预览" aria-label={`预览 ${image.originalName}`}>
+            <img src={image.url} alt={image.originalName} />
+          </button>
           <Button type="button" variant="secondary" size="icon-xs" onClick={() => removeImage(image.url)} aria-label={`移除 ${image.originalName}`}>
             <X />
           </Button>
@@ -235,22 +328,6 @@ export function CreateJobPanel({
       ))}
     </div>
   ) : null;
-
-  const referenceUrlEntry = (
-    <div className="reference-url-row">
-      <Input
-        value={referenceImageUrl}
-        onChange={(event) => setReferenceImageUrl(event.target.value)}
-        onKeyDown={addReferenceImageUrlOnEnter}
-        placeholder="https://example.com/image.png"
-        aria-label="参考图片 URL"
-      />
-      <Button type="button" variant="outline" size="sm" className="reference-url-button" onClick={() => addReferenceImageUrl()}>
-        <Link2 data-icon="inline-start" />
-        添加 URL
-      </Button>
-    </div>
-  );
 
   const renderQualitySelect = (id?: string, side: "top" | "bottom" = "bottom") => (
     <Select value={thinking} onValueChange={(value) => setThinking(value as ThinkingValue)}>
@@ -288,106 +365,127 @@ export function CreateJobPanel({
 
   if (variant === "composer") {
     return (
-      <form ref={panelRef} className="create-panel composer-panel" onSubmit={submit} noValidate>
-        <div className="composer-floating-controls">
-          <div className={`composer-fields ${sizeMode === "custom" ? "has-custom-size" : ""}`}>
-            <Field orientation="horizontal">
-              <FieldLabel htmlFor="composer-count">数量</FieldLabel>
-              <Input
-                id="composer-count"
-                type="number"
-                min={1}
-                max={8}
-                value={count}
-                onChange={(event) => setCount(Math.min(8, Math.max(1, Number(event.target.value) || 1)))}
-              />
-            </Field>
-            <Field orientation="horizontal">
-              <FieldLabel htmlFor="composer-quality">Quality</FieldLabel>
-              {renderQualitySelect("composer-quality", "top")}
-            </Field>
-            <Field orientation="horizontal">
-              <FieldLabel htmlFor="composer-size">Size</FieldLabel>
-              {renderSizeSelect("composer-size", "top")}
-            </Field>
-            {sizeMode === "custom" ? (
-              <>
-                <Field orientation="horizontal" className="custom-size-field">
-                  <FieldLabel htmlFor="composer-custom-width">宽</FieldLabel>
-                  <Input
-                    id="composer-custom-width"
-                    inputMode="numeric"
-                    min={16}
-                    max={3840}
-                    step={16}
-                    type="number"
-                    value={customWidth}
-                    onChange={(event) => setCustomWidth(event.target.value)}
-                  />
-                </Field>
-                <Field orientation="horizontal" className="custom-size-field">
-                  <FieldLabel htmlFor="composer-custom-height">高</FieldLabel>
-                  <Input
-                    id="composer-custom-height"
-                    inputMode="numeric"
-                    min={16}
-                    max={3840}
-                    step={16}
-                    type="number"
-                    value={customHeight}
-                    onChange={(event) => setCustomHeight(event.target.value)}
-                  />
-                </Field>
-              </>
+      <>
+        <form
+          ref={panelRef}
+          className="create-panel composer-panel"
+          onSubmit={submit}
+          onDragEnter={dragImages}
+          onDragOver={holdDraggedImages}
+          onDragLeave={leaveDraggedImages}
+          onDrop={dropImages}
+          noValidate
+        >
+          <div className="composer-floating-controls">
+            <div className={`composer-fields ${sizeMode === "custom" ? "has-custom-size" : ""}`}>
+              <Field orientation="horizontal">
+                <FieldLabel htmlFor="composer-count">数量</FieldLabel>
+                <Input
+                  id="composer-count"
+                  type="number"
+                  min={1}
+                  max={8}
+                  value={count}
+                  onChange={(event) => setCount(Math.min(8, Math.max(1, Number(event.target.value) || 1)))}
+                />
+              </Field>
+              <Field orientation="horizontal">
+                <FieldLabel htmlFor="composer-quality">Quality</FieldLabel>
+                {renderQualitySelect("composer-quality", "top")}
+              </Field>
+              <Field orientation="horizontal">
+                <FieldLabel htmlFor="composer-size">Size</FieldLabel>
+                {renderSizeSelect("composer-size", "top")}
+              </Field>
+              {sizeMode === "custom" ? (
+                <>
+                  <Field orientation="horizontal" className="custom-size-field">
+                    <FieldLabel htmlFor="composer-custom-width">宽</FieldLabel>
+                    <Input
+                      id="composer-custom-width"
+                      inputMode="numeric"
+                      min={16}
+                      max={3840}
+                      step={16}
+                      type="number"
+                      value={customWidth}
+                      onChange={(event) => setCustomWidth(event.target.value)}
+                    />
+                  </Field>
+                  <Field orientation="horizontal" className="custom-size-field">
+                    <FieldLabel htmlFor="composer-custom-height">高</FieldLabel>
+                    <Input
+                      id="composer-custom-height"
+                      inputMode="numeric"
+                      min={16}
+                      max={3840}
+                      step={16}
+                      type="number"
+                      value={customHeight}
+                      onChange={(event) => setCustomHeight(event.target.value)}
+                    />
+                  </Field>
+                </>
+              ) : null}
+              <Field orientation="horizontal">
+                <FieldLabel htmlFor="composer-model">模型</FieldLabel>
+                <Input id="composer-model" value="gpt-image-2" readOnly />
+              </Field>
+            </div>
+
+            {notice ? (
+              <div className="notice-line composer-notice">
+                <MousePointer2 size={15} />
+                <span>{inputImages.length > 0 ? "检测到图片，将自动使用图生图" : notice}</span>
+              </div>
             ) : null}
-            <Field orientation="horizontal">
-              <FieldLabel htmlFor="composer-model">模型</FieldLabel>
-              <Input id="composer-model" value="gpt-image-2" readOnly />
-            </Field>
           </div>
 
-          {notice ? (
-            <div className="notice-line composer-notice">
-              <MousePointer2 size={15} />
-              <span>{inputImages.length > 0 ? "检测到图片，将自动使用图生图" : notice}</span>
-            </div>
-          ) : null}
-        </div>
-
-        <Field className="composer-input-field" data-invalid={Boolean(uploadError)}>
-          <FieldLabel htmlFor="composer-prompt" className="sr-only">提示词</FieldLabel>
-          <InputGroup className={`composer-input-shell ${inputImages.length > 0 ? "has-attachments" : ""}`} onPaste={pasteImages}>
-            {imageAttachments}
-            <InputGroupTextarea
-              id="composer-prompt"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              onPaste={pasteImages}
-              placeholder="描述你想生成的画面"
-              aria-invalid={Boolean(uploadError)}
-            />
-            <InputGroupAddon align="inline-end" className="composer-actions">
-              <Button type="button" variant="outline" size="icon" asChild title="上传参考图片">
-                <label>
-                  <input className="sr-only" type="file" accept="image/*" multiple onChange={uploadImage} />
-                  {isUploading ? <Loader2 className="spin" /> : <ImagePlus />}
-                </label>
-              </Button>
-              <Button className="composer-submit" type="submit" disabled={isSubmitting || isUploading}>
-                {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <ImageUp data-icon="inline-start" />}
-                <span>{isSubmitting ? "加入中" : "加入队列"}</span>
-              </Button>
-            </InputGroupAddon>
-          </InputGroup>
-          {referenceUrlEntry}
-          {uploadError ? <FieldError className="composer-error">{uploadError}</FieldError> : null}
-        </Field>
-      </form>
+          <Field className="composer-input-field" data-invalid={Boolean(uploadError)}>
+            <FieldLabel htmlFor="composer-prompt" className="sr-only">提示词</FieldLabel>
+            <InputGroup className={`composer-input-shell ${inputImages.length > 0 ? "has-attachments" : ""}${isDragActive ? " is-dragging" : ""}`} onPaste={pasteImages}>
+              {imageAttachments}
+              <InputGroupTextarea
+                id="composer-prompt"
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                onPaste={pasteImages}
+                placeholder="描述你想生成的画面"
+                aria-invalid={Boolean(uploadError)}
+              />
+              <InputGroupAddon align="inline-end" className="composer-actions">
+                <Button type="button" variant="outline" size="icon" asChild title="上传参考图片">
+                  <label>
+                    <input className="sr-only" type="file" accept="image/*" multiple onChange={uploadImage} />
+                    {isUploading ? <Loader2 className="spin" /> : <ImagePlus />}
+                  </label>
+                </Button>
+                <Button className="composer-submit" type="submit" disabled={isSubmitting || isUploading}>
+                  {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <ImageUp data-icon="inline-start" />}
+                  <span>{isSubmitting ? "加入中" : "加入队列"}</span>
+                </Button>
+              </InputGroupAddon>
+            </InputGroup>
+            {uploadError ? <FieldError className="composer-error">{uploadError}</FieldError> : null}
+          </Field>
+        </form>
+        <ReferenceImagePreview image={previewImage} onClose={() => setPreviewImage(null)} />
+      </>
     );
   }
 
   return (
-    <form ref={panelRef} className="create-panel" onSubmit={submit} noValidate>
+    <>
+    <form
+      ref={panelRef}
+      className="create-panel"
+      onSubmit={submit}
+      onDragEnter={dragImages}
+      onDragOver={holdDraggedImages}
+      onDragLeave={leaveDraggedImages}
+      onDrop={dropImages}
+      noValidate
+    >
       <div className="panel-title">
         <div>
           <p className="eyebrow">绘图任务</p>
@@ -396,13 +494,11 @@ export function CreateJobPanel({
         <Play size={24} />
       </div>
 
-      <label className="upload-box">
+      <label className={`upload-box${isDragActive ? " is-dragging" : ""}`}>
         <input type="file" accept="image/*" multiple onChange={uploadImage} />
         {isUploading ? <Loader2 className="spin" size={22} /> : <ImagePlus size={22} />}
         <span>{inputImages.length > 0 ? `${inputImages.length} 张参考图` : "上传参考图片"}</span>
       </label>
-
-      {referenceUrlEntry}
 
       {imageAttachments}
 
@@ -480,5 +576,7 @@ export function CreateJobPanel({
         {isSubmitting ? "加入中" : "加入绘制队列"}
       </Button>
     </form>
+    <ReferenceImagePreview image={previewImage} onClose={() => setPreviewImage(null)} />
+    </>
   );
 }

@@ -25,12 +25,15 @@ export function useCanvasInteractions({
   const pendingCardRef = useRef<{ jobId: string; posX: number; posY: number } | null>(null);
   const lockedCardPositionRef = useRef<{ jobId: string; posX: number; posY: number } | null>(null);
 
-  const getCardDisplayPos = useCallback((job: DrawJob, index: number) => {
-    if (job.hasCustomPosition && Number.isFinite(job.posX) && Number.isFinite(job.posY)) {
-      return { x: job.posX, y: job.posY };
-    }
-    return getDefaultCardPosition(index);
-  }, []);
+  const getCardDisplayPos = useCallback(
+    (job: DrawJob, index: number) => {
+      if (job.hasCustomPosition && Number.isFinite(job.posX) && Number.isFinite(job.posY)) {
+        return { x: job.posX, y: job.posY };
+      }
+      return getDefaultCardPosition(index, jobs);
+    },
+    [jobs]
+  );
 
   const updateCanvas = useCallback(
     (patch: Partial<Pick<DrawFolder, "canvasZoom" | "canvasPanX" | "canvasPanY">>, persist = true) => {
