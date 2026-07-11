@@ -36,6 +36,20 @@ const emptyProviderSettings: ImageProviderSettings = {
 
 const ONBOARDING_STORAGE_KEY = "aidraw-onboarding-v1";
 
+/**
+ * 应用根组件
+ *
+ * 管理应用的全局状态：
+ * - 文件夹 CRUD（创建/重命名/删除/选择）
+ * - 任务列表的加载、定时轮询
+ * - 任务创建、重试、排序、拖拽
+ * - 画布交互（缩放/平移/卡片拖拽）
+ * - API 配置管理
+ * - 深色模式切换
+ * - 新手引导流程
+ *
+ * 子组件通过 props 接收数据和回调，保持单向数据流
+ */
 function App() {
   const appRef = useRef<HTMLElement | null>(null);
   const [folders, setFolders] = useState<DrawFolder[]>([]);
@@ -49,8 +63,11 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewJob, setPreviewJob] = useState<DrawJob | null>(null);
   const [apiSettingsOpen, setApiSettingsOpen] = useState(false);
+  // 新手引导：检查 localStorage，已完成则跳过
   const [onboardingOpen, setOnboardingOpen] = useState(() => window.localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "done");
+  // 左侧面板：宽屏默认展开，窄屏默认收起
   const [leftOpen, setLeftOpen] = useState(() => window.matchMedia?.("(min-width: 721px)").matches ?? true);
+  // 深色模式：优先读 localStorage，默认深色
   const [darkMode, setDarkMode] = useState(() => {
     const saved = window.localStorage.getItem("aidraw-theme");
     const prefersDark = saved ? saved === "dark" : true;
@@ -196,6 +213,7 @@ function App() {
     });
   }, [activeFolderId, loadJobs]);
 
+  // 定期轮询：每 2.5 秒同步任务状态和队列信息
   useEffect(() => {
     if (!activeFolderId) return;
 
@@ -208,6 +226,9 @@ function App() {
     return () => window.clearInterval(timer);
   }, [activeFolderId, loadJobs, loadQueue]);
 
+  /**
+   * 创建文件夹并自动选中
+   */
   const createFolder = async (event: FormEvent) => {
     event.preventDefault();
     const name = folderName.trim();
@@ -224,6 +245,11 @@ function App() {
     }
   };
 
+  /**
+   * 重命名文件夹
+   * @param folderId - 文件夹 ID
+   * @param newName - 新名称
+   */
   const renameFolder = async (folderId: string, newName: string) => {
     try {
       const updated = await api.updateFolder(folderId, { name: newName });
@@ -234,6 +260,10 @@ function App() {
     }
   };
 
+  /**
+   * 删除文件夹（如果当前正选中该文件夹则清空选中）
+   * @param folderId - 文件夹 ID
+   */
   const deleteFolder = async (folderId: string) => {
     try {
       await api.deleteFolder(folderId);
@@ -247,6 +277,10 @@ function App() {
     }
   };
 
+  /**
+   * 排序任务 — 按时间或按提示词（中文拼音排序）
+   * @param mode - "time" 按创建时间，"name" 按提示词
+   */
   const sortJobs = async (mode: "time" | "name") => {
     if (!activeFolder) return;
     const ordered = [...jobs].sort((a, b) => {
@@ -257,6 +291,11 @@ function App() {
     setNotice(mode === "time" ? "已按生成时间排序" : "已按提示词排序");
   };
 
+  /**
+   * 持久化任务顺序到服务器
+   * 乐观更新本地 state -> 发请求保存 -> 失败时回滚
+   * @param orderedJobs - 按新顺序排列的任务列表
+   */
   const persistOrder = async (orderedJobs: DrawJob[]) => {
     if (!activeFolder) return;
     setJobs(orderedJobs.map((job, index) => ({ ...job, orderIndex: index })));
@@ -272,6 +311,11 @@ function App() {
     }
   };
 
+  /**
+   * 上下移动任务（改变 orderIndex）
+   * @param jobId - 任务 ID
+   * @param direction - -1 上移，1 下移
+   */
   const moveJob = async (jobId: string, direction: -1 | 1) => {
     const index = jobs.findIndex((job) => job.id === jobId);
     const nextIndex = index + direction;
@@ -283,6 +327,11 @@ function App() {
     await persistOrder(ordered);
   };
 
+  /**
+   * 提交绘图任务
+   * 创建任务后自动刷新队列状态
+   * @param payload - 任务创建参数
+   */
   const submitJobs = async (payload: CreateJobPayload) => {
     if (!activeFolder) return;
     try {
@@ -298,6 +347,10 @@ function App() {
     }
   };
 
+  /**
+   * 重试绘图 — 将失败/已完成任务重新加入队列
+   * @param jobId - 任务 ID
+   */
   const retryDrawing = async (jobId: string) => {
     if (!activeFolder) return;
     try {
@@ -310,6 +363,11 @@ function App() {
     }
   };
 
+  /**
+   * 保存 API 设置（Base URL / Model / API Key）
+   * 保存成功后刷新队列状态以切换真实 API / Mock 模式
+   * @param payload - API 配置更新参数
+   */
   const saveProviderSettings = async (payload: UpdateImageProviderSettingsPayload) => {
     try {
       const settings = await api.updateImageProviderSettings(payload);
@@ -322,6 +380,9 @@ function App() {
     }
   };
 
+  /**
+   * 完成新手引导，记录到 localStorage 不再弹出
+   */
   const finishOnboarding = () => {
     window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "done");
     setOnboardingOpen(false);

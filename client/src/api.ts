@@ -43,8 +43,16 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 let stateCache: StoredState | null = null;
 const activeJobs = new Set<string>();
 
+/**
+ * 创建 ISO 时间戳字符串（当前时间）
+ */
 const nowIso = () => new Date().toISOString();
 
+/**
+ * 生成唯一 ID
+ * 优先使用 crypto.randomUUID()（现代浏览器原生支持），
+ * 不支持时回退到时间戳 + 随机字符串组合
+ */
 const createId = () => {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -586,7 +594,23 @@ const processQueue = async () => {
   });
 };
 
+/**
+ * 前端 API 层 — 所有数据操作和业务逻辑的统一入口
+ *
+ * 实现方案：使用 IndexedDB 作为本地持久化存储 + 浏览器内模拟后端逻辑
+ * 对上层组件暴露与远程 API 一致的 Promise 接口，方便将来切换到真实后端
+ *
+ * 关键设计决策：
+ * - 纯前端实现：所有"多米API"调用在前端完成，服务端仅作为反向代理
+ * - 主动轮询：定时检查 pending 任务，逐个提交到绘图 API
+ * - Mock 模式：未配置 API Key 时用 SVG 占位图模拟生成结果
+ */
 export const api = {
+  /**
+   * 健康检查 — 返回队列状态和 API 配置信息
+   * 同时触发队列处理（检查是否有 pending 任务可以开始执行）
+   * @returns 服务健康状态、队列统计、图像服务配置
+   */
   health: async (): Promise<HealthPayload> => {
     const state = await loadState();
     void processQueue();
@@ -610,11 +634,19 @@ export const api = {
     };
   },
 
+  /**
+   * 列出所有文件夹，按创建时间倒序排列
+   */
   listFolders: async () => {
     const state = await loadState();
     return sortFolders(state.folders);
   },
 
+  /**
+   * 创建新文件夹
+   * @param name - 文件夹名称（会自动 trim）
+   * @returns 新创建的文件夹对象
+   */
   createFolder: async (name: string) => {
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("文件夹名称不能为空");
@@ -636,6 +668,12 @@ export const api = {
     return folder;
   },
 
+  /**
+   * 更新文件夹属性（名称或画布状态）
+   * @param id - 文件夹 ID
+   * @param patch - 要更新的字段（部分更新）
+   * @returns 更新后的文件夹对象
+   */
   updateFolder: async (
     id: string,
     patch: Partial<Pick<DrawFolder, "name" | "canvasZoom" | "canvasPanX" | "canvasPanY">>
@@ -653,6 +691,10 @@ export const api = {
     return updated;
   },
 
+  /**
+   * 删除文件夹及其下的所有任务
+   * @param id - 文件夹 ID
+   */
   deleteFolder: async (id: string) => {
     const state = await loadState();
     ensureFolder(state, id);
@@ -661,12 +703,24 @@ export const api = {
     await saveState();
   },
 
+  /**
+   * 列出指定文件夹下的所有任务，按 orderIndex 排序
+   * @param folderId - 文件夹 ID
+   */
   listJobs: async (folderId: string) => {
     const state = await loadState();
     ensureFolder(state, folderId);
     return sortJobs(state.jobs.filter((job) => job.folderId === folderId));
   },
 
+  /**
+   * 批量创建绘图任务
+   * 当配置了 API Key 且使用图生图模式时，会校验参考图 URL 是否为公网可访问地址
+   * 创建后自动触发队列处理
+   * @param folderId - 目标文件夹 ID
+   * @param payload - 任务创建参数
+   * @returns 新创建的任务列表
+   */
   createJobs: async (folderId: string, payload: CreateJobPayload) => {
     const state = await loadState();
     const folder = ensureFolder(state, folderId);
@@ -723,6 +777,11 @@ export const api = {
     return created;
   },
 
+  /**
+   * 重试已完成或失败的任务——将其状态重置为 pending 并重新加入队列
+   * @param jobId - 任务 ID
+   * @returns 更新后的任务对象
+   */
   retryJob: async (jobId: string) => {
     const state = await loadState();
     const job = ensureJob(state, jobId);
@@ -740,6 +799,13 @@ export const api = {
     return updated;
   },
 
+  /**
+   * 更新任务在画布上的拖拽位置
+   * @param jobId - 任务 ID
+   * @param posX - 新的 X 坐标
+   * @param posY - 新的 Y 坐标
+   * @returns 更新后的任务对象
+   */
   updateJobPosition: async (jobId: string, posX: number, posY: number) =>
     updateJob(jobId, {
       posX,
@@ -747,6 +813,12 @@ export const api = {
       hasCustomPosition: true
     }),
 
+  /**
+   * 重新排列指定文件夹下的任务顺序
+   * @param folderId - 文件夹 ID
+   * @param orderedIds - 按新顺序排列的任务 ID 列表
+   * @returns 排序后的任务列表
+   */
   reorderJobs: async (folderId: string, orderedIds: string[]) => {
     const state = await loadState();
     ensureFolder(state, folderId);
@@ -766,11 +838,20 @@ export const api = {
     return sortJobs(state.jobs.filter((job) => job.folderId === folderId));
   },
 
+  /**
+   * 上传图片到图床
+   * @param file - 要上传的图片文件
+   * @returns 包含远程 URL 和原始文件名的对象
+   */
   uploadImage: async (file: File) => ({
     url: await uploadImageToHost(file),
     originalName: file.name
   }),
 
+  /**
+   * 获取图像服务的当前配置（供 UI 展示）
+   * @returns API 设置信息（Key 已脱敏）
+   */
   getImageProviderSettings: async (): Promise<ImageProviderSettings> => {
     const state = await loadState();
     return {
@@ -781,6 +862,13 @@ export const api = {
     };
   },
 
+  /**
+   * 更新图像服务的 API 配置（Base URL / Model / API Key）
+   * 会对 Base URL 做格式校验（必须是 http/https），
+   * 传 clearApiKey=true 可以清除已保存的 API Key
+   * @param payload - 要更新的配置字段（部分更新）
+   * @returns 更新后的完整配置
+   */
   updateImageProviderSettings: async (payload: UpdateImageProviderSettingsPayload): Promise<ImageProviderSettings> => {
     const state = await loadState();
 

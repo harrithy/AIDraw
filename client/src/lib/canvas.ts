@@ -1,23 +1,49 @@
 import type { DrawJob } from "../types";
 
+/** 卡片标准宽度（px） */
 export const CARD_WIDTH = 316;
+/** 卡片标准高度（px） */
 export const CARD_HEIGHT = 356;
+/** 卡片之间的垂直间距（px） */
 export const CARD_GAP_Y = 96;
+/** 新建卡片默认 X 坐标 */
 export const DEFAULT_CARD_X = 318;
+/** 新建卡片默认 Y 坐标 */
 export const DEFAULT_CARD_Y = 150;
+/** 画布内边距（防止卡片贴边） */
 export const BOARD_PADDING = 240;
 
+/** 卡片左右内边距（影响卡片总宽度） */
 const CARD_HORIZONTAL_PADDING = 24;
+/** 卡片非图片区域的固定高度（标题栏 + 状态栏等 chrome） */
 const CARD_VERTICAL_CHROME = 64;
+/** 卡片最小宽度（防止太窄） */
 const CARD_MIN_WIDTH = 236;
+/** 横版图片的标准展示宽度 */
 const LANDSCAPE_IMAGE_WIDTH = 320;
+/** 方形图片的标准展示尺寸 */
 const SQUARE_IMAGE_SIZE = 292;
+/** 竖版图片的标准展示高度 */
 const PORTRAIT_IMAGE_HEIGHT = 376;
+/** 图片最小展示宽度 */
 const MIN_IMAGE_WIDTH = 196;
+/** 图片最小展示高度 */
 const MIN_IMAGE_HEIGHT = 158;
 
+/**
+ * 限制值在 [min, max] 区间内
+ * @param value - 原始值
+ * @param min - 下限
+ * @param max - 上限
+ */
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
+/**
+ * 计算任务的宽高比
+ * 无有效尺寸时默认返回 1（正方形），并限制在 0.25 ~ 4 之间防止极端比例
+ * @param job - 带有 width/height 的任务对象
+ * @returns 约束后的宽高比
+ */
 const getJobRatio = (job: Pick<DrawJob, "width" | "height">) => {
   if (Number.isFinite(job.width) && Number.isFinite(job.height) && job.width > 0 && job.height > 0) {
     return clamp(job.width / job.height, 0.25, 4);
@@ -26,27 +52,47 @@ const getJobRatio = (job: Pick<DrawJob, "width" | "height">) => {
   return 1;
 };
 
+/**
+ * 🃏 任务卡片尺寸信息
+ * 根据图像的宽高比动态计算卡片和图片的展示尺寸
+ */
 export type JobCardSize = {
+  /** 卡片总宽度（含内边距） */
   cardWidth: number;
+  /** 卡片总高度（含标题栏等 chrome） */
   cardHeight: number;
+  /** 图片展示宽度 */
   imageWidth: number;
+  /** 图片展示高度 */
   imageHeight: number;
+  /** 原始宽高比 */
   ratio: number;
 };
 
+/**
+ * 根据任务的图像尺寸计算卡片布局
+ * 横版图片 -> 宽度优先；竖版图片 -> 高度优先；方形 -> 固定尺寸
+ * 通过限制最小宽高防止极端比例导致卡片变形
+ * @param job - 带有 width/height 的任务对象
+ * @returns 卡片和图片的尺寸信息
+ */
 export const getJobCardSize = (job: Pick<DrawJob, "width" | "height">): JobCardSize => {
   const ratio = getJobRatio(job);
   let imageWidth = SQUARE_IMAGE_SIZE;
   let imageHeight = SQUARE_IMAGE_SIZE;
 
+  // 横版图片（ratio > 1.05）：宽度固定 320px，高度按比例缩小
   if (ratio > 1.05) {
     imageWidth = LANDSCAPE_IMAGE_WIDTH;
     imageHeight = imageWidth / ratio;
+    // 保证最小高度，防止图片过扁
     if (imageHeight < MIN_IMAGE_HEIGHT) {
       imageHeight = MIN_IMAGE_HEIGHT;
       imageWidth = imageHeight * ratio;
     }
-  } else if (ratio < 0.95) {
+  }
+  // 竖版图片（ratio < 0.95）：高度固定 376px，宽度按比例计算
+  else if (ratio < 0.95) {
     imageHeight = PORTRAIT_IMAGE_HEIGHT;
     imageWidth = imageHeight * ratio;
     if (imageWidth < MIN_IMAGE_WIDTH) {
@@ -67,15 +113,31 @@ export const getJobCardSize = (job: Pick<DrawJob, "width" | "height">): JobCardS
   };
 };
 
+/**
+ * 画布上已定位的任务卡片
+ */
 export type PositionedJob = {
+  /** 原始任务数据 */
   job: DrawJob;
+  /** 在任务列表中的索引 */
   index: number;
+  /** 画布 X 坐标 */
   x: number;
+  /** 画布 Y 坐标 */
   y: number;
+  /** 计算出的卡片尺寸 */
   cardSize: JobCardSize;
 };
 
+/**
+ * 计算新卡片的默认画布位置
+ * 按列表顺序垂直排列，每个卡片间距 CARD_GAP_Y
+ * @param index - 卡片在列表中的索引
+ * @param jobs - 前置任务列表（用于累计高度偏移）
+ * @returns 默认的 { x, y } 坐标
+ */
 export const getDefaultCardPosition = (index: number, jobs: DrawJob[] = []) => {
+  // 累加前面所有卡片的高度 + 间距，作为当前卡片的 Y 偏移
   const yOffset = jobs.slice(0, index).reduce((offset, job) => offset + getJobCardSize(job).cardHeight + CARD_GAP_Y, 0);
 
   return {
@@ -84,6 +146,13 @@ export const getDefaultCardPosition = (index: number, jobs: DrawJob[] = []) => {
   };
 };
 
+/**
+ * 计算两张卡片之间的 SVG 连接线路径
+ * 从 from 卡片底部中心 -> to 卡片顶部中心，绘制贝塞尔曲线
+ * @param from - 起始卡片
+ * @param to - 目标卡片
+ * @returns SVG path 的 d 属性值
+ */
 export const getConnectionPath = (from: PositionedJob, to: PositionedJob) => {
   const fromSize = from.cardSize;
   const toSize = to.cardSize;
