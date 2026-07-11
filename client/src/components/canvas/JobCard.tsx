@@ -4,6 +4,8 @@ import {
   AlertCircle,
   ArrowDown,
   ArrowUp,
+  ChevronsLeft,
+  ChevronsRight,
   Clock,
   Download,
   ImagePlus,
@@ -14,13 +16,18 @@ import {
   X
 } from "lucide-react";
 import { type CSSProperties, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { flushSync } from "react-dom";
 import type { JobCardSize } from "../../lib/canvas";
 import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
+import { getJobOutputImages } from "../../lib/jobImages";
 import { statusLabel } from "../../lib/jobLabels";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { DrawJob } from "../../types";
+import { AnimatedModal } from "../ui/AnimatedModal";
+import { RetryingImage } from "../ui/RetryingImage";
+
+const VERSION_GAP = 8;
 
 type JobCardProps = {
   job: DrawJob;
@@ -60,7 +67,32 @@ export function JobCard({
   const [toolsOpen, setToolsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
+  const [versionsExpanded, setVersionsExpanded] = useState(true);
+  const [renderHistory, setRenderHistory] = useState(true);
+  const versionAnimationRef = useRef<gsap.core.Tween | null>(null);
   const canRetry = job.status === "completed" || job.status === "failed";
+  const outputImages = getJobOutputImages(job);
+  const previousOutputCountRef = useRef(Math.max(1, outputImages.length));
+  const currentImageUrl = outputImages[outputImages.length - 1];
+  const hasMultipleVersions = outputImages.length > 1;
+  const displayedVersions = hasMultipleVersions
+    ? renderHistory
+      ? outputImages.map((imageUrl, imageIndex) => ({
+          imageUrl,
+          versionNumber: imageIndex + 1
+        }))
+      : currentImageUrl
+        ? [{ imageUrl: currentImageUrl, versionNumber: outputImages.length }]
+        : []
+    : [];
+  const layoutVersionCount = hasMultipleVersions && versionsExpanded ? outputImages.length : 1;
+  const expandedImageWidth =
+    layoutVersionCount * cardSize.imageWidth + (layoutVersionCount - 1) * VERSION_GAP;
+  const historyImageWidth =
+    Math.max(1, displayedVersions.length) * cardSize.imageWidth + (Math.max(1, displayedVersions.length) - 1) * VERSION_GAP;
+  const expandedCardWidth = cardSize.cardWidth + expandedImageWidth - cardSize.imageWidth;
+  const expandedOffsetX = expandedCardWidth - cardSize.cardWidth;
+  const isRegenerating = Boolean(currentImageUrl) && (job.status === "pending" || job.status === "running");
   const sizeLabel = job.size || (job.width && job.height ? `${job.width}x${job.height}` : "auto");
   const qualityLabel = job.thinking === "low" || job.thinking === "medium" || job.thinking === "high" ? job.thinking : "high";
   const referenceImages =
@@ -73,25 +105,135 @@ export function JobCard({
           )
         )
       : [];
-  const cardStyle: CSSProperties & Record<"--job-card-width" | "--job-card-height" | "--job-image-width" | "--job-image-height", string> = {
-    left: `${posX}px`,
+  const cardStyle: CSSProperties &
+    Record<
+      | "--job-card-width"
+      | "--job-card-base-width"
+      | "--job-card-height"
+      | "--job-image-width"
+      | "--job-image-height"
+      | "--job-expanded-image-width"
+      | "--job-history-image-width"
+      | "--job-version-count",
+      string
+    > = {
+    left: `${posX - expandedOffsetX}px`,
     top: `${posY}px`,
-    "--job-card-width": `${cardSize.cardWidth}px`,
+    "--job-card-width": `${expandedCardWidth}px`,
+    "--job-card-base-width": `${cardSize.cardWidth}px`,
     "--job-card-height": `${cardSize.cardHeight}px`,
     "--job-image-width": `${cardSize.imageWidth}px`,
-    "--job-image-height": `${cardSize.imageHeight}px`
+    "--job-image-height": `${cardSize.imageHeight}px`,
+    "--job-expanded-image-width": `${expandedImageWidth}px`,
+    "--job-history-image-width": `${historyImageWidth}px`,
+    "--job-version-count": String(Math.max(1, displayedVersions.length))
   };
 
+  const { contextSafe } = useGSAP({ scope: cardRef });
+
+  const toggleVersions = contextSafe(() => {
+    const card = cardRef.current;
+    const image = card?.querySelector<HTMLElement>(".job-image");
+    if (!card || !image) return;
+
+    const nextExpanded = !versionsExpanded;
+    versionAnimationRef.current?.kill();
+
+    if (prefersReducedMotion()) {
+      flushSync(() => {
+        setRenderHistory(nextExpanded);
+        setVersionsExpanded(nextExpanded);
+      });
+      versionAnimationRef.current = null;
+      return;
+    }
+
+    const cardStyles = window.getComputedStyle(card);
+    const imageStyles = window.getComputedStyle(image);
+    const currentLeft = Number.parseFloat(cardStyles.left);
+    const currentCardWidth = Number.parseFloat(cardStyles.width);
+    const currentImageWidth = Number.parseFloat(imageStyles.width);
+    const targetVersionCount = nextExpanded ? outputImages.length : 1;
+    const targetImageWidth =
+      targetVersionCount * cardSize.imageWidth + (targetVersionCount - 1) * VERSION_GAP;
+    const targetCardWidth = cardSize.cardWidth + targetImageWidth - cardSize.imageWidth;
+    const targetLeft = posX - (targetCardWidth - cardSize.cardWidth);
+
+    flushSync(() => {
+      if (nextExpanded) setRenderHistory(true);
+      setVersionsExpanded(nextExpanded);
+    });
+
+    versionAnimationRef.current = gsap.fromTo(
+      card,
+      {
+        left: Number.isFinite(currentLeft) ? currentLeft : posX - expandedOffsetX,
+        "--job-card-width": `${Number.isFinite(currentCardWidth) ? currentCardWidth : expandedCardWidth}px`,
+        "--job-expanded-image-width": `${Number.isFinite(currentImageWidth) ? currentImageWidth : expandedImageWidth}px`
+      },
+      {
+        left: targetLeft,
+        "--job-card-width": `${targetCardWidth}px`,
+        "--job-expanded-image-width": `${targetImageWidth}px`,
+        duration: 0.5,
+        ease: "power2.inOut",
+        overwrite: true,
+        onComplete: () => {
+          versionAnimationRef.current = null;
+          if (!nextExpanded) setRenderHistory(false);
+        }
+      }
+    );
+  });
+
   const handleDownload = async () => {
-    if (!job.outputImageUrl || isDownloading) return;
+    if (!currentImageUrl || isDownloading) return;
 
     setIsDownloading(true);
     try {
-      await downloadImage(job.outputImageUrl, job.prompt);
+      await downloadImage(currentImageUrl, job.prompt);
     } finally {
       setIsDownloading(false);
     }
   };
+
+  useGSAP(
+    () => {
+      const previousCount = previousOutputCountRef.current;
+      const nextCount = Math.max(1, outputImages.length);
+      previousOutputCountRef.current = nextCount;
+      if (!versionsExpanded || nextCount <= previousCount || prefersReducedMotion()) return;
+
+      const card = cardRef.current;
+      if (!card) return;
+
+      const previousImageWidth = previousCount * cardSize.imageWidth + (previousCount - 1) * VERSION_GAP;
+      const previousCardWidth = cardSize.cardWidth + previousImageWidth - cardSize.imageWidth;
+      const previousLeft = posX - (previousCardWidth - cardSize.cardWidth);
+
+      versionAnimationRef.current?.kill();
+      versionAnimationRef.current = gsap.fromTo(
+        card,
+        {
+          left: previousLeft,
+          "--job-card-width": `${previousCardWidth}px`,
+          "--job-expanded-image-width": `${previousImageWidth}px`
+        },
+        {
+          left: posX - expandedOffsetX,
+          "--job-card-width": `${expandedCardWidth}px`,
+          "--job-expanded-image-width": `${expandedImageWidth}px`,
+          duration: 0.5,
+          ease: "power2.inOut",
+          overwrite: true,
+          onComplete: () => {
+            versionAnimationRef.current = null;
+          }
+        }
+      );
+    },
+    { dependencies: [outputImages.length], scope: cardRef }
+  );
 
   useGSAP(
     () => {
@@ -122,7 +264,7 @@ export function JobCard({
       ref={cardRef}
       className={`job-card status-${job.status}${toolsOpen ? " tools-open" : ""}${isDragging ? " card-dragging" : ""}${
         referenceImages.length > 0 ? " has-references" : ""
-      }`}
+      }${hasMultipleVersions ? " has-output-versions" : ""}${hasMultipleVersions && versionsExpanded ? " versions-expanded" : ""}`}
       data-job-id={job.id}
       style={cardStyle}
     >
@@ -163,13 +305,13 @@ export function JobCard({
               <button type="button" onClick={() => onMove(job.id, 1)} disabled={index === total - 1} title="下移">
                 <ArrowDown size={15} />
               </button>
-              {job.outputImageUrl ? (
+              {currentImageUrl ? (
                 <>
                   <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
                     {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
                   </button>
                   {onUseImage && (
-                    <button type="button" onClick={() => onUseImage(job.outputImageUrl!)} title="作为参考图引用">
+                    <button type="button" onClick={() => onUseImage(currentImageUrl)} title="作为参考图引用">
                       <ImagePlus size={15} />
                     </button>
                   )}
@@ -185,18 +327,57 @@ export function JobCard({
         </div>
       </div>
 
-      <div className={`job-image ${job.outputImageUrl ? "has-output" : ""}`}>
-        {job.outputImageUrl ? (
-          <button type="button" className="job-image-button" onClick={() => onPreview(job)} title="放大预览">
-            <img src={job.outputImageUrl} alt={job.prompt} />
-          </button>
+      <div className={`job-image ${currentImageUrl ? "has-output" : ""}${hasMultipleVersions ? " has-versions" : ""}`}>
+        {currentImageUrl ? (
+          hasMultipleVersions ? (
+            <div className="job-image-comparison">
+              {displayedVersions.map(({ imageUrl, versionNumber }) => {
+                const isLatest = versionNumber === outputImages.length;
+
+                return (
+                  <button
+                    key={`${versionNumber}-${imageUrl}`}
+                    type="button"
+                    className={`job-image-version${isLatest ? " is-latest" : ""}`}
+                    onClick={() => onPreview(job)}
+                    title={isLatest ? `查看当前版本 V${versionNumber}` : `查看并对比 V${versionNumber}`}
+                  >
+                    <RetryingImage src={imageUrl} alt={`${job.prompt}，版本 ${versionNumber}`} />
+                    <span>{isLatest ? "当前" : "上一版"} · V{versionNumber}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <button type="button" className="job-image-button" onClick={() => onPreview(job)} title="放大预览">
+              <RetryingImage key={currentImageUrl} src={currentImageUrl} alt={job.prompt} />
+            </button>
+          )
         ) : (
           <div className="job-placeholder">
             {statusIcon(job.status)}
             <span>{statusLabel[job.status]}</span>
           </div>
         )}
+        {isRegenerating ? (
+          <span className="job-regenerating-status">
+            {job.status === "running" ? <Loader2 className="spin" size={13} /> : <Clock size={13} />}
+            正在生成新版本
+          </span>
+        ) : null}
       </div>
+
+      {hasMultipleVersions ? (
+        <button
+          type="button"
+          className="job-version-toggle"
+          onClick={toggleVersions}
+          aria-expanded={versionsExpanded}
+          title={versionsExpanded ? "收纳历史版本" : "向左展开历史版本"}
+        >
+          {versionsExpanded ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+        </button>
+      ) : null}
 
       <div className="job-body">
         <div className="job-meta-line" aria-label="任务参数">
@@ -216,33 +397,28 @@ export function JobCard({
         {job.errorMessage ? <small className="error-text">{job.errorMessage}</small> : null}
       </div>
 
-      {referencePreviewUrl
-        ? createPortal(
-            <div
-              className="image-preview-backdrop"
-              role="dialog"
-              aria-modal="true"
-              aria-label="参考图片预览"
-              onClick={() => setReferencePreviewUrl(null)}
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <div className="image-preview-panel reference-preview-panel" onClick={(event) => event.stopPropagation()}>
-                <div className="image-preview-actions">
-                  <button
-                    type="button"
-                    className="image-preview-action image-preview-close"
-                    onClick={() => setReferencePreviewUrl(null)}
-                    title="关闭预览"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-                <img src={referencePreviewUrl} alt="参考图片" />
-              </div>
-            </div>,
-            document.body
-          )
-        : null}
+      <AnimatedModal
+        open={Boolean(referencePreviewUrl)}
+        onClose={() => setReferencePreviewUrl(null)}
+        ariaLabel="参考图片预览"
+        panelClassName="reference-preview-panel"
+      >
+        {referencePreviewUrl ? (
+          <>
+            <div className="image-preview-actions">
+              <button
+                type="button"
+                className="image-preview-action image-preview-close"
+                onClick={() => setReferencePreviewUrl(null)}
+                title="关闭预览"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <img src={referencePreviewUrl} alt="参考图片" />
+          </>
+        ) : null}
+      </AnimatedModal>
     </article>
   );
 }

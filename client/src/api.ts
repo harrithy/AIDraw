@@ -7,6 +7,7 @@ import type {
   ImageProviderSettings,
   UpdateImageProviderSettingsPayload
 } from "./types";
+import { getJobOutputImages } from "./lib/jobImages";
 
 const DB_NAME = "aidraw-frontend";
 const DB_VERSION = 1;
@@ -333,7 +334,7 @@ const simulateDrawing = async (job: DrawJob) => {
   await new Promise((resolve) => window.setTimeout(resolve, 1100 + Math.floor(Math.random() * 900)));
 
   const { width, height } = dimensionsFromSize(normalizeSize(job.size));
-  const palette = paletteFromPrompt(job.prompt);
+  const palette = paletteFromPrompt(`${job.prompt}-${Date.now()}-${Math.random()}`);
   const modeLabel = job.mode === "image-to-image" ? "图生图" : "文生图";
   const prompt = escapeXml(job.prompt || "Untitled prompt");
 
@@ -552,9 +553,12 @@ const startJob = async (job: DrawJob) => {
 
   try {
     const outputImageUrl = await generateDrawing({ ...job, status: "running" });
+    const latestState = await loadState();
+    const latestJob = ensureJob(latestState, job.id);
     await updateJob(job.id, {
       status: "completed",
       outputImageUrl,
+      outputImageUrls: [...getJobOutputImages(latestJob), outputImageUrl],
       errorMessage: undefined,
       completedAt: nowIso()
     });
@@ -728,7 +732,6 @@ export const api = {
 
     const updated = await updateJob(jobId, {
       status: "pending",
-      outputImageUrl: undefined,
       errorMessage: undefined,
       startedAt: undefined,
       completedAt: undefined

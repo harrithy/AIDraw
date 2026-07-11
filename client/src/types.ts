@@ -41,6 +41,7 @@ export type DrawJob = {
   inputImageUrl?: string;
   inputImageUrls?: string[];
   outputImageUrl?: string;
+  outputImageUrls?: string[];
   width: number;
   height: number;
   size?: DrawSize;

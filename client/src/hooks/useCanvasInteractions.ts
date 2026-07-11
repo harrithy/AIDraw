@@ -50,10 +50,22 @@ export function useCanvasInteractions({
   );
 
   const zoomCanvas = useCallback(
-    (delta: number) => {
+    (delta: number, focalPoint?: { x: number; y: number }) => {
       if (!activeFolder) return;
       const canvasZoom = Math.min(1.8, Math.max(0.55, Number((activeFolder.canvasZoom + delta).toFixed(2))));
-      updateCanvas({ canvasZoom });
+      if (canvasZoom === activeFolder.canvasZoom) return;
+
+      if (!focalPoint) {
+        updateCanvas({ canvasZoom });
+        return;
+      }
+
+      const zoomRatio = canvasZoom / activeFolder.canvasZoom;
+      updateCanvas({
+        canvasZoom,
+        canvasPanX: focalPoint.x - (focalPoint.x - activeFolder.canvasPanX) * zoomRatio,
+        canvasPanY: focalPoint.y - (focalPoint.y - activeFolder.canvasPanY) * zoomRatio
+      });
     },
     [activeFolder, updateCanvas]
   );
@@ -193,9 +205,16 @@ export function useCanvasInteractions({
 
   const wheelCanvas = useCallback(
     (event: WheelEvent) => {
-      if (!activeFolder) return;
+      if (!activeFolder || event.deltaY === 0) return;
       if (event.cancelable) event.preventDefault();
-      zoomCanvas(event.deltaY > 0 ? -0.08 : 0.08);
+      const stage = event.currentTarget as HTMLElement | null;
+      if (!stage) return;
+      const stageRect = stage.getBoundingClientRect();
+
+      zoomCanvas(event.deltaY > 0 ? -0.08 : 0.08, {
+        x: event.clientX - stageRect.left,
+        y: event.clientY - stageRect.top
+      });
     },
     [activeFolder, zoomCanvas]
   );

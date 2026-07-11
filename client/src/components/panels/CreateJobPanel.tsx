@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { AnimatedModal } from "@/components/ui/AnimatedModal";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { CreateJobPayload, DrawMode, DrawSize, PresetDrawSize } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
@@ -89,29 +90,23 @@ function ReferenceImagePreview({
   image: UploadResult | null;
   onClose: () => void;
 }) {
-  if (!image) return null;
-
   return (
-    <div
-      className="image-preview-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label="参考图片预览"
-      onClick={onClose}
-    >
-      <div className="image-preview-panel" onClick={(event) => event.stopPropagation()}>
-        <div className="image-preview-actions">
-          <button type="button" className="image-preview-action image-preview-close" onClick={onClose} title="关闭预览">
-            <X size={18} />
-          </button>
-        </div>
-        <img src={image.url} alt={image.originalName} />
-        <div className="image-preview-caption">
-          <strong>{image.originalName}</strong>
-          <span>参考图片</span>
-        </div>
-      </div>
-    </div>
+    <AnimatedModal open={Boolean(image)} onClose={onClose} ariaLabel="参考图片预览">
+      {image ? (
+        <>
+          <div className="image-preview-actions">
+            <button type="button" className="image-preview-action image-preview-close" onClick={onClose} title="关闭预览">
+              <X size={18} />
+            </button>
+          </div>
+          <img src={image.url} alt={image.originalName} />
+          <div className="image-preview-caption">
+            <strong>{image.originalName}</strong>
+            <span>参考图片</span>
+          </div>
+        </>
+      ) : null}
+    </AnimatedModal>
   );
 }
 
@@ -138,17 +133,6 @@ export function CreateJobPanel({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const dragDepthRef = useRef(0);
   const currentMode: DrawMode = inputImages.length > 0 ? "image-to-image" : "text-to-image";
-
-  useEffect(() => {
-    if (!previewImage) return;
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPreviewImage(null);
-    };
-
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [previewImage]);
 
   useEffect(() => {
     if (usedImage) {

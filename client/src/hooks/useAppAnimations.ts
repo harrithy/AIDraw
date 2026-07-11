@@ -10,7 +10,6 @@ type UseAppAnimationsParams = {
   jobAnimationKey: string;
   leftOpen: boolean;
   notice: string;
-  previewJob: DrawJob | null;
 };
 
 export function useAppAnimations({
@@ -18,8 +17,7 @@ export function useAppAnimations({
   jobs,
   jobAnimationKey,
   leftOpen,
-  notice,
-  previewJob
+  notice
 }: UseAppAnimationsParams) {
   const animatedJobIdsRef = useRef<Set<string>>(new Set());
   const animatedJobStatusRef = useRef<Map<string, DrawJob["status"]>>(new Map());
@@ -172,27 +170,6 @@ export function useAppAnimations({
       }
     },
     { dependencies: [jobAnimationKey], scope: appRef }
-  );
-
-  useGSAP(
-    () => {
-      if (!previewJob?.outputImageUrl || prefersReducedMotion()) return;
-
-      const previewBackdrop = gsap.utils.toArray<HTMLElement>(".image-preview-backdrop");
-      const previewPanel = gsap.utils.toArray<HTMLElement>(".image-preview-panel");
-
-      if (previewBackdrop.length > 0) {
-        gsap.fromTo(previewBackdrop, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.18, ease: "power1.out" });
-      }
-      if (previewPanel.length > 0) {
-        gsap.fromTo(
-          previewPanel,
-          { y: 18, scale: 0.97, autoAlpha: 0 },
-          { y: 0, scale: 1, autoAlpha: 1, duration: 0.34, ease: "power3.out" }
-        );
-      }
-    },
-    { dependencies: [previewJob?.id], scope: appRef }
   );
 
   useGSAP(

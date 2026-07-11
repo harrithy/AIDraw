@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useModalTransition } from "../../hooks/useModalTransition";
 
 type OnboardingGuideProps = {
   open: boolean;
@@ -185,7 +186,15 @@ export function OnboardingGuide({
   const [activeIndex, setActiveIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<TourRect | null>(null);
   const [popoverSize, setPopoverSize] = useState<TourSize | null>(null);
+  const layerRef = useRef<HTMLDivElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
   const popoverRef = useRef<HTMLElement | null>(null);
+  const isPresent = useModalTransition({
+    open,
+    scopeRef: layerRef,
+    backdropRef,
+    panelRef: popoverRef
+  });
   const activeStep = tourSteps[activeIndex];
   const ActiveIcon = activeStep.icon;
   const isLastStep = activeIndex === tourSteps.length - 1;
@@ -218,15 +227,15 @@ export function OnboardingGuide({
   }, [open]);
 
   useLayoutEffect(() => {
-    if (!open) return;
+    if (!open || !isPresent) return;
 
     measureTarget(true);
     const timer = window.setTimeout(() => measureTarget(false), 260);
     return () => window.clearTimeout(timer);
-  }, [activeIndex, measureTarget, open]);
+  }, [activeIndex, isPresent, measureTarget, open]);
 
   useLayoutEffect(() => {
-    if (!open || !popoverRef.current) return;
+    if (!open || !isPresent || !popoverRef.current) return;
 
     const updateSize = () => {
       const { width, height } = popoverRef.current?.getBoundingClientRect() ?? { width: POPOVER_WIDTH, height: DEFAULT_POPOVER_HEIGHT };
@@ -237,7 +246,7 @@ export function OnboardingGuide({
     const observer = new ResizeObserver(updateSize);
     observer.observe(popoverRef.current);
     return () => observer.disconnect();
-  }, [activeIndex, open]);
+  }, [activeIndex, isPresent, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -262,14 +271,16 @@ export function OnboardingGuide({
     setActiveIndex((current) => Math.min(Math.max(current + direction, 0), tourSteps.length - 1));
   };
 
-  if (!open) return null;
+  if (!isPresent) return null;
 
   const popoverLayout = getPopoverLayout(targetRect, activeStep.placement, popoverSize);
 
   return createPortal(
-    <div className={`onboarding-tour-layer${targetRect ? "" : " no-target"}`} role="dialog" aria-modal="true" aria-label="首次指引">
-      <div className="onboarding-tour-guard" onClick={closeGuide} />
-      {targetRect ? <div className="onboarding-tour-spotlight" style={getSpotlightStyle(targetRect)} /> : null}
+    <div ref={layerRef} className={`onboarding-tour-layer${targetRect ? "" : " no-target"}`} role="dialog" aria-modal="true" aria-label="首次指引">
+      <div ref={backdropRef} className="onboarding-tour-backdrop">
+        <div className="onboarding-tour-guard" onClick={closeGuide} />
+        {targetRect ? <div className="onboarding-tour-spotlight" style={getSpotlightStyle(targetRect)} /> : null}
+      </div>
       <section
         ref={popoverRef}
         className="onboarding-tour-popover"

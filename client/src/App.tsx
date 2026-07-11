@@ -109,8 +109,7 @@ function App() {
     jobs,
     jobAnimationKey,
     leftOpen,
-    notice,
-    previewJob
+    notice
   });
 
   const loadFolders = useCallback(async () => {
@@ -164,15 +163,12 @@ function App() {
   }, [onboardingOpen]);
 
   useEffect(() => {
-    if (!previewJob) return;
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPreviewJob(null);
-    };
-
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [previewJob]);
+    setPreviewJob((current) => {
+      if (!current) return current;
+      const latestJob = jobs.find((job) => job.id === current.id);
+      return latestJob && latestJob.updatedAt !== current.updatedAt ? latestJob : current;
+    });
+  }, [jobs]);
 
   useEffect(() => {
     void (async () => {
