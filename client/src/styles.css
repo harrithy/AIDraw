@@ -1284,7 +1284,7 @@ button:disabled {
 
 .job-body {
   display: grid;
-  width: var(--job-card-base-width, 100%);
+  width: var(--job-image-width, 100%);
   justify-self: end;
   gap: 4px;
   padding: 0 2px;

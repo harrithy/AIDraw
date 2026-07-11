@@ -13,8 +13,8 @@ export const DEFAULT_CARD_Y = 150;
 /** 画布内边距（防止卡片贴边） */
 export const BOARD_PADDING = 240;
 
-/** 卡片左右内边距（影响卡片总宽度） */
-const CARD_HORIZONTAL_PADDING = 24;
+/** 卡片横向占位：左右各 12px 内边距 + 左右各 1px 边框 */
+const CARD_HORIZONTAL_CHROME = 26;
 /** 卡片非图片区域的固定高度（标题栏 + 状态栏等 chrome） */
 const CARD_VERTICAL_CHROME = 64;
 /** 卡片最小宽度（防止太窄） */
@@ -105,7 +105,7 @@ export const getJobCardSize = (job: Pick<DrawJob, "width" | "height">): JobCardS
   const roundedImageHeight = Math.round(imageHeight);
 
   return {
-    cardWidth: Math.round(Math.max(CARD_MIN_WIDTH, roundedImageWidth + CARD_HORIZONTAL_PADDING)),
+    cardWidth: Math.round(Math.max(CARD_MIN_WIDTH, roundedImageWidth + CARD_HORIZONTAL_CHROME)),
     cardHeight: Math.round(roundedImageHeight + CARD_VERTICAL_CHROME),
     imageWidth: roundedImageWidth,
     imageHeight: roundedImageHeight,
