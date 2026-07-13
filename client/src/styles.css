@@ -763,10 +763,10 @@ button:disabled {
   width: 46px;
   height: 46px;
   place-items: center;
-  border: 1px solid var(--line);
+  /* border: 1px solid var(--line); */
   border-radius: 8px;
   color: #fff;
-  background: var(--strong-button-bg);
+  /* background: var(--strong-button-bg); */
   color: var(--strong-button-text);
   box-shadow: none;
 }
