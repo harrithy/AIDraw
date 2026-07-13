@@ -149,20 +149,12 @@ function App() {
 
   const loadJobs = useCallback(async (folderId: string) => {
     const nextJobs = await api.listJobs(folderId);
-    const lockedPosition = lockedCardPositionRef.current;
-    const resolvedJobs = lockedPosition
-      ? nextJobs.map((job) =>
-          job.id === lockedPosition.jobId
-            ? {
-                ...job,
-                posX: lockedPosition.posX,
-                posY: lockedPosition.posY,
-                hasCustomPosition: true
-              }
-            : job
-        )
-      : nextJobs;
-    setJobs((current) => (areJobSnapshotsEqual(current, resolvedJobs) ? current : resolvedJobs));
+
+    // 拖拽期间卡片由 DOM translate 临时移动。此时替换 jobs 会让 React 的 left/top
+    // 与 translate 同时包含拖拽位移，造成长按超过轮询周期后位置被重复计算。
+    if (lockedCardPositionRef.current) return;
+
+    setJobs((current) => (areJobSnapshotsEqual(current, nextJobs) ? current : nextJobs));
   }, []);
 
   const loadQueue = useCallback(async () => {

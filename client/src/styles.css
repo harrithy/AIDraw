@@ -202,8 +202,11 @@ button:disabled {
   transition: transform 120ms ease-out;
 }
 
-.canvas-stage.canvas-panning .canvas-board {
+.canvas-stage.dragging .canvas-board {
   transition: none;
+}
+
+.canvas-stage.canvas-panning .canvas-board {
   will-change: transform;
 }
 
@@ -1033,7 +1036,7 @@ button:disabled {
   transform: scale(1.015);
   z-index: 10;
   transition: none;
-  will-change: transform;
+  will-change: translate, transform;
 }
 
 .job-card-header {

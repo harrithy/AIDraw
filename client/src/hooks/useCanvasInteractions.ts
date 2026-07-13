@@ -1,3 +1,4 @@
+import gsap from "gsap";
 import { PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { api } from "../api";
@@ -165,6 +166,9 @@ export function useCanvasInteractions({
         if (!positionedJob) return;
 
         event.currentTarget.setPointerCapture(event.pointerId);
+        // 卡片入场动画也会写 transform；拖拽改用独立 translate 前先停止残留的位移动画。
+        gsap.killTweensOf(cardEl, "x,y,xPercent,yPercent,scale,scaleX,scaleY");
+        cardEl.style.removeProperty("transform");
         const displayPos = { x: positionedJob.x, y: positionedJob.y };
         const adjacentLinks: DraggedLinkState[] = [];
         const previousJob = positionedJobs[jobIndex - 1];
@@ -259,7 +263,7 @@ export function useCanvasInteractions({
         };
         pendingCardDeltaRef.current = { x: deltaX, y: deltaY };
 
-        // 拖拽途中只更新当前卡片的合成层，避免整张画布重新渲染。
+        // translate 与 GSAP/CSS 的 transform 分离，避免动画覆盖拖拽位置。
         if (dragFrameRef.current === null) {
           dragFrameRef.current = window.requestAnimationFrame(() => {
             dragFrameRef.current = null;
@@ -267,7 +271,7 @@ export function useCanvasInteractions({
             const delta = pendingCardDeltaRef.current;
             const nextPosition = pendingCardRef.current;
             if (cardElement) {
-              cardElement.style.transform = `translate3d(${delta.x}px, ${delta.y}px, 0) scale(1.015)`;
+              cardElement.style.translate = `${delta.x}px ${delta.y}px`;
             }
             if (!nextPosition) return;
 
@@ -346,7 +350,7 @@ export function useCanvasInteractions({
           });
 
           if (cardElement) {
-            cardElement.style.removeProperty("transform");
+            cardElement.style.removeProperty("translate");
             window.requestAnimationFrame(() => cardElement.style.removeProperty("transition"));
           }
 
