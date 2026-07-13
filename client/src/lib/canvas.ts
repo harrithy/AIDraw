@@ -130,6 +130,30 @@ export type PositionedJob = {
 };
 
 /**
+ * 一次遍历完成全部卡片的尺寸和默认位置计算。
+ * 默认布局使用累计高度，避免为第 N 张卡片重复扫描前 N-1 张卡片。
+ */
+export const getPositionedJobs = (jobs: DrawJob[]): PositionedJob[] => {
+  let nextDefaultY = DEFAULT_CARD_Y;
+
+  return jobs.map((job, index) => {
+    const cardSize = getJobCardSize(job);
+    const hasCustomPosition =
+      job.hasCustomPosition && Number.isFinite(job.posX) && Number.isFinite(job.posY);
+    const positionedJob: PositionedJob = {
+      job,
+      index,
+      x: hasCustomPosition ? job.posX : DEFAULT_CARD_X,
+      y: hasCustomPosition ? job.posY : nextDefaultY,
+      cardSize
+    };
+
+    nextDefaultY += cardSize.cardHeight + CARD_GAP_Y;
+    return positionedJob;
+  });
+};
+
+/**
  * 计算新卡片的默认画布位置
  * 按列表顺序垂直排列，每个卡片间距 CARD_GAP_Y
  * @param index - 卡片在列表中的索引

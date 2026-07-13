@@ -1,4 +1,4 @@
-import { type ImgHTMLAttributes, useEffect, useRef, useState } from "react";
+import { memo, type ImgHTMLAttributes, useEffect, useRef, useState } from "react";
 
 const MAX_IMAGE_LOAD_ATTEMPTS = 5;
 const IMAGE_RETRY_DELAY_MS = 1000;
@@ -7,7 +7,14 @@ type RetryingImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   src: string;
 };
 
-export function RetryingImage({ src, onError, onLoad, ...props }: RetryingImageProps) {
+export const RetryingImage = memo(function RetryingImage({
+  src,
+  onError,
+  onLoad,
+  loading = "lazy",
+  decoding = "async",
+  ...props
+}: RetryingImageProps) {
   const [attempt, setAttempt] = useState(1);
   const retryTimeoutRef = useRef<number | null>(null);
 
@@ -29,6 +36,8 @@ export function RetryingImage({ src, onError, onLoad, ...props }: RetryingImageP
       {...props}
       key={`${src}-${attempt}`}
       src={src}
+      loading={loading}
+      decoding={decoding}
       onLoad={(event) => {
         clearRetryTimeout();
         onLoad?.(event);
@@ -44,4 +53,4 @@ export function RetryingImage({ src, onError, onLoad, ...props }: RetryingImageP
       }}
     />
   );
-}
+});

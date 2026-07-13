@@ -202,6 +202,15 @@ button:disabled {
   transition: transform 120ms ease-out;
 }
 
+.canvas-stage.canvas-panning .canvas-board {
+  transition: none;
+  will-change: transform;
+}
+
+.canvas-stage.dragging .workflow-link {
+  animation-play-state: paused;
+}
+
 .workflow-links {
   position: absolute;
   inset: 0;
@@ -1024,6 +1033,7 @@ button:disabled {
   transform: scale(1.015);
   z-index: 10;
   transition: none;
+  will-change: transform;
 }
 
 .job-card-header {

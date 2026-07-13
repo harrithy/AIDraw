@@ -1,8 +1,16 @@
-import { PointerEvent, useCallback, useRef, useState } from "react";
+import { PointerEvent, useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { api } from "../api";
-import { getDefaultCardPosition } from "../lib/canvas";
+import { getConnectionPath, getPositionedJobs, type PositionedJob } from "../lib/canvas";
 import type { DrawFolder, DrawJob } from "../types";
 import type { CardDragState, DragState } from "../types/ui";
+
+type DraggedLinkState = {
+  element: SVGPathElement;
+  from: PositionedJob;
+  to: PositionedJob;
+  draggedEndpoint: "from" | "to";
+};
 
 /**
  * 画布交互 Hook 的参数
@@ -28,8 +36,8 @@ type UseCanvasInteractionsParams = {
  * 2. 卡片拖拽 — 按住任务卡片拖动到任意位置
  * 3. 画布缩放 — 滚轮缩放（以鼠标位置为焦点）
  *
- * 使用 Pointer Events + React state + 乐观更新策略：
- * 卡片拖拽完才发请求持久化位置，拖的过程中只更新本地 state
+ * 使用 Pointer Events + requestAnimationFrame + 乐观更新策略：
+ * 拖拽过程中只更新合成层 transform，结束后才提交 React state 和持久化位置
  *
  * @param params - 画布状态和更新函数
  * @returns 画布交互的所有 handler 和状态
@@ -49,24 +57,33 @@ export function useCanvasInteractions({
   const pendingCanvasRef = useRef({ panX: 0, panY: 0 });
   /** 卡片拖拽过程中的实时位置 */
   const pendingCardRef = useRef<{ jobId: string; posX: number; posY: number } | null>(null);
+  /** 卡片拖拽过程中的实时位移，仅用于合成层 transform */
+  const pendingCardDeltaRef = useRef({ x: 0, y: 0 });
+  /** 当前被直接移动的卡片元素 */
+  const draggedCardElementRef = useRef<HTMLElement | null>(null);
+  /** 与当前卡片相邻的连线，最多包含前后两条 */
+  const draggedLinksRef = useRef<DraggedLinkState[]>([]);
+  /** 当前被直接移动的画布元素 */
+  const canvasBoardElementRef = useRef<HTMLElement | null>(null);
+  /** 将高频 pointermove 合并为每帧最多一次 DOM 写入 */
+  const dragFrameRef = useRef<number | null>(null);
   /**
    * 拖拽开始时的卡片位置快照
    * 用于在异步加载任务列表时保持拖拽位置不被服务器数据覆盖
    */
   const lockedCardPositionRef = useRef<{ jobId: string; posX: number; posY: number } | null>(null);
 
-  /**
-   * 获取卡片的显示位置
-   * 优先使用自定义位置（用户拖拽过），否则用默认自动布局位置
-   */
-  const getCardDisplayPos = useCallback(
-    (job: DrawJob, index: number) => {
-      if (job.hasCustomPosition && Number.isFinite(job.posX) && Number.isFinite(job.posY)) {
-        return { x: job.posX, y: job.posY };
-      }
-      return getDefaultCardPosition(index, jobs);
+  const cancelPendingDragFrame = useCallback(() => {
+    if (dragFrameRef.current === null) return;
+    window.cancelAnimationFrame(dragFrameRef.current);
+    dragFrameRef.current = null;
+  }, []);
+
+  useEffect(
+    () => () => {
+      cancelPendingDragFrame();
     },
-    [jobs]
+    [cancelPendingDragFrame]
   );
 
   /**
@@ -77,10 +94,12 @@ export function useCanvasInteractions({
   const updateCanvas = useCallback(
     (patch: Partial<Pick<DrawFolder, "canvasZoom" | "canvasPanX" | "canvasPanY">>, persist = true) => {
       if (!activeFolder) return;
-      const nextFolder = { ...activeFolder, ...patch };
-      setFolders((current) => current.map((folder) => (folder.id === activeFolder.id ? nextFolder : folder)));
+      const folderId = activeFolder.id;
+      setFolders((current) =>
+        current.map((folder) => (folder.id === folderId ? { ...folder, ...patch } : folder))
+      );
       if (persist) {
-        void api.updateFolder(activeFolder.id, patch).catch((error) => {
+        void api.updateFolder(folderId, patch).catch((error) => {
           setNotice(error instanceof Error ? error.message : "画布状态保存失败");
         });
       }
@@ -140,11 +159,45 @@ export function useCanvasInteractions({
       if (cardEl) {
         const jobId = cardEl.dataset.jobId;
         if (!jobId) return;
-        const job = jobs.find((item) => item.id === jobId);
-        if (!job) return;
+        const jobIndex = jobs.findIndex((item) => item.id === jobId);
+        const positionedJobs = getPositionedJobs(jobs);
+        const positionedJob = positionedJobs[jobIndex];
+        if (!positionedJob) return;
 
         event.currentTarget.setPointerCapture(event.pointerId);
-        const displayPos = getCardDisplayPos(job, jobs.findIndex((item) => item.id === jobId));
+        const displayPos = { x: positionedJob.x, y: positionedJob.y };
+        const adjacentLinks: DraggedLinkState[] = [];
+        const previousJob = positionedJobs[jobIndex - 1];
+        const nextJob = positionedJobs[jobIndex + 1];
+
+        if (previousJob) {
+          const previousLink = event.currentTarget.querySelector<SVGPathElement>(
+            `.workflow-link[data-link-index="${jobIndex - 1}"]`
+          );
+          if (previousLink) {
+            adjacentLinks.push({
+              element: previousLink,
+              from: previousJob,
+              to: positionedJob,
+              draggedEndpoint: "to"
+            });
+          }
+        }
+
+        if (nextJob) {
+          const nextLink = event.currentTarget.querySelector<SVGPathElement>(
+            `.workflow-link[data-link-index="${jobIndex}"]`
+          );
+          if (nextLink) {
+            adjacentLinks.push({
+              element: nextLink,
+              from: positionedJob,
+              to: nextJob,
+              draggedEndpoint: "from"
+            });
+          }
+        }
+
         setCardDrag({
           jobId,
           startX: event.clientX,
@@ -153,6 +206,10 @@ export function useCanvasInteractions({
           posY: displayPos.y
         });
         pendingCardRef.current = { jobId, posX: displayPos.x, posY: displayPos.y };
+        pendingCardDeltaRef.current = { x: 0, y: 0 };
+        draggedCardElementRef.current = cardEl;
+        draggedLinksRef.current = adjacentLinks;
+        canvasBoardElementRef.current = null;
         lockedCardPositionRef.current = { jobId, posX: displayPos.x, posY: displayPos.y };
         return;
       }
@@ -163,6 +220,9 @@ export function useCanvasInteractions({
         panX: activeFolder.canvasPanX,
         panY: activeFolder.canvasPanY
       };
+      draggedCardElementRef.current = null;
+      draggedLinksRef.current = [];
+      canvasBoardElementRef.current = event.currentTarget.querySelector<HTMLElement>(".canvas-board");
       setCanvasDrag({
         startX: event.clientX,
         startY: event.clientY,
@@ -170,13 +230,13 @@ export function useCanvasInteractions({
         panY: activeFolder.canvasPanY
       });
     },
-    [activeFolder, getCardDisplayPos, jobs]
+    [activeFolder, jobs]
   );
 
   /**
    * 拖拽移动（Pointer Move）
    * 实时更新卡片位置或画布平移
-   * 拖拽中的更新只修改本地 state，不请求服务器（性能优化）
+   * 拖拽中的更新只修改合成层 transform，不触发 React render 或服务器请求
    */
   const moveCanvasDrag = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -197,13 +257,33 @@ export function useCanvasInteractions({
           posX: nextPosX,
           posY: nextPosY
         };
+        pendingCardDeltaRef.current = { x: deltaX, y: deltaY };
 
-        // 乐观更新：直接改 state，不等服务器响应
-        setJobs((current) =>
-          current.map((job) =>
-            job.id === cardDrag.jobId ? { ...job, posX: nextPosX, posY: nextPosY, hasCustomPosition: true } : job
-          )
-        );
+        // 拖拽途中只更新当前卡片的合成层，避免整张画布重新渲染。
+        if (dragFrameRef.current === null) {
+          dragFrameRef.current = window.requestAnimationFrame(() => {
+            dragFrameRef.current = null;
+            const cardElement = draggedCardElementRef.current;
+            const delta = pendingCardDeltaRef.current;
+            const nextPosition = pendingCardRef.current;
+            if (cardElement) {
+              cardElement.style.transform = `translate3d(${delta.x}px, ${delta.y}px, 0) scale(1.015)`;
+            }
+            if (!nextPosition) return;
+
+            // 只重算当前卡片前后的连线，避免触发整层 SVG 或 React 重渲染。
+            for (const link of draggedLinksRef.current) {
+              const movedEndpoint = {
+                ...(link.draggedEndpoint === "from" ? link.from : link.to),
+                x: nextPosition.posX,
+                y: nextPosition.posY
+              };
+              const from = link.draggedEndpoint === "from" ? movedEndpoint : link.from;
+              const to = link.draggedEndpoint === "to" ? movedEndpoint : link.to;
+              link.element.setAttribute("d", getConnectionPath(from, to));
+            }
+          });
+        }
         return;
       }
 
@@ -216,9 +296,19 @@ export function useCanvasInteractions({
         panX: nextPan.canvasPanX,
         panY: nextPan.canvasPanY
       };
-      updateCanvas(nextPan, false); // 拖拽中不持久化
+
+      // 画布平移同样绕过 React state，并把高频事件限制为每帧一次写入。
+      if (dragFrameRef.current === null) {
+        dragFrameRef.current = window.requestAnimationFrame(() => {
+          dragFrameRef.current = null;
+          const boardElement = canvasBoardElementRef.current;
+          if (!boardElement) return;
+          const pan = pendingCanvasRef.current;
+          boardElement.style.transform = `translate3d(${pan.panX}px, ${pan.panY}px, 0) scale(${activeFolder.canvasZoom})`;
+        });
+      }
     },
-    [activeFolder, canvasDrag, cardDrag, setJobs, updateCanvas]
+    [activeFolder, canvasDrag, cardDrag]
   );
 
   /**
@@ -230,9 +320,36 @@ export function useCanvasInteractions({
   const stopCanvasDrag = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       if (cardDrag) {
+        cancelPendingDragFrame();
         const nextPosition = pendingCardRef.current;
         if (nextPosition) {
           lockedCardPositionRef.current = nextPosition;
+
+          const cardElement = draggedCardElementRef.current;
+          if (cardElement) cardElement.style.transition = "none";
+
+          // 只在松手时提交一次 React 状态；同步提交后再移除临时 transform，避免画面跳回。
+          flushSync(() => {
+            setJobs((current) =>
+              current.map((job) =>
+                job.id === nextPosition.jobId
+                  ? {
+                      ...job,
+                      posX: nextPosition.posX,
+                      posY: nextPosition.posY,
+                      hasCustomPosition: true
+                    }
+                  : job
+              )
+            );
+            setCardDrag(null);
+          });
+
+          if (cardElement) {
+            cardElement.style.removeProperty("transform");
+            window.requestAnimationFrame(() => cardElement.style.removeProperty("transition"));
+          }
+
           void api
             .updateJobPosition(nextPosition.jobId, nextPosition.posX, nextPosition.posY)
             .then((updatedJob) => {
@@ -242,34 +359,43 @@ export function useCanvasInteractions({
               setNotice(error instanceof Error ? error.message : "位置保存失败");
             })
             .finally(() => {
-              if (lockedCardPositionRef.current?.jobId === nextPosition.jobId) {
+              if (lockedCardPositionRef.current === nextPosition) {
                 lockedCardPositionRef.current = null;
               }
             });
+        } else {
+          setCardDrag(null);
         }
         if (event.currentTarget.hasPointerCapture(event.pointerId)) {
           event.currentTarget.releasePointerCapture(event.pointerId);
         }
-        setCardDrag(null);
         pendingCardRef.current = null;
+        draggedCardElementRef.current = null;
+        draggedLinksRef.current = [];
         return;
       }
 
       if (!activeFolder || !canvasDrag) return;
+      cancelPendingDragFrame();
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
-      setCanvasDrag(null);
+      const nextPan = {
+        canvasPanX: pendingCanvasRef.current.panX,
+        canvasPanY: pendingCanvasRef.current.panY
+      };
+      flushSync(() => {
+        updateCanvas(nextPan, false);
+        setCanvasDrag(null);
+      });
+      canvasBoardElementRef.current = null;
       void api
-        .updateFolder(activeFolder.id, {
-          canvasPanX: pendingCanvasRef.current.panX,
-          canvasPanY: pendingCanvasRef.current.panY
-        })
+        .updateFolder(activeFolder.id, nextPan)
         .catch((error) => {
           setNotice(error instanceof Error ? error.message : "画布状态保存失败");
         });
     },
-    [activeFolder, canvasDrag, cardDrag, setJobs, setNotice]
+    [activeFolder, cancelPendingDragFrame, canvasDrag, cardDrag, setJobs, setNotice, updateCanvas]
   );
 
   const wheelCanvas = useCallback(
@@ -291,7 +417,6 @@ export function useCanvasInteractions({
   return {
     canvasDrag,
     cardDrag,
-    getCardDisplayPos,
     lockedCardPositionRef,
     moveCanvasDrag,
     resetCanvas,

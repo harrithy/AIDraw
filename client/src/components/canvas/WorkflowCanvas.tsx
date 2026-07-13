@@ -12,6 +12,7 @@ import { WorkflowLinks } from "./WorkflowLinks";
  * @param activeFolder - 当前选中的文件夹（含缩放/平移状态）
  * @param boardSize - 画布的虚拟尺寸
  * @param isDragging - 是否正在进行拖拽操作（影响光标样式）
+ * @param isCanvasDragging - 是否正在平移整张画布（控制合成层优化）
  * @param isLoading - 是否正在加载数据
  * @param positionedJobs - 已完成定位计算的任务卡片列表
  * @param draggingJobId - 当前被拖拽的卡片 ID（高亮用）
@@ -29,6 +30,7 @@ type WorkflowCanvasProps = {
   activeFolder: DrawFolder | null;
   boardSize: { width: number; height: number };
   isDragging: boolean;
+  isCanvasDragging: boolean;
   isLoading: boolean;
   positionedJobs: PositionedJob[];
   draggingJobId: string | null;
@@ -47,6 +49,7 @@ export function WorkflowCanvas({
   activeFolder,
   boardSize,
   isDragging,
+  isCanvasDragging,
   isLoading,
   positionedJobs,
   draggingJobId,
@@ -84,7 +87,9 @@ export function WorkflowCanvas({
     <section className="canvas-layer" data-tour="canvas">
       <div
         ref={stageRef}
-        className={`canvas-stage ${isDragging ? "dragging" : ""}`}
+        className={`canvas-stage${isDragging ? " dragging" : ""}${
+          isCanvasDragging ? " canvas-panning" : ""
+        }`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

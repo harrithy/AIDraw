@@ -15,7 +15,7 @@ import {
   Sparkles,
   X
 } from "lucide-react";
-import { type CSSProperties, useRef, useState } from "react";
+import { memo, type CSSProperties, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { JobCardSize } from "../../lib/canvas";
 import { downloadImage } from "../../lib/download";
@@ -51,7 +51,7 @@ const statusIcon = (status: DrawJob["status"]) => {
   return <Sparkles size={16} />;
 };
 
-export function JobCard({
+export const JobCard = memo(function JobCard({
   job,
   cardSize,
   index,
@@ -68,8 +68,8 @@ export function JobCard({
   const [toolsOpen, setToolsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
-  const [versionsExpanded, setVersionsExpanded] = useState(true);
-  const [renderHistory, setRenderHistory] = useState(true);
+  const [versionsExpanded, setVersionsExpanded] = useState(false);
+  const [renderHistory, setRenderHistory] = useState(false);
   const versionAnimationRef = useRef<gsap.core.Tween | null>(null);
   const canRetry = job.status === "completed" || job.status === "failed";
   const outputImages = getJobOutputImages(job);
@@ -286,7 +286,12 @@ export function JobCard({
               onClick={() => setReferencePreviewUrl(imageUrl)}
               title="放大参考图"
             >
-              <img src={imageUrl} alt={`参考图片 ${imageIndex + 1}`} />
+              <img
+                src={imageUrl}
+                alt={`参考图片 ${imageIndex + 1}`}
+                loading="lazy"
+                decoding="async"
+              />
             </button>
           ))}
         </div>
@@ -429,4 +434,4 @@ export function JobCard({
       </AnimatedModal>
     </article>
   );
-}
+});

@@ -11,7 +11,7 @@ import { CreateJobPanel } from "./components/panels/CreateJobPanel";
 import { Metric } from "./components/ui/Metric";
 import { useAppAnimations } from "./hooks/useAppAnimations";
 import { useCanvasInteractions } from "./hooks/useCanvasInteractions";
-import { BOARD_PADDING, getJobCardSize, type PositionedJob } from "./lib/canvas";
+import { BOARD_PADDING, getPositionedJobs, type PositionedJob } from "./lib/canvas";
 import type {
   CreateJobPayload,
   DrawFolder,
@@ -35,6 +35,18 @@ const emptyProviderSettings: ImageProviderSettings = {
 };
 
 const ONBOARDING_STORAGE_KEY = "aidraw-onboarding-v1";
+
+/** 轮询结果没有实际变化时复用原数组，避免无意义的全画布渲染。 */
+const areJobSnapshotsEqual = (current: DrawJob[], next: DrawJob[]) =>
+  current.length === next.length &&
+  current.every(
+    (job, index) =>
+      job.id === next[index]?.id &&
+      job.updatedAt === next[index]?.updatedAt &&
+      job.posX === next[index]?.posX &&
+      job.posY === next[index]?.posY &&
+      job.hasCustomPosition === next[index]?.hasCustomPosition
+  );
 
 /**
  * 应用根组件
@@ -83,7 +95,6 @@ function App() {
   const {
     canvasDrag,
     cardDrag,
-    getCardDisplayPos,
     lockedCardPositionRef,
     moveCanvasDrag,
     resetCanvas,
@@ -100,12 +111,8 @@ function App() {
   });
 
   const positionedJobs = useMemo<PositionedJob[]>(
-    () =>
-      jobs.map((job, index) => {
-        const pos = getCardDisplayPos(job, index);
-        return { job, index, x: pos.x, y: pos.y, cardSize: getJobCardSize(job) };
-      }),
-    [getCardDisplayPos, jobs]
+    () => getPositionedJobs(jobs),
+    [jobs]
   );
 
   const boardSize = useMemo(() => {
@@ -143,20 +150,19 @@ function App() {
   const loadJobs = useCallback(async (folderId: string) => {
     const nextJobs = await api.listJobs(folderId);
     const lockedPosition = lockedCardPositionRef.current;
-    setJobs(
-      lockedPosition
-        ? nextJobs.map((job) =>
-            job.id === lockedPosition.jobId
-              ? {
-                  ...job,
-                  posX: lockedPosition.posX,
-                  posY: lockedPosition.posY,
-                  hasCustomPosition: true
-                }
-              : job
-          )
-        : nextJobs
-    );
+    const resolvedJobs = lockedPosition
+      ? nextJobs.map((job) =>
+          job.id === lockedPosition.jobId
+            ? {
+                ...job,
+                posX: lockedPosition.posX,
+                posY: lockedPosition.posY,
+                hasCustomPosition: true
+              }
+            : job
+        )
+      : nextJobs;
+    setJobs((current) => (areJobSnapshotsEqual(current, resolvedJobs) ? current : resolvedJobs));
   }, []);
 
   const loadQueue = useCallback(async () => {
@@ -423,6 +429,7 @@ function App() {
         activeFolder={activeFolder}
         boardSize={boardSize}
         isDragging={Boolean(canvasDrag || cardDrag)}
+        isCanvasDragging={Boolean(canvasDrag)}
         isLoading={isLoading}
         positionedJobs={positionedJobs}
         draggingJobId={cardDrag?.jobId ?? null}

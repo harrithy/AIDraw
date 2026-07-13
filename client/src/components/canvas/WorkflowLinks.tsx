@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { getConnectionPath, type PositionedJob } from "../../lib/canvas";
 
 /**
@@ -7,7 +8,11 @@ import { getConnectionPath, type PositionedJob } from "../../lib/canvas";
  * 纯 SVG 方案比 Canvas 2D 更省资源，且能用 CSS 控制样式
  * @param positionedJobs - 已定位的任务卡片列表
  */
-export function WorkflowLinks({ positionedJobs }: { positionedJobs: PositionedJob[] }) {
+export const WorkflowLinks = memo(function WorkflowLinks({
+  positionedJobs
+}: {
+  positionedJobs: PositionedJob[];
+}) {
   if (positionedJobs.length < 2) return null;
 
   return (
@@ -33,6 +38,9 @@ export function WorkflowLinks({ positionedJobs }: { positionedJobs: PositionedJo
           <path
             key={`${item.job.id}-${next.job.id}`}
             className="workflow-link"
+            data-link-index={index}
+            data-from-job-id={item.job.id}
+            data-to-job-id={next.job.id}
             d={getConnectionPath(item, next)}
             markerEnd="url(#workflow-arrow)"
           />
@@ -40,4 +48,4 @@ export function WorkflowLinks({ positionedJobs }: { positionedJobs: PositionedJo
       })}
     </svg>
   );
-}
+});
