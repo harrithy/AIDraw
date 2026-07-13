@@ -51,6 +51,9 @@ export type DrawSize = PresetDrawSize | `${number}x${number}`;
 /** NANO-BANANA 支持的输出分辨率，K 必须大写 */
 export type NanoImageSize = "1K" | "2K" | "4K";
 
+/** 绘图任务实际使用的接口提供者 */
+export type ImageProviderId = "duomi" | "nano-banana" | "mock";
+
 /**
  * 文件夹（工作区）
  * 每个文件夹独立管理一组绘图任务，画布状态也独立保存
@@ -123,6 +126,20 @@ export type DrawJob = {
   hasCustomPosition?: boolean;
   /** 失败时的错误信息 */
   errorMessage?: string;
+  /** 任务提供者 */
+  provider?: ImageProviderId;
+  /** 远程任务 ID */
+  remoteTaskId?: string;
+  /** 远程状态 */
+  remoteStatus?: string;
+  /** 提交时间 */
+  submitTime?: string;
+  /** 查询 URL */
+  queryUrl?: string;
+  /** 当前负责执行任务的浏览器标签页 */
+  queueOwnerId?: string;
+  /** 执行租约到期时间，过期后其他标签页可以接管 */
+  leaseExpiresAt?: string;
   /** 开始执行时间（ISO 字符串） */
   startedAt?: string;
   /** 完成时间（ISO 字符串） */

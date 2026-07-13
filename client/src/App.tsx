@@ -132,7 +132,12 @@ function App() {
   const loadFolders = useCallback(async () => {
     const nextFolders = await api.listFolders();
     setFolders(nextFolders);
-    setActiveFolderId((current) => current ?? nextFolders[0]?.id ?? null);
+    setActiveFolderId((current) =>
+      current && nextFolders.some((folder) => folder.id === current)
+        ? current
+        : nextFolders[0]?.id ?? null
+    );
+    return nextFolders;
   }, []);
 
   const loadJobs = useCallback(async (folderId: string) => {
@@ -225,6 +230,30 @@ function App() {
 
     return () => window.clearInterval(timer);
   }, [activeFolderId, loadJobs, loadQueue]);
+
+  // 监听跨标签页状态变更，即时刷新本地界面
+  useEffect(() => {
+    const handleStateUpdate = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      void (async () => {
+        try {
+          const nextFolders = await loadFolders();
+          const activeFolderStillExists = Boolean(
+            activeFolderId && nextFolders.some((folder) => folder.id === activeFolderId)
+          );
+          if (activeFolderStillExists && (detail?.folderId === activeFolderId || !detail?.folderId)) {
+            await loadJobs(activeFolderId!);
+          }
+          await loadQueue();
+        } catch (error) {
+          setNotice(error instanceof Error ? error.message : "状态同步失败");
+        }
+      })();
+    };
+
+    window.addEventListener("aidraw-state-update", handleStateUpdate);
+    return () => window.removeEventListener("aidraw-state-update", handleStateUpdate);
+  }, [activeFolderId, loadFolders, loadJobs, loadQueue]);
 
   /**
    * 创建文件夹并自动选中
