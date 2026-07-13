@@ -184,6 +184,7 @@ npx vercel --prod
 ```
 
 Key configuration:
+
 - **Build Command**: `npm run build`
 - **Output Directory**: `client/dist`
 - **Install Command**: `npm install`

@@ -184,6 +184,7 @@ npx vercel --prod
 ```
 
 关键配置项：
+
 - **Build Command**：`npm run build`
 - **Output Directory**：`client/dist`
 - **Install Command**：`npm install`
