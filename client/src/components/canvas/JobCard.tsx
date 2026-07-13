@@ -20,6 +20,7 @@ import { flushSync } from "react-dom";
 import type { JobCardSize } from "../../lib/canvas";
 import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
+import { isNanoBananaModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
 import { getJobOutputImages } from "../../lib/jobImages";
 import { statusLabel } from "../../lib/jobLabels";
 import { prefersReducedMotion } from "../../lib/motion";
@@ -94,7 +95,14 @@ export function JobCard({
   const expandedOffsetX = expandedCardWidth - cardSize.cardWidth;
   const isRegenerating = Boolean(currentImageUrl) && (job.status === "pending" || job.status === "running");
   const sizeLabel = job.size || (job.width && job.height ? `${job.width}x${job.height}` : "auto");
-  const qualityLabel = job.thinking === "low" || job.thinking === "medium" || job.thinking === "high" ? job.thinking : "high";
+  const usesNanoBanana = isNanoBananaModel(job.model);
+  const qualityLabel = usesNanoBanana
+    ? supportsNanoBananaImageSize(job.model)
+      ? job.imageSize ?? "4K"
+      : "自动"
+    : job.thinking === "low" || job.thinking === "medium" || job.thinking === "high"
+      ? job.thinking
+      : "high";
   const referenceImages =
     job.mode === "image-to-image"
       ? Array.from(
@@ -386,7 +394,7 @@ export function JobCard({
             <strong>{formatDate(job.createdAt)}</strong>
           </span>
           <span className="job-meta-item">
-            <em>Quality</em>
+            <em>{usesNanoBanana ? "分辨率" : "Quality"}</em>
             <strong>{qualityLabel}</strong>
           </span>
           <span className="job-meta-item">

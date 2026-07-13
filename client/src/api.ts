@@ -5,9 +5,17 @@ import type {
   DrawJob,
   HealthPayload,
   ImageProviderSettings,
+  NanoImageSize,
   UpdateImageProviderSettingsPayload
 } from "./types";
 import { getJobOutputImages } from "./lib/jobImages";
+import {
+  GPT_IMAGE_MODEL,
+  MAX_NANO_BANANA_REFERENCE_IMAGES,
+  NANO_BANANA_MODEL,
+  isNanoBananaModel,
+  supportsNanoBananaImageSize
+} from "./lib/imageModels";
 
 const DB_NAME = "aidraw-frontend";
 const DB_VERSION = 1;
@@ -16,9 +24,11 @@ const STATE_KEY = "app-state";
 const MAX_CONCURRENT = 10;
 const LEGACY_DEFAULT_BASE_URL = "https://nowcoding.ai/v1";
 const DEFAULT_BASE_URL = "https://duomiapi.com";
-const DEFAULT_MODEL = "gpt-image-2";
+const DEFAULT_MODEL = GPT_IMAGE_MODEL;
 const DEFAULT_SIZE: DrawSize = "auto";
+const DEFAULT_NANO_IMAGE_SIZE: NanoImageSize = "4K";
 const DUOMI_API_PREFIX = "/v1";
+const NANO_BANANA_API_PREFIX = "/api/gemini";
 const IMAGE_UPLOAD_BASE_URL = "https://image.harrio.xyz";
 const IMAGE_UPLOAD_PROXY_PATH = "/image-upload/upload";
 const TASK_POLL_INTERVAL_MS = 10 * 1000;
@@ -285,7 +295,22 @@ const presetSizeOptions = new Set<string>([
   "4:3",
   "3:4",
   "5:4",
-  "4:5"
+  "4:5",
+  "21:9"
+]);
+
+const nanoAspectRatios = new Set<DrawSize>([
+  "auto",
+  "1:1",
+  "2:3",
+  "3:2",
+  "3:4",
+  "4:3",
+  "4:5",
+  "5:4",
+  "9:16",
+  "16:9",
+  "21:9"
 ]);
 
 const isValidCustomSize = (width: number, height: number) => {
@@ -314,6 +339,16 @@ const normalizeSize = (value: unknown): DrawSize => {
   const width = Number(customSize[1]);
   const height = Number(customSize[2]);
   return isValidCustomSize(width, height) ? `${width}x${height}` : DEFAULT_SIZE;
+};
+
+const normalizeNanoAspectRatio = (value: unknown): DrawSize => {
+  const size = String(value ?? "").trim() as DrawSize;
+  return nanoAspectRatios.has(size) ? size : DEFAULT_SIZE;
+};
+
+const normalizeNanoImageSize = (value: unknown): NanoImageSize => {
+  if (value === "1K" || value === "2K" || value === "4K") return value;
+  return DEFAULT_NANO_IMAGE_SIZE;
 };
 
 const dimensionsFromSize = (size: DrawSize) => {
@@ -384,9 +419,12 @@ const getErrorMessage = (payload: unknown, fallback: string) => {
   const data = payload as {
     error?: { code?: string; message?: string; type?: string };
     message?: string;
-    data?: { description?: string };
+    msg?: string;
+    data?: { description?: string; msg?: string };
   } | null;
-  const message = data?.error?.message ?? data?.message ?? data?.data?.description;
+  const message = [data?.error?.message, data?.message, data?.data?.msg, data?.data?.description, data?.msg].find(
+    (value) => typeof value === "string" && value.trim()
+  );
   const details = [data?.error?.code, data?.error?.type].filter(Boolean).join(" / ");
   if (message && details) return `${message}（${details}）`;
   return message ?? fallback;
@@ -420,17 +458,55 @@ type DuomiTaskResponse = {
   message?: string;
 };
 
+type NanoBananaCreateTaskResponse = {
+  code?: number;
+  msg?: string;
+  data?: {
+    task_id?: string;
+  };
+};
+
+type NanoBananaTaskResponse = {
+  code?: number;
+  msg?: string;
+  data?: {
+    task_id?: string;
+    state?: "pending" | "running" | "succeeded" | "error";
+    data?: {
+      images?: Array<{
+        url?: string;
+        file_name?: string;
+      }>;
+      description?: string;
+    };
+    msg?: string;
+    status?: string;
+    action?: string;
+  };
+};
+
 const delay = (ms: number) =>
   new Promise<void>((resolve) => {
     window.setTimeout(resolve, ms);
   });
 
+const getConfiguredBaseUrl = (settings: StoredSettings) =>
+  (settings.baseUrl || DEFAULT_BASE_URL).trim().replace(/\/+$/, "");
+
 const getDuomiEndpoint = (settings: StoredSettings, path: string) => {
-  const configuredBaseUrl = (settings.baseUrl || DEFAULT_BASE_URL).trim().replace(/\/+$/, "");
+  const configuredBaseUrl = getConfiguredBaseUrl(settings);
   const versionedBaseUrl = configuredBaseUrl.endsWith(DUOMI_API_PREFIX)
     ? configuredBaseUrl
     : `${configuredBaseUrl}${DUOMI_API_PREFIX}`;
   return `${versionedBaseUrl}${path}`;
+};
+
+const getNanoBananaEndpoint = (settings: StoredSettings, path: string) => {
+  const configuredBaseUrl = getConfiguredBaseUrl(settings);
+  const apiRoot = configuredBaseUrl.endsWith(DUOMI_API_PREFIX)
+    ? configuredBaseUrl.slice(0, -DUOMI_API_PREFIX.length)
+    : configuredBaseUrl;
+  return `${apiRoot}${NANO_BANANA_API_PREFIX}${path}`;
 };
 
 const normalizeQuality = (value: DrawJob["thinking"]) => {
@@ -474,6 +550,23 @@ const extractTaskId = (payload: DuomiCreateTaskResponse | null) => {
 const extractTaskImageUrl = (payload: DuomiTaskResponse | null) => {
   const imageUrl = payload?.data?.images?.find((image) => typeof image.url === "string" && image.url.trim())?.url;
   if (!imageUrl) throw new Error("多米API任务已完成，但未返回图片地址");
+  return imageUrl;
+};
+
+const assertNanoBananaSuccess = (
+  payload: NanoBananaCreateTaskResponse | NanoBananaTaskResponse | null,
+  context: string
+) => {
+  if (payload?.code !== 200) {
+    throw new Error(getErrorMessage(payload, `${context}失败`));
+  }
+};
+
+const extractNanoBananaTaskImageUrl = (payload: NanoBananaTaskResponse | null) => {
+  const imageUrl = payload?.data?.data?.images?.find(
+    (image) => typeof image.url === "string" && image.url.trim()
+  )?.url;
+  if (!imageUrl) throw new Error("NANO-BANANA 任务已完成，但未返回图片地址");
   return imageUrl;
 };
 
@@ -540,11 +633,91 @@ const callDuomiGeneration = async (job: DrawJob, settings: StoredSettings) => {
   return waitForDuomiTaskResult(taskId, settings);
 };
 
+const createNanoBananaTask = async (job: DrawJob, settings: StoredSettings) => {
+  const inputImages = job.inputImageUrls?.length ? job.inputImageUrls : job.inputImageUrl ? [job.inputImageUrl] : [];
+  if (inputImages.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
+    throw new Error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
+  }
+  if (inputImages.length > 0) assertDuomiImageUrls(inputImages);
+
+  const requestBody: Record<string, unknown> = {
+    model: job.model || NANO_BANANA_MODEL,
+    prompt: job.prompt.trim()
+  };
+  if (supportsNanoBananaImageSize(job.model)) {
+    requestBody.image_size = normalizeNanoImageSize(job.imageSize);
+  }
+  const aspectRatio = normalizeNanoAspectRatio(job.size);
+  if (aspectRatio !== "auto") requestBody.aspect_ratio = aspectRatio;
+
+  const endpointPath = inputImages.length > 0 ? "/nano-banana-edit" : "/nano-banana";
+  if (inputImages.length > 0) {
+    requestBody.image_urls = inputImages;
+  } else {
+    requestBody.oversea = false;
+  }
+
+  const payload = await fetchJson<NanoBananaCreateTaskResponse>(
+    getNanoBananaEndpoint(settings, endpointPath),
+    {
+      method: "POST",
+      headers: {
+        Authorization: settings.apiKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestBody)
+    },
+    inputImages.length > 0 ? "提交 NANO-BANANA 图生图任务" : "提交 NANO-BANANA 文生图任务"
+  );
+
+  assertNanoBananaSuccess(payload, "提交 NANO-BANANA 任务");
+  const taskId = payload?.data?.task_id;
+  if (!taskId) throw new Error("NANO-BANANA 未返回任务 id");
+  return taskId;
+};
+
+const waitForNanoBananaTaskResult = async (taskId: string, settings: StoredSettings) => {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt <= TASK_TIMEOUT_MS) {
+    const payload = await fetchJson<NanoBananaTaskResponse>(
+      getNanoBananaEndpoint(settings, `/nano-banana/${encodeURIComponent(taskId)}`),
+      {
+        method: "GET",
+        headers: {
+          Authorization: settings.apiKey
+        }
+      },
+      "查询 NANO-BANANA 任务状态"
+    );
+
+    assertNanoBananaSuccess(payload, "查询 NANO-BANANA 任务状态");
+    const taskState = payload?.data?.state;
+    if (taskState === "succeeded") return extractNanoBananaTaskImageUrl(payload);
+    if (taskState === "error") {
+      throw new Error(payload?.data?.msg?.trim() || getErrorMessage(payload, `NANO-BANANA 任务失败：${taskId}`));
+    }
+    if (taskState !== "pending" && taskState !== "running") {
+      throw new Error("NANO-BANANA 查询结果缺少有效的任务状态");
+    }
+
+    await delay(TASK_POLL_INTERVAL_MS);
+  }
+
+  throw new Error(`NANO-BANANA 任务查询超时，已等待 ${TASK_TIMEOUT_MINUTES} 分钟`);
+};
+
+const callNanoBananaGeneration = async (job: DrawJob, settings: StoredSettings) => {
+  const taskId = await createNanoBananaTask(job, settings);
+  return waitForNanoBananaTaskResult(taskId, settings);
+};
+
 const generateDrawing = async (job: DrawJob) => {
   const state = await loadState();
   const settings = state.settings;
 
   if (settings.apiKey) {
+    if (isNanoBananaModel(job.model)) return callNanoBananaGeneration(job, settings);
     return callDuomiGeneration(job, settings);
   }
 
@@ -739,6 +912,10 @@ export const api = {
     const count = Math.min(Math.max(Math.floor(payload.count || 1), 1), 8);
     const size = normalizeSize(payload.size);
     const { width, height } = dimensionsFromSize(size);
+    const model = payload.model || state.settings.model || DEFAULT_MODEL;
+    if (isNanoBananaModel(model) && inputImageUrls.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
+      throw new Error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
+    }
     const now = nowIso();
     const created: DrawJob[] = [];
     const baseOrderIndex = getNextOrderIndex(state, folder.id);
@@ -759,7 +936,8 @@ export const api = {
         count: 1,
         strength: payload.strength,
         thinking: payload.thinking || "high",
-        model: payload.model || state.settings.model || DEFAULT_MODEL,
+        model,
+        imageSize: supportsNanoBananaImageSize(model) ? normalizeNanoImageSize(payload.imageSize) : undefined,
         orderIndex: baseOrderIndex + index,
         posX: 0,
         posY: 0,

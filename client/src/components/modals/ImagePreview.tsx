@@ -4,6 +4,7 @@ import { Download, ImagePlus, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
+import { isNanoBananaModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
 import { getJobOutputImages } from "../../lib/jobImages";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { DrawJob } from "../../types";
@@ -82,7 +83,14 @@ export function ImagePreview({
       </AnimatedModal>
     );
   }
-  const qualityLabel = job.thinking === "low" || job.thinking === "medium" || job.thinking === "high" ? job.thinking : "high";
+  const usesNanoBanana = isNanoBananaModel(job.model);
+  const qualityLabel = usesNanoBanana
+    ? supportsNanoBananaImageSize(job.model)
+      ? job.imageSize ?? "4K"
+      : "自动"
+    : job.thinking === "low" || job.thinking === "medium" || job.thinking === "high"
+      ? job.thinking
+      : "high";
   const sizeLabel = job.size || `${job.width}x${job.height}`;
   const handleDownload = async () => {
     if (isDownloading) return;
@@ -190,7 +198,7 @@ export function ImagePreview({
       <div className="image-preview-caption">
         <strong>{job.prompt}</strong>
         <span>
-          {formatDate(job.createdAt)} · quality {qualityLabel} · {sizeLabel}
+          {formatDate(job.createdAt)} · {usesNanoBanana ? "分辨率" : "quality"} {qualityLabel} · {sizeLabel}
           {hasComparison ? ` · 共 ${imageUrls.length} 个版本` : ""}
         </span>
       </div>

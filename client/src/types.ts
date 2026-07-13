@@ -39,13 +39,17 @@ export type PresetDrawSize =
   | "4:3"
   | "3:4"
   | "5:4"
-  | "4:5";
+  | "4:5"
+  | "21:9";
 
 /**
  * 图像尺寸：可以是预设值，也可以是自定义 `宽x高` 格式
  * 例如 `"1024x768"` 表示宽 1024px、高 768px
  */
 export type DrawSize = PresetDrawSize | `${number}x${number}`;
+
+/** NANO-BANANA 支持的输出分辨率，K 必须大写 */
+export type NanoImageSize = "1K" | "2K" | "4K";
 
 /**
  * 文件夹（工作区）
@@ -107,6 +111,8 @@ export type DrawJob = {
   thinking: "high" | "medium" | "low" | "standard";
   /** 使用的 AI 模型名称 */
   model: string;
+  /** NANO-BANANA 输出分辨率 */
+  imageSize?: NanoImageSize;
   /** 排序索引（在同文件夹内） */
   orderIndex: number;
   /** 画布自由拖拽：卡片在画布坐标系中的 X 坐标 */
@@ -201,6 +207,8 @@ export type CreateJobPayload = {
   thinking?: "high" | "medium" | "low";
   /** 模型名称 */
   model?: string;
+  /** NANO-BANANA 输出分辨率 */
+  imageSize?: NanoImageSize;
 };
 
 /**
