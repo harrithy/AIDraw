@@ -28,6 +28,7 @@ type UploadResult = {
 };
 
 type CreateJobPanelProps = {
+  activeFolderId?: string | null;
   isSubmitting: boolean;
   notice?: string;
   variant?: "panel" | "composer";
@@ -133,7 +134,40 @@ function ReferenceImagePreview({
   );
 }
 
+const getDraftKey = (folderId: string) => `aidraw-draft-${folderId}`;
+
+interface FolderDraft {
+  prompt: string;
+  count: number;
+  sizeMode: SizeMode;
+  customWidth: string;
+  customHeight: string;
+  thinking: ThinkingValue;
+  model: SupportedImageModel;
+  nanoImageSize: NanoImageSize;
+  inputImages: UploadResult[];
+}
+
+const loadDraft = (folderId: string): FolderDraft | null => {
+  try {
+    const data = localStorage.getItem(getDraftKey(folderId));
+    if (data) return JSON.parse(data);
+  } catch (e) {
+    console.error("Error loading draft", e);
+  }
+  return null;
+};
+
+const saveDraft = (folderId: string, draft: FolderDraft) => {
+  try {
+    localStorage.setItem(getDraftKey(folderId), JSON.stringify(draft));
+  } catch (e) {
+    console.error("Error saving draft", e);
+  }
+};
+
 export function CreateJobPanel({
+  activeFolderId,
   isSubmitting,
   notice,
   variant = "panel",
@@ -161,6 +195,70 @@ export function CreateJobPanel({
   const isNanoBanana = isNanoBananaModel(model);
   const supportsNanoImageSize = supportsNanoBananaImageSize(model);
   const currentSizeOptions = isNanoBanana ? nanoAspectRatioOptions : gptSizeOptions;
+
+  const isUpdatingDraftRef = useRef(false);
+
+  // Load draft when activeFolderId changes
+  useEffect(() => {
+    if (!activeFolderId) return;
+
+    isUpdatingDraftRef.current = true;
+    const draft = loadDraft(activeFolderId);
+    if (draft) {
+      setPrompt(draft.prompt ?? "");
+      setCount(draft.count ?? 1);
+      setSizeMode(draft.sizeMode ?? "auto");
+      setCustomWidth(draft.customWidth ?? "1024");
+      setCustomHeight(draft.customHeight ?? "1024");
+      setThinking(draft.thinking ?? "high");
+      setModel(draft.model ?? GPT_IMAGE_MODEL);
+      setNanoImageSize(draft.nanoImageSize ?? "4K");
+      setInputImages(draft.inputImages ?? []);
+    } else {
+      setPrompt("");
+      setCount(1);
+      setSizeMode("auto");
+      setCustomWidth("1024");
+      setCustomHeight("1024");
+      setThinking("high");
+      setModel(GPT_IMAGE_MODEL);
+      setNanoImageSize("4K");
+      setInputImages([]);
+    }
+
+    const timer = setTimeout(() => {
+      isUpdatingDraftRef.current = false;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [activeFolderId]);
+
+  // Save draft when form fields change
+  useEffect(() => {
+    if (!activeFolderId || isUpdatingDraftRef.current) return;
+
+    saveDraft(activeFolderId, {
+      prompt,
+      count,
+      sizeMode,
+      customWidth,
+      customHeight,
+      thinking,
+      model,
+      nanoImageSize,
+      inputImages
+    });
+  }, [
+    activeFolderId,
+    prompt,
+    count,
+    sizeMode,
+    customWidth,
+    customHeight,
+    thinking,
+    model,
+    nanoImageSize,
+    inputImages
+  ]);
 
   useEffect(() => {
     if (!currentSizeOptions.some((option) => option.value === sizeMode)) {

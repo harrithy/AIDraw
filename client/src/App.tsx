@@ -550,6 +550,7 @@ function App() {
 
       {activeFolder ? (
         <CreateJobPanel
+          activeFolderId={activeFolderId}
           variant="composer"
           notice={notice}
           isSubmitting={isSubmitting}

@@ -2,6 +2,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import {
   Calendar,
+  ChevronDown,
   ImagePlus,
   Images,
   Loader2,
@@ -74,12 +75,14 @@ export function UploadedImageLibrary({
   const [previewImage, setPreviewImage] = useState<UploadedImage | null>(null);
   const [deleteImage, setDeleteImage] = useState<UploadedImage | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setIsOpen(false);
     setDateFilter("");
     setPreviewImage(null);
     setDeleteImage(null);
+    setCollapsedDates({});
   }, [folderId]);
 
   useEffect(() => {
@@ -194,6 +197,13 @@ export function UploadedImageLibrary({
     }
   };
 
+  const toggleCollapse = (dateKey: string) => {
+    setCollapsedDates((current) => ({
+      ...current,
+      [dateKey]: !current[dateKey]
+    }));
+  };
+
   return (
     <>
       <div
@@ -277,58 +287,83 @@ export function UploadedImageLibrary({
                 <span>{dateFilter ? "该日期没有图片" : "暂无上传图片"}</span>
               </div>
             ) : (
-              groupedImages.map((group) => (
-                <section className="uploaded-image-date-group" key={group.dateKey}>
-                  <div className="uploaded-image-date-heading">
-                    <strong>{group.label}</strong>
-                    <span>{group.items.length}</span>
-                  </div>
-                  <div className="uploaded-image-grid">
-                    {group.items.map((image) => (
-                      <article className="uploaded-image-item" key={image.id}>
-                        <button
-                          type="button"
-                          className="uploaded-image-preview-button"
-                          onClick={() => setPreviewImage(image)}
-                          title={`预览 ${image.originalName}`}
-                        >
-                          <RetryingImage src={image.url} alt={image.originalName} />
-                        </button>
-                        <div className="uploaded-image-overlay">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-xs"
-                            className="uploaded-image-action-btn delete-btn"
-                            onClick={() => setDeleteImage(image)}
-                            title="从列表移除"
-                            aria-label={`移除 ${image.originalName}`}
-                          >
-                            <Trash2 size={13} />
-                          </Button>
+              groupedImages.map((group) => {
+                const isCollapsed = collapsedDates[group.dateKey] || false;
+                return (
+                  <section className="uploaded-image-date-group" key={group.dateKey}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="uploaded-image-date-heading"
+                      onClick={() => toggleCollapse(group.dateKey)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleCollapse(group.dateKey);
+                        }
+                      }}
+                      aria-expanded={!isCollapsed}
+                    >
+                      <strong>
+                        <ChevronDown
+                          size={14}
+                          className={`uploaded-image-date-chevron ${isCollapsed ? "is-collapsed" : ""}`}
+                        />
+                        {group.label}
+                      </strong>
+                      <span>{group.items.length}</span>
+                    </div>
+                    <div className={`uploaded-image-grid-wrapper ${isCollapsed ? "is-collapsed" : ""}`}>
+                      <div className="uploaded-image-grid-content">
+                        <div className="uploaded-image-grid">
+                          {group.items.map((image) => (
+                            <article className="uploaded-image-item" key={image.id}>
+                              <button
+                                type="button"
+                                className="uploaded-image-preview-button"
+                                onClick={() => setPreviewImage(image)}
+                                title={`预览 ${image.originalName}`}
+                              >
+                                <RetryingImage src={image.url} alt={image.originalName} />
+                              </button>
+                              <div className="uploaded-image-overlay">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  className="uploaded-image-action-btn delete-btn"
+                                  onClick={() => setDeleteImage(image)}
+                                  title="从列表移除"
+                                  aria-label={`移除 ${image.originalName}`}
+                                >
+                                  <Trash2 size={13} />
+                                </Button>
 
-                          <div className="uploaded-image-overlay-bottom">
-                            <span className="uploaded-image-overlay-name" title={image.originalName}>
-                              {image.originalName}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-xs"
-                              className="uploaded-image-action-btn use-btn"
-                              onClick={() => onUseImage(image.url)}
-                              title="用作参考图"
-                              aria-label={`${image.originalName} 用作参考图`}
-                            >
-                              <ImagePlus size={13} />
-                            </Button>
-                          </div>
+                                <div className="uploaded-image-overlay-bottom">
+                                  <span className="uploaded-image-overlay-name" title={image.originalName}>
+                                    {image.originalName}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    className="uploaded-image-action-btn use-btn"
+                                    onClick={() => onUseImage(image.url)}
+                                    title="用作参考图"
+                                    aria-label={`${image.originalName} 用作参考图`}
+                                  >
+                                    <ImagePlus size={13} />
+                                  </Button>
+                                </div>
+                              </div>
+                            </article>
+                          ))}
                         </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ))
+                      </div>
+                    </div>
+                  </section>
+                );
+              })
             )}
           </div>
         </div>
