@@ -620,13 +620,15 @@ export function CreateJobPanel({
         <Play size={24} />
       </div>
 
-      <label className={`upload-box${isDragActive ? " is-dragging" : ""}`}>
-        <input type="file" accept="image/*" multiple onChange={uploadImage} />
-        {isUploading ? <Loader2 className="spin" size={22} /> : <ImagePlus size={22} />}
-        <span>{inputImages.length > 0 ? `${inputImages.length} 张参考图` : "上传参考图片"}</span>
-      </label>
+      <div className="reference-upload-group">
+        <label className={`upload-box${isDragActive ? " is-dragging" : ""}${inputImages.length > 0 ? " has-attachments" : ""}`}>
+          <input type="file" accept="image/*" multiple onChange={uploadImage} />
+          {isUploading ? <Loader2 className="spin" size={22} /> : <ImagePlus size={22} />}
+          {inputImages.length === 0 && <span>上传参考图片</span>}
+        </label>
 
-      {imageAttachments}
+        {imageAttachments}
+      </div>
 
       <Field>
         <FieldLabel>提示词</FieldLabel>

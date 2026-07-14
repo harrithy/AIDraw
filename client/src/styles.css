@@ -1995,8 +1995,14 @@ button:disabled {
 }
 
 /* 重新编辑弹窗：参数表单布局 */
+/* 重新编辑弹窗：参数表单布局 */
 .regenerate-edit-dialog {
   max-height: calc(100vh - 4rem);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.4);
 }
 
 .regenerate-edit-form {
@@ -2004,6 +2010,148 @@ button:disabled {
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
+}
+
+.regenerate-edit-form textarea {
+  resize: none !important;
+  min-height: 80px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--input-bg) !important;
+  padding: 10px 12px !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: var(--ink) !important;
+  transition: all 180ms ease !important;
+}
+
+.regenerate-edit-form textarea:focus-visible {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 12%, transparent) !important;
+}
+
+.regenerate-edit-form [data-slot="field-label"] {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--muted) !important;
+  margin-bottom: 2px !important;
+}
+
+.regenerate-edit-form [data-slot="select-trigger"] {
+  height: 36px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--input-bg) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 0 10px !important;
+  transition: all 180ms ease !important;
+}
+
+.regenerate-edit-form [data-slot="select-trigger"]:hover {
+  border-color: color-mix(in srgb, var(--green) 40%, var(--line-strong)) !important;
+}
+
+.regenerate-edit-form [data-slot="select-trigger"]:focus-visible {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 10%, transparent) !important;
+}
+
+.regenerate-edit-form [data-slot="input"] {
+  height: 36px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--input-bg) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 0 10px !important;
+  transition: all 180ms ease !important;
+}
+
+.regenerate-edit-form [data-slot="input"]:hover {
+  border-color: color-mix(in srgb, var(--green) 40%, var(--line-strong)) !important;
+}
+
+.regenerate-edit-form [data-slot="input"]:focus-visible {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 10%, transparent) !important;
+}
+
+.regenerate-edit-form .upload-box {
+  min-height: 64px !important;
+  border: 1px dashed color-mix(in srgb, var(--green) 30%, var(--line-strong)) !important;
+  background: color-mix(in srgb, var(--subtle) 60%, transparent) !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  gap: 6px !important;
+  transition: all 180ms ease !important;
+}
+
+.regenerate-edit-form .upload-box:hover {
+  border-color: var(--green) !important;
+  background: color-mix(in srgb, var(--green) 5%, var(--subtle)) !important;
+  color: var(--green-dark) !important;
+}
+
+.regenerate-edit-form .upload-box svg {
+  color: var(--green) !important;
+  transition: transform 180ms ease !important;
+}
+
+.regenerate-edit-form .upload-box:hover svg {
+  transform: scale(1.1) !important;
+}
+
+.regenerate-edit-form .composer-attachments {
+  display: flex !important;
+  gap: 10px !important;
+  padding: 2px 0 !important;
+}
+
+.regenerate-edit-form .composer-attachment {
+  width: 72px !important;
+  height: 72px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--subtle) !important;
+  transition: all 200ms ease !important;
+}
+
+.regenerate-edit-form .composer-attachment:hover {
+  border-color: var(--line-strong) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.regenerate-edit-form .composer-attachment button {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  opacity: 0.8 !important;
+  transition: all 180ms ease !important;
+}
+
+.regenerate-edit-form .composer-attachment button:hover {
+  opacity: 1 !important;
+  background: var(--red) !important;
+  border-color: transparent !important;
+  transform: scale(1.1) !important;
+}
+
+.regenerate-edit-form .composer-attachment button svg {
+  width: 10px !important;
+  height: 10px !important;
+  color: #ffffff !important;
 }
 
 .image-preview-backdrop {
@@ -2400,6 +2548,46 @@ button:disabled {
     transform 160ms ease;
 }
 
+.reference-upload-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+.reference-upload-group .upload-box {
+  width: 72px !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  flex: 0 0 auto !important;
+  padding: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+
+.reference-upload-group .upload-box span {
+  font-size: 10px !important;
+  color: var(--muted) !important;
+  white-space: nowrap !important;
+}
+
+.reference-upload-group .composer-attachments {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0;
+}
+
+.reference-upload-group .composer-attachment {
+  width: 72px !important;
+  height: 72px !important;
+  flex: 0 0 auto !important;
+}
+
 .upload-box input {
   display: none;
 }
@@ -2505,8 +2693,8 @@ button:disabled {
 
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 104px;
-  gap: 10px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .composer-fields {

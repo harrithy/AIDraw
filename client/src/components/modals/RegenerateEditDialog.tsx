@@ -456,30 +456,32 @@ export function RegenerateEditDialog({
             />
           </Field>
 
-          <label className={`upload-box${isDragActive ? " is-dragging" : ""}`}>
-            <input type="file" accept="image/*" multiple onChange={uploadImage} />
-            {isUploading ? <Loader2 className="spin" size={20} /> : <ImagePlus size={20} />}
-            <span>{inputImages.length > 0 ? `${inputImages.length} 张参考图` : "上传参考图片"}</span>
-          </label>
+          <div className="reference-upload-group">
+            <label className={`upload-box${isDragActive ? " is-dragging" : ""}${inputImages.length > 0 ? " has-attachments" : ""}`}>
+              <input type="file" accept="image/*" multiple onChange={uploadImage} />
+              {isUploading ? <Loader2 className="spin" size={20} /> : <ImagePlus size={20} />}
+              {inputImages.length === 0 && <span>上传参考图片</span>}
+            </label>
 
-          {inputImages.length > 0 ? (
-            <div className="composer-attachments" aria-label="参考图片">
-              {inputImages.map((image) => (
-                <div className="composer-attachment" key={image.url}>
-                  <img src={image.url} alt={image.originalName} />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-xs"
-                    onClick={() => removeImage(image.url)}
-                    aria-label={`移除 ${image.originalName}`}
-                  >
-                    <X />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : null}
+            {inputImages.length > 0 ? (
+              <div className="composer-attachments" aria-label="参考图片">
+                {inputImages.map((image) => (
+                  <div className="composer-attachment" key={image.url}>
+                    <img src={image.url} alt={image.originalName} />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon-xs"
+                      onClick={() => removeImage(image.url)}
+                      aria-label={`移除 ${image.originalName}`}
+                    >
+                      <X />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           <div className="form-grid">
             <Field>
