@@ -76,6 +76,26 @@ export type DrawFolder = {
 };
 
 /**
+ * 用户上传并保存到文件夹图片库中的图片
+ */
+export type UploadedImage = {
+  /** 图片记录唯一 ID */
+  id: string;
+  /** 所属文件夹 ID */
+  folderId: string;
+  /** 图床返回的持久化访问地址 */
+  url: string;
+  /** 上传时的原始文件名 */
+  originalName: string;
+  /** 原始文件 MIME 类型 */
+  mimeType: string;
+  /** 原始文件大小（字节） */
+  byteSize: number;
+  /** 上传时间（ISO 字符串） */
+  createdAt: string;
+};
+
+/**
  * 绘图任务 — 整个应用的核心数据单元
  * 每个任务记录一次 AI 绘图的完整生命周期
  */

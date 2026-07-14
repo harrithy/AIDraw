@@ -7,7 +7,9 @@ import { LeftSidebar } from "./components/layout/LeftSidebar";
 import { ApiSettingsDialog } from "./components/modals/ApiSettingsDialog";
 import { ImagePreview } from "./components/modals/ImagePreview";
 import { OnboardingGuide } from "./components/modals/OnboardingGuide";
+import { RegenerateEditDialog, type RegenerateEdits } from "./components/modals/RegenerateEditDialog";
 import { CreateJobPanel } from "./components/panels/CreateJobPanel";
+import { UploadedImageLibrary } from "./components/panels/UploadedImageLibrary";
 import { Metric } from "./components/ui/Metric";
 import { useAppAnimations } from "./hooks/useAppAnimations";
 import { useCanvasInteractions } from "./hooks/useCanvasInteractions";
@@ -18,6 +20,7 @@ import type {
   DrawJob,
   ImageProviderSettings,
   QueueStats,
+  UploadedImage,
   UpdateImageProviderSettingsPayload
 } from "./types";
 
@@ -67,6 +70,8 @@ function App() {
   const [folders, setFolders] = useState<DrawFolder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [jobs, setJobs] = useState<DrawJob[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [isImageLibraryLoading, setIsImageLibraryLoading] = useState(false);
   const [queue, setQueue] = useState<QueueStats>(emptyQueue);
   const [providerSettings, setProviderSettings] = useState<ImageProviderSettings>(emptyProviderSettings);
   const [folderName, setFolderName] = useState("");
@@ -87,6 +92,8 @@ function App() {
     return prefersDark;
   });
   const [imageToUse, setImageToUse] = useState<string | null>(null);
+  const [editingRetryJob, setEditingRetryJob] = useState<DrawJob | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
@@ -157,6 +164,11 @@ function App() {
     setJobs((current) => (areJobSnapshotsEqual(current, nextJobs) ? current : nextJobs));
   }, []);
 
+  const loadUploadedImages = useCallback(async (folderId: string) => {
+    const nextImages = await api.listUploadedImages(folderId);
+    setUploadedImages(nextImages);
+  }, []);
+
   const loadQueue = useCallback(async () => {
     const health = await api.health();
     setQueue(health.queue);
@@ -207,14 +219,20 @@ function App() {
     if (!activeFolderId) {
       lockedCardPositionRef.current = null;
       setJobs([]);
+      setUploadedImages([]);
+      setIsImageLibraryLoading(false);
       return;
     }
 
     lockedCardPositionRef.current = null;
-    void loadJobs(activeFolderId).catch((error) => {
-      setNotice(error instanceof Error ? error.message : "任务加载失败");
-    });
-  }, [activeFolderId, loadJobs]);
+    setUploadedImages([]);
+    setIsImageLibraryLoading(true);
+    void Promise.all([loadJobs(activeFolderId), loadUploadedImages(activeFolderId)])
+      .catch((error) => {
+        setNotice(error instanceof Error ? error.message : "文件夹数据加载失败");
+      })
+      .finally(() => setIsImageLibraryLoading(false));
+  }, [activeFolderId, loadJobs, loadUploadedImages]);
 
   // 定期轮询：每 2.5 秒同步任务状态和队列信息
   useEffect(() => {
@@ -240,7 +258,7 @@ function App() {
             activeFolderId && nextFolders.some((folder) => folder.id === activeFolderId)
           );
           if (activeFolderStillExists && (detail?.folderId === activeFolderId || !detail?.folderId)) {
-            await loadJobs(activeFolderId!);
+            await Promise.all([loadJobs(activeFolderId!), loadUploadedImages(activeFolderId!)]);
           }
           await loadQueue();
         } catch (error) {
@@ -251,7 +269,7 @@ function App() {
 
     window.addEventListener("aidraw-state-update", handleStateUpdate);
     return () => window.removeEventListener("aidraw-state-update", handleStateUpdate);
-  }, [activeFolderId, loadFolders, loadJobs, loadQueue]);
+  }, [activeFolderId, loadFolders, loadJobs, loadQueue, loadUploadedImages]);
 
   /**
    * 创建文件夹并自动选中
@@ -374,6 +392,26 @@ function App() {
     }
   };
 
+  const uploadImage = async (file: File) => {
+    if (!activeFolderId) throw new Error("请先选择文件夹");
+    return api.uploadImage(activeFolderId, file);
+  };
+
+  const deleteUploadedImage = async (imageId: string) => {
+    try {
+      await api.deleteUploadedImage(imageId);
+      setNotice("已从图片列表移除");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "图片移除失败");
+      throw error;
+    }
+  };
+
+  const useUploadedImage = (url: string) => {
+    setImageToUse(url);
+    setNotice("已添加到参考图片");
+  };
+
   /**
    * 重试绘图 — 将失败/已完成任务重新加入队列
    * @param jobId - 任务 ID
@@ -387,6 +425,26 @@ function App() {
       setNotice("已重新加入绘制队列");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "重新绘制失败");
+    }
+  };
+
+  /**
+   * 编辑参数后重绘 — 用编辑弹窗返回的新参数就地更新任务并重新入队
+   * @param jobId - 任务 ID
+   * @param edits - 编辑后的绘图参数
+   */
+  const confirmRegenerate = async (jobId: string, edits: RegenerateEdits) => {
+    try {
+      setIsRegenerating(true);
+      const updated = await api.regenerateJobWithEdits(jobId, edits);
+      setJobs((current) => current.map((job) => (job.id === updated.id ? updated : job)));
+      await loadQueue();
+      setEditingRetryJob(null);
+      setNotice("已用新参数重新加入绘制队列");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "重新绘制失败");
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -433,6 +491,7 @@ function App() {
         onMoveJob={moveJob}
         onPreviewJob={setPreviewJob}
         onRetryJob={retryDrawing}
+        onEditRetryJob={setEditingRetryJob}
         onUseImage={setImageToUse}
       />
 
@@ -443,6 +502,16 @@ function App() {
           <Metric label="完成" value={String(completedJobs)} />
           <Metric label="处理中" value={String(inFlightJobs)} />
         </div>
+        {activeFolder ? (
+          <UploadedImageLibrary
+            folderId={activeFolder.id}
+            folderName={activeFolder.name}
+            images={uploadedImages}
+            isLoading={isImageLibraryLoading}
+            onUseImage={useUploadedImage}
+            onDeleteImage={deleteUploadedImage}
+          />
+        ) : null}
       </header>
 
       <CanvasToolbar
@@ -486,7 +555,7 @@ function App() {
           isSubmitting={isSubmitting}
           usedImage={imageToUse}
           onSubmit={submitJobs}
-          onUploadImage={api.uploadImage}
+          onUploadImage={uploadImage}
           onImageUsed={() => setImageToUse(null)}
         />
       ) : (
@@ -501,6 +570,15 @@ function App() {
       />
 
       <ImagePreview job={previewJob} onClose={() => setPreviewJob(null)} onUseImage={(url) => { setImageToUse(url); setPreviewJob(null); }} />
+
+      <RegenerateEditDialog
+        open={Boolean(editingRetryJob)}
+        job={editingRetryJob}
+        isSubmitting={isRegenerating}
+        onClose={() => setEditingRetryJob(null)}
+        onUploadImage={uploadImage}
+        onConfirm={confirmRegenerate}
+      />
 
       <OnboardingGuide
         open={onboardingOpen}

@@ -7,6 +7,7 @@ import type {
   ImageProviderId,
   ImageProviderSettings,
   NanoImageSize,
+  UploadedImage,
   UpdateImageProviderSettingsPayload
 } from "./types";
 import { getJobOutputImages } from "./lib/jobImages";
@@ -22,9 +23,11 @@ import { MockProvider, dimensionsFromSize } from "./lib/providers/MockProvider";
 import type { ImageModelProvider, StoredSettings } from "./lib/providers/types";
 
 const DB_NAME = "aidraw-frontend";
-const DB_VERSION = 2;
+// IndexedDB 不支持降级打开；该版本必须不低于已发布到用户浏览器的版本。
+const DB_VERSION = 4;
 const STATE_STORE = "state";
 const STATE_KEY = "app-state";
+const UPLOADED_IMAGE_STORE = "uploadedImages";
 const MAX_CONCURRENT = 10;
 const DEFAULT_BASE_URL = "https://duomiapi.com";
 const DEFAULT_MODEL = GPT_IMAGE_MODEL;
@@ -172,6 +175,12 @@ const openDb = () => {
           db.createObjectStore("settings");
         }
       }
+
+      if (oldVersion < 4 && !db.objectStoreNames.contains(UPLOADED_IMAGE_STORE)) {
+        const imageStore = db.createObjectStore(UPLOADED_IMAGE_STORE, { keyPath: "id" });
+        imageStore.createIndex("folderId", "folderId", { unique: false });
+        imageStore.createIndex("folderIdCreatedAt", ["folderId", "createdAt"], { unique: false });
+      }
     };
 
     request.onsuccess = async () => {
@@ -278,6 +287,9 @@ const sortFolders = (folders: DrawFolder[]) =>
 
 const sortJobs = (jobs: DrawJob[]) =>
   [...jobs].sort((a, b) => a.orderIndex - b.orderIndex || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+const sortUploadedImages = (images: UploadedImage[]) =>
+  [...images].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
 const ensureFolder = async (folderId: string): Promise<DrawFolder> => {
   const db = await openDb();
@@ -757,9 +769,10 @@ export const api = {
     const db = await openDb();
 
     await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(["folders", "jobs"], "readwrite");
+      const transaction = db.transaction(["folders", "jobs", UPLOADED_IMAGE_STORE], "readwrite");
       const folderStore = transaction.objectStore("folders");
       const jobStore = transaction.objectStore("jobs");
+      const imageStore = transaction.objectStore(UPLOADED_IMAGE_STORE);
       const folderReq = folderStore.get(id);
       let folderExists = true;
 
@@ -774,6 +787,13 @@ export const api = {
         jobKeysReq.onsuccess = () => {
           for (const jobKey of jobKeysReq.result) {
             jobStore.delete(jobKey);
+          }
+        };
+
+        const imageKeysReq = imageStore.index("folderId").getAllKeys(id);
+        imageKeysReq.onsuccess = () => {
+          for (const imageKey of imageKeysReq.result) {
+            imageStore.delete(imageKey);
           }
         };
       };
@@ -913,6 +933,72 @@ export const api = {
     return updated;
   },
 
+  /**
+   * 编辑参数后就地重绘 — 先更新任务的提示词/模型/尺寸/质量/参考图，再重置为待处理并重新入队
+   * 与 retryJob 的区别：retryJob 用原参数，本方法用编辑后的新参数（仍在同一个 job 上，旧图进入历史版本）
+   * @param jobId - 任务 ID
+   * @param edits - 编辑后的绘图参数
+   */
+  regenerateJobWithEdits: async (
+    jobId: string,
+    edits: {
+      prompt: string;
+      model: string;
+      size: DrawSize;
+      thinking: "high" | "medium" | "low";
+      imageSize?: NanoImageSize;
+      inputImageUrls: string[];
+    }
+  ): Promise<DrawJob> => {
+    const job = await ensureJob(jobId);
+    if (!["completed", "failed"].includes(job.status)) {
+      throw new Error("Only completed or failed jobs can be redrawn");
+    }
+
+    const prompt = edits.prompt.trim();
+    if (!prompt) throw new Error("提示词不能为空");
+
+    const inputImageUrls = edits.inputImageUrls.map((url) => url.trim()).filter(Boolean);
+    const settings = await getSettings();
+    if (settings.apiKey && inputImageUrls.length > 0) assertDuomiImageUrls(inputImageUrls);
+
+    const model = edits.model || settings.model || DEFAULT_MODEL;
+    if (isNanoBananaModel(model) && inputImageUrls.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
+      throw new Error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
+    }
+
+    const mode = inputImageUrls.length > 0 ? "image-to-image" : "text-to-image";
+    const size = normalizeSize(edits.size);
+    const { width, height } = dimensionsFromSize(size);
+
+    const updated = await updateJob(jobId, {
+      mode,
+      prompt,
+      inputImageUrl: inputImageUrls[0],
+      inputImageUrls,
+      width,
+      height,
+      size,
+      strength: mode === "image-to-image" ? 0.55 : undefined,
+      thinking: edits.thinking || "high",
+      model,
+      imageSize: supportsNanoBananaImageSize(model) ? normalizeNanoImageSize(edits.imageSize) : undefined,
+      status: "pending",
+      errorMessage: undefined,
+      provider: undefined,
+      remoteTaskId: undefined,
+      remoteStatus: undefined,
+      submitTime: undefined,
+      queryUrl: undefined,
+      queueOwnerId: undefined,
+      leaseExpiresAt: undefined,
+      startedAt: undefined,
+      completedAt: undefined
+    });
+    void processQueue();
+    return updated;
+  },
+
   updateJobPosition: async (jobId: string, posX: number, posY: number): Promise<DrawJob> =>
     updateJob(jobId, {
       posX,
@@ -962,10 +1048,77 @@ export const api = {
     return updatedJobs;
   },
 
-  uploadImage: async (file: File) => ({
-    url: await uploadImageToHost(file),
-    originalName: file.name
-  }),
+  listUploadedImages: async (folderId: string): Promise<UploadedImage[]> => {
+    const db = await openDb();
+    await ensureFolder(folderId);
+
+    return new Promise<UploadedImage[]>((resolve, reject) => {
+      const transaction = db.transaction(UPLOADED_IMAGE_STORE, "readonly");
+      const req = transaction.objectStore(UPLOADED_IMAGE_STORE).index("folderId").getAll(folderId);
+      req.onsuccess = () => resolve(sortUploadedImages((req.result || []) as UploadedImage[]));
+      req.onerror = () => reject(req.error);
+    });
+  },
+
+  uploadImage: async (folderId: string, file: File): Promise<UploadedImage> => {
+    await ensureFolder(folderId);
+    const image: UploadedImage = {
+      id: createId(),
+      folderId,
+      url: await uploadImageToHost(file),
+      originalName: file.name || "上传图片",
+      mimeType: file.type || "application/octet-stream",
+      byteSize: file.size,
+      createdAt: nowIso()
+    };
+    const db = await openDb();
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(["folders", UPLOADED_IMAGE_STORE], "readwrite");
+      const folderReq = transaction.objectStore("folders").get(folderId);
+      let folderExists = true;
+
+      folderReq.onsuccess = () => {
+        if (!folderReq.result) {
+          folderExists = false;
+          return;
+        }
+        transaction.objectStore(UPLOADED_IMAGE_STORE).add(image);
+      };
+      folderReq.onerror = () => reject(folderReq.error);
+      transaction.oncomplete = () => {
+        if (folderExists) resolve();
+        else reject(new Error("文件夹不存在"));
+      };
+      transaction.onerror = () => reject(transaction.error);
+    });
+
+    broadcastStateUpdate(folderId);
+    return image;
+  },
+
+  deleteUploadedImage: async (imageId: string): Promise<void> => {
+    const db = await openDb();
+    let folderId = "";
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(UPLOADED_IMAGE_STORE, "readwrite");
+      const store = transaction.objectStore(UPLOADED_IMAGE_STORE);
+      const getReq = store.get(imageId);
+
+      getReq.onsuccess = () => {
+        const image = getReq.result as UploadedImage | undefined;
+        if (!image) return;
+        folderId = image.folderId;
+        store.delete(imageId);
+      };
+      getReq.onerror = () => reject(getReq.error);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+
+    if (folderId) broadcastStateUpdate(folderId);
+  },
 
   getImageProviderSettings: async (): Promise<ImageProviderSettings> => {
     const settings = await getSettings();

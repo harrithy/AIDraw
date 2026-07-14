@@ -11,11 +11,13 @@ import {
   ImagePlus,
   Loader2,
   MoreHorizontal,
+  PenLine,
+  Play,
   RotateCcw,
   Sparkles,
   X
 } from "lucide-react";
-import { memo, type CSSProperties, useRef, useState } from "react";
+import { memo, type CSSProperties, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { JobCardSize } from "../../lib/canvas";
 import { downloadImage } from "../../lib/download";
@@ -41,6 +43,7 @@ type JobCardProps = {
   onMove: (jobId: string, direction: -1 | 1) => void;
   onPreview: (job: DrawJob) => void;
   onRetry: (jobId: string) => void;
+  onEditRetry: (job: DrawJob) => void;
   onUseImage?: (url: string) => void;
 };
 
@@ -62,10 +65,12 @@ export const JobCard = memo(function JobCard({
   onMove,
   onPreview,
   onRetry,
+  onEditRetry,
   onUseImage
 }: JobCardProps) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [retryMenuOpen, setRetryMenuOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
   const [versionsExpanded, setVersionsExpanded] = useState(false);
@@ -205,6 +210,31 @@ export const JobCard = memo(function JobCard({
     }
   };
 
+  // 重绘菜单打开时，点击卡片外部或按 Esc 关闭菜单
+  useEffect(() => {
+    if (!retryMenuOpen) return;
+
+    const closeOnPointerDown = (event: PointerEvent) => {
+      const card = cardRef.current;
+      if (card && !card.contains(event.target as Node)) setRetryMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setRetryMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnPointerDown);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnPointerDown);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [retryMenuOpen]);
+
+  // 工具栏收起时，一并关闭重绘菜单
+  useEffect(() => {
+    if (!toolsOpen) setRetryMenuOpen(false);
+  }, [toolsOpen]);
+
   useGSAP(
     () => {
       const previousCount = previousOutputCountRef.current;
@@ -331,9 +361,47 @@ export const JobCard = memo(function JobCard({
                 </>
               ) : null}
               {canRetry ? (
-                <button type="button" onClick={() => onRetry(job.id)} title="重新绘制">
-                  <RotateCcw size={15} />
-                </button>
+                <div className="job-retry-wrapper">
+                  <button
+                    type="button"
+                    className={`job-retry-toggle${retryMenuOpen ? " is-open" : ""}`}
+                    onClick={() => setRetryMenuOpen((value) => !value)}
+                    title="重新绘制"
+                    aria-haspopup="menu"
+                    aria-expanded={retryMenuOpen}
+                  >
+                    <RotateCcw size={15} />
+                  </button>
+                  {retryMenuOpen ? (
+                    <div className="job-retry-menu" role="menu">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="job-retry-menu-item"
+                        onClick={() => {
+                          setRetryMenuOpen(false);
+                          setToolsOpen(false);
+                          onEditRetry(job);
+                        }}
+                      >
+                        <PenLine size={14} />
+                        <span>重新编辑</span>
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="job-retry-menu-item"
+                        onClick={() => {
+                          setRetryMenuOpen(false);
+                          onRetry(job.id);
+                        }}
+                      >
+                        <Play size={14} />
+                        <span>继续</span>
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
             </>
           ) : null}
