@@ -154,6 +154,10 @@ function App() {
     return nextFolders;
   }, []);
 
+  /**
+   * 加载指定文件夹内的所有绘图任务。
+   * 包含防锁冲突处理：如果在拖拽任务卡片期间，轮询到了新数据，则不更新 React 状态，避免卡片抖动和位置冲突。
+   */
   const loadJobs = useCallback(async (folderId: string) => {
     const nextJobs = await api.listJobs(folderId);
 
@@ -164,11 +168,17 @@ function App() {
     setJobs((current) => (areJobSnapshotsEqual(current, nextJobs) ? current : nextJobs));
   }, []);
 
+  /**
+   * 加载当前文件夹下用户已上传的参考图列表。
+   */
   const loadUploadedImages = useCallback(async (folderId: string) => {
     const nextImages = await api.listUploadedImages(folderId);
     setUploadedImages(nextImages);
   }, []);
 
+  /**
+   * 轮询或刷新当前系统的后台队列并发状况，以及当前的 API 提供商配置信息。
+   */
   const loadQueue = useCallback(async () => {
     const health = await api.health();
     setQueue(health.queue);
@@ -180,6 +190,9 @@ function App() {
     });
   }, []);
 
+  /**
+   * 从数据库加载已保存的 API 提供商配置。
+   */
   const loadProviderSettings = useCallback(async () => {
     const settings = await api.getImageProviderSettings();
     setProviderSettings(settings);
@@ -392,11 +405,19 @@ function App() {
     }
   };
 
+  /**
+   * 上传本地参考图片到图床并记录到当前文件夹中。
+   * @param file - 本地图片文件
+   */
   const uploadImage = async (file: File) => {
     if (!activeFolderId) throw new Error("请先选择文件夹");
     return api.uploadImage(activeFolderId, file);
   };
 
+  /**
+   * 从当前文件夹的参考图库中移除指定的上传图片。
+   * @param imageId - 图片 ID
+   */
   const deleteUploadedImage = async (imageId: string) => {
     try {
       await api.deleteUploadedImage(imageId);
@@ -407,6 +428,10 @@ function App() {
     }
   };
 
+  /**
+   * 在新建任务时，使用图片库中的指定图片作为垫图参考图。
+   * @param url - 图片公网 URL
+   */
   const useUploadedImage = (url: string) => {
     setImageToUse(url);
     setNotice("已添加到参考图片");

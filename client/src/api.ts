@@ -150,20 +150,28 @@ const createId = () => {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
+/**
+ * 打开并初始化 IndexedDB 数据库。
+ * 处理不同旧版本数据库的升级（创建和配置 Object Store 以及 Index）。
+ * @returns 数据库实例的 Promise
+ */
 const openDb = () => {
   dbPromise ??= new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
+    // 当数据库首次创建或版本升级时触发该回调
     request.onupgradeneeded = (event) => {
       const db = request.result;
       const oldVersion = event.oldVersion;
 
       if (oldVersion === 0) {
+        // 全新安装：创建所有存储表并为任务表建索引
         db.createObjectStore("folders", { keyPath: "id" });
         const jobStore = db.createObjectStore("jobs", { keyPath: "id" });
         jobStore.createIndex("folderId", "folderId", { unique: false });
         db.createObjectStore("settings");
       } else if (oldVersion === 1) {
+        // 从老版本1平滑升级：确保必需的表存在
         if (!db.objectStoreNames.contains("folders")) {
           db.createObjectStore("folders", { keyPath: "id" });
         }
@@ -176,9 +184,11 @@ const openDb = () => {
         }
       }
 
+      // 版本4引入图片上传存储库
       if (oldVersion < 4 && !db.objectStoreNames.contains(UPLOADED_IMAGE_STORE)) {
         const imageStore = db.createObjectStore(UPLOADED_IMAGE_STORE, { keyPath: "id" });
         imageStore.createIndex("folderId", "folderId", { unique: false });
+        // 添加复合索引，支持按文件夹 + 创建时间排序和过滤
         imageStore.createIndex("folderIdCreatedAt", ["folderId", "createdAt"], { unique: false });
       }
     };
@@ -190,6 +200,7 @@ const openDb = () => {
         dbPromise = null;
       };
       try {
+        // 成功打开后，执行必要的 V1 到 V2 扁平化数据迁移
         await migrateV1ToV2(db);
         resolve(db);
       } catch (error) {
@@ -204,6 +215,11 @@ const openDb = () => {
   return dbPromise;
 };
 
+/**
+ * 数据库迁移助手：将版本1中保存在单一 `state` Store 内的巨型 JSON 配置，
+ * 拆解并扁平化写入各自独立的 folders, jobs, settings 存储表中，清理原 state 键值。
+ * @param db 数据库实例
+ */
 const migrateV1ToV2 = async (db: IDBDatabase) => {
   if (!db.objectStoreNames.contains(STATE_STORE)) {
     return;
@@ -222,6 +238,7 @@ const migrateV1ToV2 = async (db: IDBDatabase) => {
       } | undefined;
       if (!oldState) return;
 
+      // 1. 迁移文件夹数据
       const folderStore = transaction.objectStore("folders");
       if (Array.isArray(oldState.folders)) {
         for (const folder of oldState.folders) {
@@ -229,6 +246,7 @@ const migrateV1ToV2 = async (db: IDBDatabase) => {
         }
       }
 
+      // 2. 迁移任务数据
       const jobStore = transaction.objectStore("jobs");
       if (Array.isArray(oldState.jobs)) {
         for (const job of oldState.jobs) {
@@ -236,10 +254,12 @@ const migrateV1ToV2 = async (db: IDBDatabase) => {
         }
       }
 
+      // 3. 迁移图片提供商设置
       if (oldState.settings) {
         transaction.objectStore("settings").put(oldState.settings, "imageProvider");
       }
 
+      // 4. 清理旧的全局 state
       stateStore.delete(STATE_KEY);
     };
     stateReq.onerror = () => reject(stateReq.error);
@@ -463,15 +483,23 @@ const getProvider = (providerId: ImageProviderId): ImageModelProvider => {
   return new DuomiProvider();
 };
 
+/**
+ * 在后台异步执行具体的绘图任务（轮询与提交逻辑）。
+ * 循环处理：向提供商提交任务、每隔一定时间轮询任务状态（直到成功、失败或超时），并更新本地数据库的状态。
+ * 采用租约（Lease）控制防止多窗口/多标签页重复执行同一任务。
+ * @param job 待处理的绘图任务
+ */
 const executeJobBackground = async (job: DrawJob) => {
   try {
     while (true) {
+      // 每次循环重新获取最新的任务状态，确保任务未被取消或被其他标签页接管
       let freshJob = await ensureJob(job.id);
       if (freshJob.status !== "running" || freshJob.queueOwnerId !== queueOwnerId) return;
       if (isTaskTimedOut(freshJob)) {
         throw new Error(`任务轮询超时，已等待 ${TASK_TIMEOUT_MINUTES} 分钟`);
       }
 
+      // 更新本窗口对该任务的续租租约
       const renewedJob = await updateOwnedJob(job.id, { leaseExpiresAt: leaseExpiryIso() }, false);
       if (!renewedJob) return;
       freshJob = renewedJob;
@@ -484,6 +512,7 @@ const executeJobBackground = async (job: DrawJob) => {
       const provider = getProvider(providerId);
 
       let taskId = freshJob.remoteTaskId;
+      // 1. 如果任务尚未提交到远程，先执行创建/提交逻辑
       if (!taskId) {
         const preparedJob = await updateOwnedJob(job.id, {
           provider: providerId,
@@ -493,6 +522,7 @@ const executeJobBackground = async (job: DrawJob) => {
         });
         if (!preparedJob) return;
 
+        // 向服务商接口提交绘图请求
         const createdTask = await provider.createTask(preparedJob, settings);
         const submittedJob = await updateOwnedJob(job.id, {
           remoteTaskId: createdTask.taskId,
@@ -506,6 +536,7 @@ const executeJobBackground = async (job: DrawJob) => {
         taskId = createdTask.taskId;
       }
 
+      // 2. 轮询远程任务状态
       const result = await provider.queryTask(taskId, freshJob, settings);
       if (result.state === "pending" || result.state === "running") {
         const waitingJob = await updateOwnedJob(job.id, {
@@ -513,6 +544,7 @@ const executeJobBackground = async (job: DrawJob) => {
           leaseExpiresAt: leaseExpiryIso()
         });
         if (!waitingJob) return;
+        // 等待指定时间后继续下一次轮询
         await delay(TASK_POLL_INTERVAL_MS);
         continue;
       }
@@ -520,6 +552,7 @@ const executeJobBackground = async (job: DrawJob) => {
         throw new Error(result.errorMessage);
       }
 
+      // 3. 任务执行成功，保存生成好的图片 URL 到输出列表
       const latestJob = await ensureJob(job.id);
       await updateOwnedJob(job.id, {
         status: "completed",
@@ -534,6 +567,7 @@ const executeJobBackground = async (job: DrawJob) => {
       return;
     }
   } catch (error) {
+    // 捕获异常，标记任务为失败
     await updateOwnedJob(job.id, {
       status: "failed",
       remoteStatus: "error",
@@ -543,11 +577,19 @@ const executeJobBackground = async (job: DrawJob) => {
       leaseExpiresAt: undefined
     });
   } finally {
+    // 从活动任务集合中移除，并拉起队列继续处理下一个任务
     activeJobs.delete(job.id);
     void processQueue();
   }
 };
 
+/**
+ * 带锁的队列执行核心逻辑，保证并发度不超过限制。
+ * 1. 扫描所有任务，清理超时的正在运行的任务或失效的任务。
+ * 2. 检查当前正在跑的任务数，计算空闲插槽。
+ * 3. 按照 orderIndex/createdAt 排序，拾取 pending 任务并标记为 running。
+ * 4. 广播状态更新，并在后台为这些任务触发异步执行器。
+ */
 const runQueueLocked = async () => {
   const db = await openDb();
   const claimedJobs: DrawJob[] = [];
@@ -567,6 +609,7 @@ const runQueueLocked = async () => {
       for (const job of jobs) {
         if (job.status !== "running") continue;
 
+        // 检查任务是否已经长时间无响应，做超时置败处理
         if (isTaskTimedOut(job)) {
           store.put({
             ...job,
@@ -582,14 +625,17 @@ const runQueueLocked = async () => {
           continue;
         }
 
+        // 如果租约依然有效，说明是由当前或其他窗口在积极处理
         if (isLeaseActive(job, now)) {
           runningCount += 1;
           if (job.queueOwnerId === queueOwnerId && !activeJobs.has(job.id)) {
+            // 是当前标签页拥有的任务，且尚未拉起后台轮询，则重新拉起
             claimedJobs.push(job);
           }
           continue;
         }
 
+        // 租约已过期，但连TaskId都没有，说明是在提交过程中崩溃了，标记为失败
         if (!job.remoteTaskId) {
           store.put({
             ...job,
@@ -605,6 +651,7 @@ const runQueueLocked = async () => {
           continue;
         }
 
+        // 租约过期但有TaskId，说明属于孤儿任务（可能因为之前网页关闭），由当前窗口接管续租
         const recoveredJob: DrawJob = {
           ...job,
           startedAt: job.startedAt || timestamp,
@@ -618,6 +665,7 @@ const runQueueLocked = async () => {
         runningCount += 1;
       }
 
+      // 计算可运行的空位，从 pending 中拉取新任务
       const slots = Math.max(0, MAX_CONCURRENT - runningCount);
       const pendingJobs = sortJobs(jobs.filter((job) => job.status === "pending")).slice(0, slots);
       for (const job of pendingJobs) {
@@ -640,7 +688,9 @@ const runQueueLocked = async () => {
     transaction.onerror = () => reject(transaction.error);
   });
 
+  // 广播受影响文件夹的状态更新事件
   changedFolderIds.forEach((folderId) => broadcastStateUpdate(folderId));
+  // 逐一拉起后台轮询执行器
   for (const job of claimedJobs) {
     if (activeJobs.has(job.id)) continue;
     activeJobs.add(job.id);
@@ -648,6 +698,9 @@ const runQueueLocked = async () => {
   }
 };
 
+/**
+ * 触发执行绘图队列。使用 Web Locks API (如果可用) 避免多标签页并发抢占队列锁。
+ */
 const processQueue = async () => {
   try {
     if (typeof navigator.locks?.request === "function") {

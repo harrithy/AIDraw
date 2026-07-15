@@ -110,7 +110,17 @@ export function useCanvasInteractions({
 
   /**
    * 缩放画布
-   * 支持以鼠标位置为焦点缩放——缩放时鼠标指向的区域保持在原位
+   * 支持以鼠标位置为焦点缩放——缩放时鼠标指向的区域在缩放前后保持在屏幕的原位。
+   * 
+   * 【缩放焦点公式数学推导】：
+   * 设鼠标指针在视口（屏幕）中的位置为 F (f_x, f_y)
+   * 缩放前画布上的点 P 在屏幕上的投影坐标为 S = P * z_1 + Pan_1，即 P = (F - Pan_1) / z_1
+   * 缩放后我们希望画布上的同一个点 P 在屏幕上的位置依然在鼠标指针下，即 F = P * z_2 + Pan_2
+   * 代入 P 得：F = ((F - Pan_1) / z_1) * z_2 + Pan_2
+   * 设 zoomRatio = z_2 / z_1，则：F = (F - Pan_1) * zoomRatio + Pan_2
+   * 求解新的平移量 Pan_2：
+   * Pan_2 = F - (F - Pan_1) * zoomRatio
+   * 
    * @param delta - 缩放增量（正值放大，负值缩小）
    * @param focalPoint - 缩放焦点（屏幕坐标），不传则以画布左上角为焦点
    */
@@ -126,7 +136,7 @@ export function useCanvasInteractions({
         return;
       }
 
-      // 有焦点 → 计算新的平移量，保持焦点位置不变
+      // 有焦点 → 依据推导公式计算新的平移量，保持焦点位置不变
       const zoomRatio = canvasZoom / activeFolder.canvasZoom;
       updateCanvas({
         canvasZoom,
@@ -246,6 +256,9 @@ export function useCanvasInteractions({
     (event: PointerEvent<HTMLDivElement>) => {
       if (cardDrag) {
         // 卡片拖拽：考虑画布缩放比例转换鼠标位移
+        // 鼠标在屏幕（视口）中移动的物理距离为 clientX - startX。
+        // 因为整个画布整体被缩放了 zoom 倍，如果把该物理位移直接加到卡片的原坐标上，
+        // 在 zoom != 1 时卡片移动速度会与鼠标发生偏移。因此需要除以 zoom 还原到画布坐标系内的相对坐标位移。
         const zoom = activeFolder?.canvasZoom ?? 1;
         const deltaX = (event.clientX - cardDrag.startX) / zoom;
         const deltaY = (event.clientY - cardDrag.startY) / zoom;
