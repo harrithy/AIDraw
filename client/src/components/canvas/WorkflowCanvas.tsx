@@ -1,4 +1,4 @@
-import { useEffect, useRef, type PointerEventHandler } from "react";
+import { useEffect, useMemo, useRef, type PointerEventHandler } from "react";
 import { type PositionedJob } from "../../lib/canvas";
 import type { DrawFolder, DrawJob } from "../../types";
 import { EmptyCanvas } from "./EmptyCanvas";
@@ -24,6 +24,7 @@ import { WorkflowLinks } from "./WorkflowLinks";
  * @param onMoveJob - 移动任务排序
  * @param onPreviewJob - 预览任务图片
  * @param onRetryJob - 重试失败任务
+ * @param onEditRetryJob - 带着原始参数跳转到编辑页重绘
  * @param onUseImage - 将输出图片用作参考图
  */
 type WorkflowCanvasProps = {
@@ -134,3 +135,4 @@ export function WorkflowCanvas({
     </section>
   );
 }
+

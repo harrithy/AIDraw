@@ -3465,3 +3465,441 @@ button:disabled {
     @apply font-sans;
   }
 }
+
+/* ─── 搜索框样式 ─── */
+.search-group {
+  display: flex;
+  align-items: center;
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-strong);
+  height: 34px;
+  width: 34px;
+  cursor: pointer;
+  transition: 
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    background-color 200ms ease,
+    transform 160ms ease,
+    width 300ms cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.search-group:not(.expanded):hover {
+  border-color: var(--line-strong);
+  background: var(--hover);
+  transform: translateY(-1px);
+}
+
+.search-group.expanded {
+  width: 320px;
+  cursor: default;
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(47, 118, 96, 0.12);
+}
+
+.search-icon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  color: var(--ink);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  height: 100%;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 0 24px 0 32px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.search-group.expanded .search-input {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 200ms ease 100ms;
+}
+
+.search-input::placeholder {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+button.search-clear-btn {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--muted);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.55;
+  transition: 
+    background-color 160ms ease, 
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+button.search-clear-btn:hover {
+  background-color: var(--hover);
+  color: var(--ink);
+  opacity: 1;
+}
+
+/* ─── 搜索下拉悬浮窗样式 ─── */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  margin-top: 16px;
+  left: 0;
+  width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: opacity 200ms ease, transform 200ms ease, visibility 200ms;
+}
+
+.search-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.search-dropdown-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.search-dropdown-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.search-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.search-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.search-dropdown-item:hover {
+  background-color: var(--hover);
+}
+
+.search-dropdown-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background-color: var(--line);
+}
+
+.search-dropdown-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.search-dropdown-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--line);
+}
+
+.search-dropdown-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-dropdown-prompt {
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.search-dropdown-time {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.search-dropdown-copy {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.search-dropdown-copy:hover {
+}
+
+.search-group:not(.expanded):hover {
+  border-color: var(--line-strong);
+  background: var(--hover);
+  transform: translateY(-1px);
+}
+
+.search-group.expanded {
+  width: 320px;
+  cursor: default;
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(47, 118, 96, 0.12);
+}
+
+.search-icon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  color: var(--ink);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  height: 100%;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 0 24px 0 32px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.search-group.expanded .search-input {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 200ms ease 100ms;
+}
+
+.search-input::placeholder {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+button.search-clear-btn {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--muted);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.55;
+  transition: 
+    background-color 160ms ease, 
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+button.search-clear-btn:hover {
+  background-color: var(--hover);
+  color: var(--ink);
+  opacity: 1;
+}
+
+/* ─── 搜索下拉悬浮窗样式 ─── */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  margin-top: 16px;
+  left: 0;
+  width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: opacity 200ms ease, transform 200ms ease, visibility 200ms;
+}
+
+.search-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.search-dropdown-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.search-dropdown-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.search-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.search-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.search-dropdown-item:hover {
+  background-color: var(--hover);
+}
+
+.search-dropdown-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background-color: var(--line);
+}
+
+.search-dropdown-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.search-dropdown-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--line);
+}
+
+.search-dropdown-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-dropdown-prompt {
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.search-dropdown-time {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.search-dropdown-copy {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.search-dropdown-copy:hover {
+  background-color: var(--line);
+  color: var(--ink);
+}
+
+.copy-toast {
+  position: fixed;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel-strong);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  z-index: 10000;
+  pointer-events: none;
+  animation: toast-in-out 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes toast-in-out {
+  0% { opacity: 0; transform: translate(-50%, -12px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -12px); }
+}

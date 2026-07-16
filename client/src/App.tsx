@@ -94,6 +94,7 @@ function App() {
   const [imageToUse, setImageToUse] = useState<string | null>(null);
   const [editingRetryJob, setEditingRetryJob] = useState<DrawJob | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
@@ -550,6 +551,9 @@ function App() {
         onOpenApiSettings={() => setApiSettingsOpen(true)}
         onOpenGuide={() => setOnboardingOpen(true)}
         onToggleTheme={() => setDarkMode((value) => !value)}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        jobs={jobs}
       />
 
       <button
