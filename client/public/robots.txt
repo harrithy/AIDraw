@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# 站点地图地址
+Sitemap: https://aidraw.harrio.xyz/sitemap.xml

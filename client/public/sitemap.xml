@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://aidraw.harrio.xyz/</loc>
+    <!-- 最后修改日期，按需更新 -->
+    <lastmod>2026-07-16</lastmod>
+    <!-- 变更频率：monthly / weekly / daily 视更新节奏而定 -->
+    <changefreq>weekly</changefreq>
+    <!-- 优先级 0.0~1.0，首页通常最高 -->
+    <priority>1.0</priority>
+  </url>
+</urlset>
