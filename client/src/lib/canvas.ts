@@ -4,8 +4,8 @@ import type { DrawJob } from "../types";
 export const CARD_WIDTH = 316;
 /** 卡片标准高度（px） */
 export const CARD_HEIGHT = 356;
-/** 卡片之间的垂直间距（px） */
-export const CARD_GAP_Y = 96;
+/** 卡片之间的横向间距（px） */
+export const CARD_GAP_X = 96;
 /** 新建卡片默认 X 坐标 */
 export const DEFAULT_CARD_X = 318;
 /** 新建卡片默认 Y 坐标 */
@@ -129,11 +129,8 @@ export type PositionedJob = {
   cardSize: JobCardSize;
 };
 
-/**
- * 一次遍历完成全部卡片的尺寸和默认位置计算。
- * 默认布局使用累计高度，避免为第 N 张卡片重复扫描前 N-1 张卡片。
- */
 export const getPositionedJobs = (jobs: DrawJob[]): PositionedJob[] => {
+  let nextDefaultX = DEFAULT_CARD_X;
   let nextDefaultY = DEFAULT_CARD_Y;
 
   return jobs.map((job, index) => {
@@ -143,30 +140,44 @@ export const getPositionedJobs = (jobs: DrawJob[]): PositionedJob[] => {
     const positionedJob: PositionedJob = {
       job,
       index,
-      x: hasCustomPosition ? job.posX : DEFAULT_CARD_X,
+      x: hasCustomPosition ? job.posX : nextDefaultX,
       y: hasCustomPosition ? job.posY : nextDefaultY,
       cardSize
     };
 
-    nextDefaultY += cardSize.cardHeight + CARD_GAP_Y;
+    nextDefaultX = positionedJob.x + cardSize.cardWidth + CARD_GAP_X;
+    nextDefaultY = positionedJob.y;
     return positionedJob;
   });
 };
 
 /**
  * 计算新卡片的默认画布位置
- * 按列表顺序垂直排列，每个卡片间距 CARD_GAP_Y
+ * 按列表顺序横向排列，每个卡片间距 CARD_GAP_X
  * @param index - 卡片在列表中的索引
- * @param jobs - 前置任务列表（用于累计高度偏移）
+ * @param jobs - 前置任务列表（用于累计宽度偏移）
  * @returns 默认的 { x, y } 坐标
  */
 export const getDefaultCardPosition = (index: number, jobs: DrawJob[] = []) => {
-  // 累加前面所有卡片的高度 + 间距，作为当前卡片的 Y 偏移
-  const yOffset = jobs.slice(0, index).reduce((offset, job) => offset + getJobCardSize(job).cardHeight + CARD_GAP_Y, 0);
+  let nextX = DEFAULT_CARD_X;
+  let nextY = DEFAULT_CARD_Y;
+
+  for (let i = 0; i < index && i < jobs.length; i++) {
+    const job = jobs[i];
+    const cardSize = getJobCardSize(job);
+    const hasCustomPosition =
+      job.hasCustomPosition && Number.isFinite(job.posX) && Number.isFinite(job.posY);
+    
+    const currentX = hasCustomPosition ? job.posX : nextX;
+    const currentY = hasCustomPosition ? job.posY : nextY;
+
+    nextX = currentX + cardSize.cardWidth + CARD_GAP_X;
+    nextY = currentY;
+  }
 
   return {
-    x: DEFAULT_CARD_X,
-    y: DEFAULT_CARD_Y + yOffset
+    x: nextX,
+    y: nextY
   };
 };
 
