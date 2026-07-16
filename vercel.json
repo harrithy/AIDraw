@@ -8,7 +8,7 @@
       "destination": "https://image.harrio.xyz/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\.(xml|txt|png|svg|ico|js|css|woff2?|ttf|json|webmanifest)).*)",
       "destination": "/index.html"
     }
   ]
