@@ -21,6 +21,14 @@ export type SupportedImageModel =
   | (typeof chatGptModelOptions)[number]["value"]
   | (typeof nanoBananaModelOptions)[number]["value"];
 
+const supportedImageModels = new Set<string>(
+  imageModelGroups.flatMap((group) => group.options.map((option) => option.value))
+);
+
+/** 校验本地草稿或历史任务中的模型值，避免无效值导致下拉框显示为空。 */
+export const isSupportedImageModel = (model: unknown): model is SupportedImageModel =>
+  typeof model === "string" && supportedImageModels.has(model);
+
 const nanoBananaModels = new Set<string>([
   ...nanoBananaModelOptions.map((option) => option.value),
   // 兼容上一版可能已经保存到 IndexedDB 的说明别名。

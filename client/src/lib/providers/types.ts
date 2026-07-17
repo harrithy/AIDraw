@@ -1,9 +1,12 @@
-import type { DrawJob } from "../../types";
+import type { ApiProviderId, DrawJob } from "../../types";
 
 export type StoredSettings = {
   baseUrl: string;
   model: string;
   apiKey: string;
+  savedApiKeys?: string[];
+  providerId: ApiProviderId;
+  savedApiKeyProviderIds?: ApiProviderId[];
 };
 
 export type CreatedProviderTask = {

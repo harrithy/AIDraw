@@ -15,6 +15,7 @@ import {
   MAX_NANO_BANANA_REFERENCE_IMAGES,
   imageModelGroups,
   isNanoBananaModel,
+  isSupportedImageModel,
   supportsNanoBananaImageSize,
   type SupportedImageModel
 } from "../../lib/imageModels";
@@ -211,7 +212,7 @@ export function CreateJobPanel({
       setCustomWidth(draft.customWidth ?? "1024");
       setCustomHeight(draft.customHeight ?? "1024");
       setThinking(draft.thinking ?? "high");
-      setModel(draft.model ?? GPT_IMAGE_MODEL);
+      setModel(isSupportedImageModel(draft.model) ? draft.model : GPT_IMAGE_MODEL);
       setNanoImageSize(draft.nanoImageSize ?? "4K");
       setInputImages(draft.inputImages ?? []);
     } else {

@@ -34,7 +34,11 @@ const emptyProviderSettings: ImageProviderSettings = {
   baseUrl: "https://duomiapi.com",
   model: "gpt-image-2",
   hasApiKey: false,
-  apiKeyMasked: ""
+  apiKeyMasked: "",
+  savedApiKeysMasked: [],
+  providerId: "duomi",
+  savedApiKeyProviderIds: [],
+  activeApiKeyIndex: -1
 };
 
 const ONBOARDING_STORAGE_KEY = "aidraw-onboarding-v1";
@@ -187,7 +191,11 @@ function App() {
       baseUrl: health.imageProvider.duomiBaseUrl,
       model: health.imageProvider.duomiModel,
       hasApiKey: health.imageProvider.hasDuomiKey,
-      apiKeyMasked: health.imageProvider.apiKeyMasked
+      apiKeyMasked: health.imageProvider.apiKeyMasked,
+      savedApiKeysMasked: health.imageProvider.savedApiKeysMasked,
+      providerId: health.imageProvider.providerId,
+      savedApiKeyProviderIds: health.imageProvider.savedApiKeyProviderIds,
+      activeApiKeyIndex: health.imageProvider.activeApiKeyIndex
     });
   }, []);
 

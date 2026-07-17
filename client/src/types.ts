@@ -54,6 +54,9 @@ export type NanoImageSize = "1K" | "2K" | "4K";
 /** 绘图任务实际使用的接口提供者 */
 export type ImageProviderId = "duomi" | "nano-banana" | "mock";
 
+/** API Key 所属的平台供应商 */
+export type ApiProviderId = "duomi";
+
 /**
  * 文件夹（工作区）
  * 每个文件夹独立管理一组绘图任务，画布状态也独立保存
@@ -200,6 +203,14 @@ export type ImageProviderStatus = {
   duomiModel: string;
   /** 已脱敏的 API Key（显示为 `sk-****xxxx`） */
   apiKeyMasked: string;
+  /** 所有保存的脱敏 API Key 列表 */
+  savedApiKeysMasked: string[];
+  /** 当前使用的 API Key 所属供应商 */
+  providerId: ApiProviderId;
+  /** 每个已保存 API Key 对应的供应商 */
+  savedApiKeyProviderIds: ApiProviderId[];
+  /** 当前使用的 API Key 在保存列表中的索引 */
+  activeApiKeyIndex: number;
   /** 是否使用了已保存的配置 */
   usesSavedConfig: boolean;
 };
@@ -260,6 +271,14 @@ export type ImageProviderSettings = {
   hasApiKey: boolean;
   /** 已脱敏的 API Key */
   apiKeyMasked: string;
+  /** 所有保存的脱敏 API Key */
+  savedApiKeysMasked: string[];
+  /** 当前使用的 API Key 所属供应商 */
+  providerId: ApiProviderId;
+  /** 每个已保存 API Key 对应的供应商 */
+  savedApiKeyProviderIds: ApiProviderId[];
+  /** 当前使用的 API Key 在保存列表中的索引 */
+  activeApiKeyIndex: number;
 };
 
 /**
@@ -271,8 +290,14 @@ export type UpdateImageProviderSettingsPayload = {
   baseUrl?: string;
   /** 新的模型名称 */
   model?: string;
-  /** 新的 API Key */
+  /** 新的 API Key（作为当前激活的Key） */
   apiKey?: string;
   /** 设为 true 时清除已保存的 API Key */
   clearApiKey?: boolean;
+  /** 导入一个新的 API Key */
+  importApiKey?: string;
+  /** 导入的 API Key 所属供应商 */
+  providerId?: ApiProviderId;
+  /** 切换当前活跃的 API Key（传入其在 savedApiKeysMasked 中的索引） */
+  setActiveApiKeyIndex?: number;
 };

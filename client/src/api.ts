@@ -275,11 +275,28 @@ const getSettings = async (): Promise<StoredSettings> => {
     const req = transaction.objectStore("settings").get("imageProvider");
     req.onsuccess = () => {
       const result = req.result as StoredSettings | undefined;
-      resolve(result || {
+      const defaultSettings: StoredSettings = {
         baseUrl: DEFAULT_BASE_URL,
         model: DEFAULT_MODEL,
-        apiKey: ""
-      });
+        apiKey: "",
+        savedApiKeys: [],
+        providerId: "duomi",
+        savedApiKeyProviderIds: []
+      };
+      if (result) {
+        if (!result.savedApiKeys) {
+          result.savedApiKeys = result.apiKey ? [result.apiKey] : [];
+        }
+        if (!result.savedApiKeyProviderIds || result.savedApiKeyProviderIds.length !== result.savedApiKeys.length) {
+          result.savedApiKeyProviderIds = result.savedApiKeys.map(() => "duomi");
+        }
+        if (!result.providerId) {
+          result.providerId = "duomi";
+        }
+        resolve(result);
+      } else {
+        resolve(defaultSettings);
+      }
     };
     req.onerror = () => reject(req.error);
   });
@@ -301,6 +318,13 @@ const maskSecret = (value: string) => {
   if (value.length <= 8) return "********";
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 };
+
+const getActiveApiKeyIndex = (settings: StoredSettings) =>
+  settings.apiKey
+    ? (settings.savedApiKeys || []).findIndex(
+        (key, index) => key === settings.apiKey && settings.savedApiKeyProviderIds?.[index] === settings.providerId
+      )
+    : -1;
 
 const sortFolders = (folders: DrawFolder[]) =>
   [...folders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -741,6 +765,10 @@ export const api = {
         duomiBaseUrl: settings.baseUrl || DEFAULT_BASE_URL,
         duomiModel: settings.model || DEFAULT_MODEL,
         apiKeyMasked: maskSecret(settings.apiKey),
+        savedApiKeysMasked: (settings.savedApiKeys || []).map(maskSecret),
+        providerId: settings.providerId,
+        savedApiKeyProviderIds: settings.savedApiKeyProviderIds || [],
+        activeApiKeyIndex: getActiveApiKeyIndex(settings),
         usesSavedConfig: Boolean(settings.apiKey || settings.baseUrl || settings.model)
       }
     };
@@ -1179,7 +1207,11 @@ export const api = {
       baseUrl: settings.baseUrl || DEFAULT_BASE_URL,
       model: settings.model || DEFAULT_MODEL,
       hasApiKey: Boolean(settings.apiKey),
-      apiKeyMasked: maskSecret(settings.apiKey)
+      apiKeyMasked: maskSecret(settings.apiKey),
+      savedApiKeysMasked: (settings.savedApiKeys || []).map(maskSecret),
+      providerId: settings.providerId,
+      savedApiKeyProviderIds: settings.savedApiKeyProviderIds || [],
+      activeApiKeyIndex: getActiveApiKeyIndex(settings)
     };
   },
 
@@ -1207,12 +1239,43 @@ export const api = {
       settings.apiKey = payload.apiKey.trim();
     }
 
+    if (!settings.savedApiKeys) {
+      settings.savedApiKeys = settings.apiKey ? [settings.apiKey] : [];
+    }
+    if (!settings.savedApiKeyProviderIds || settings.savedApiKeyProviderIds.length !== settings.savedApiKeys.length) {
+      settings.savedApiKeyProviderIds = settings.savedApiKeys.map(() => "duomi");
+    }
+
+    if (payload.importApiKey?.trim()) {
+      const newKey = payload.importApiKey.trim();
+      const providerId = payload.providerId || "duomi";
+      const existingIndex = settings.savedApiKeys.findIndex(
+        (key, index) => key === newKey && settings.savedApiKeyProviderIds?.[index] === providerId
+      );
+      if (existingIndex < 0) {
+        settings.savedApiKeys.push(newKey);
+        settings.savedApiKeyProviderIds.push(providerId);
+      }
+      // 新增的 Key 直接设为当前使用项，让顶部状态与下拉框立即同步。
+      settings.apiKey = newKey;
+      settings.providerId = providerId;
+    }
+
+    if (typeof payload.setActiveApiKeyIndex === "number" && payload.setActiveApiKeyIndex >= 0 && payload.setActiveApiKeyIndex < settings.savedApiKeys.length) {
+      settings.apiKey = settings.savedApiKeys[payload.setActiveApiKeyIndex];
+      settings.providerId = settings.savedApiKeyProviderIds[payload.setActiveApiKeyIndex] || "duomi";
+    }
+
     await saveSettings(settings);
     return {
       baseUrl: settings.baseUrl || DEFAULT_BASE_URL,
       model: settings.model || DEFAULT_MODEL,
       hasApiKey: Boolean(settings.apiKey),
-      apiKeyMasked: maskSecret(settings.apiKey)
+      apiKeyMasked: maskSecret(settings.apiKey),
+      savedApiKeysMasked: (settings.savedApiKeys || []).map(maskSecret),
+      providerId: settings.providerId,
+      savedApiKeyProviderIds: settings.savedApiKeyProviderIds || [],
+      activeApiKeyIndex: getActiveApiKeyIndex(settings)
     };
   }
 };

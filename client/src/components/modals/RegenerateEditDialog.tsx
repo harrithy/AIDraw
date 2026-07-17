@@ -35,6 +35,7 @@ import {
   MAX_NANO_BANANA_REFERENCE_IMAGES,
   imageModelGroups,
   isNanoBananaModel,
+  isSupportedImageModel,
   supportsNanoBananaImageSize,
   type SupportedImageModel
 } from "../../lib/imageModels";
@@ -178,7 +179,7 @@ export function RegenerateEditDialog({
     if (!job) return;
     setPrompt(job.prompt);
     setThinking(normalizeThinking(job.thinking));
-    setModel((job.model || GPT_IMAGE_MODEL) as SupportedImageModel);
+    setModel(isSupportedImageModel(job.model) ? job.model : GPT_IMAGE_MODEL);
     setNanoImageSize(job.imageSize ?? "4K");
     const derived = deriveSizeState(job.size);
     setSizeMode(derived.sizeMode);
