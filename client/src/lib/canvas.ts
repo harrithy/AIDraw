@@ -5,7 +5,7 @@ export const CARD_WIDTH = 316;
 /** 卡片标准高度（px） */
 export const CARD_HEIGHT = 356;
 /** 卡片之间的横向间距（px） */
-export const CARD_GAP_X = 96;
+export const CARD_GAP_X = 220;
 /** 新建卡片默认 X 坐标 */
 export const DEFAULT_CARD_X = 318;
 /** 新建卡片默认 Y 坐标 */
