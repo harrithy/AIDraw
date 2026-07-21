@@ -1,4 +1,5 @@
 import type { DrawJob } from "../../types";
+import { dimensionsFromSize } from "../imageDimensions";
 import type { CreatedProviderTask, ImageModelProvider, ProviderTaskResult, StoredSettings } from "./types";
 
 const hashText = (text: string) => {
@@ -29,28 +30,6 @@ const escapeXml = (value: string) =>
     .replaceAll(">", "&gt;")
     .replaceAll("\"", "&quot;")
     .replaceAll("'", "&apos;");
-
-export const dimensionsFromSize = (size: string) => {
-  const fixedSize = /^(\d+)x(\d+)$/.exec(size);
-  if (fixedSize) {
-    const rawWidth = Number(fixedSize[1]);
-    const rawHeight = Number(fixedSize[2]);
-    const ratio = rawWidth / rawHeight;
-    if (ratio >= 1) return { width: 1024, height: Math.round(1024 / ratio) };
-    return { width: Math.round(1024 * ratio), height: 1024 };
-  }
-
-  const ratioSize = /^(\d+):(\d+)$/.exec(size);
-  if (ratioSize) {
-    const rawWidth = Number(ratioSize[1]);
-    const rawHeight = Number(ratioSize[2]);
-    const ratio = rawWidth / rawHeight;
-    if (ratio >= 1) return { width: 1024, height: Math.round(1024 / ratio) };
-    return { width: Math.round(1024 * ratio), height: 1024 };
-  }
-
-  return { width: 1024, height: 1024 };
-};
 
 export class MockProvider implements ImageModelProvider {
   async createTask(_job: DrawJob, _settings: StoredSettings): Promise<CreatedProviderTask> {
