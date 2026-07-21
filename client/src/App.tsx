@@ -188,9 +188,9 @@ function App() {
     const health = await api.health();
     setQueue(health.queue);
     setProviderSettings({
-      baseUrl: health.imageProvider.duomiBaseUrl,
-      model: health.imageProvider.duomiModel,
-      hasApiKey: health.imageProvider.hasDuomiKey,
+      baseUrl: health.imageProvider.baseUrl,
+      model: health.imageProvider.model,
+      hasApiKey: health.imageProvider.hasApiKey,
       apiKeyMasked: health.imageProvider.apiKeyMasked,
       savedApiKeysMasked: health.imageProvider.savedApiKeysMasked,
       providerId: health.imageProvider.providerId,
@@ -491,7 +491,8 @@ function App() {
     try {
       const settings = await api.updateImageProviderSettings(payload);
       setProviderSettings(settings);
-      setNotice(settings.hasApiKey ? "API 设置已保存，绘图将使用多米API" : "API 设置已保存");
+      const providerLabel = settings.providerId === "grsai" ? "Grsai" : "多米API";
+      setNotice(settings.hasApiKey ? `API 设置已保存，绘图将使用 ${providerLabel}` : "API 设置已保存");
       await loadQueue();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "API 设置保存失败");
@@ -588,6 +589,7 @@ function App() {
       {activeFolder ? (
         <CreateJobPanel
           activeFolderId={activeFolderId}
+          apiProviderId={providerSettings.providerId}
           variant="composer"
           notice={notice}
           isSubmitting={isSubmitting}
@@ -610,6 +612,7 @@ function App() {
       <ImagePreview job={previewJob} onClose={() => setPreviewJob(null)} onUseImage={(url) => { setImageToUse(url); setPreviewJob(null); }} />
 
       <RegenerateEditDialog
+        apiProviderId={providerSettings.providerId}
         open={Boolean(editingRetryJob)}
         job={editingRetryJob}
         isSubmitting={isRegenerating}

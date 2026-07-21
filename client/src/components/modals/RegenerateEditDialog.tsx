@@ -33,14 +33,17 @@ import {
 import {
   GPT_IMAGE_MODEL,
   MAX_NANO_BANANA_REFERENCE_IMAGES,
-  imageModelGroups,
+  getImageModelGroups,
+  isGptImageVipModel,
+  isImageModelAvailableForProvider,
   isNanoBananaModel,
   isSupportedImageModel,
+  supportsExtendedNanoAspectRatios,
   supportsNanoBananaImageSize,
   type SupportedImageModel
 } from "../../lib/imageModels";
 import { getCustomSizeError, getCustomSizeSuggestion } from "../../lib/customImageSize";
-import type { DrawJob, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
+import type { ApiProviderId, DrawJob, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
 
 type UploadResult = {
@@ -58,6 +61,7 @@ export type RegenerateEdits = {
 };
 
 type RegenerateEditDialogProps = {
+  apiProviderId: ApiProviderId;
   open: boolean;
   job: DrawJob | null;
   isSubmitting: boolean;
@@ -101,6 +105,25 @@ const nanoAspectRatioOptions: Array<{ label: string; value: SizeMode }> = [
   { label: "21:9", value: "21:9" }
 ];
 
+const extendedNanoAspectRatioOptions: Array<{ label: string; value: SizeMode }> = [
+  ...nanoAspectRatioOptions,
+  { label: "1:4", value: "1:4" },
+  { label: "4:1", value: "4:1" },
+  { label: "1:8", value: "1:8" },
+  { label: "8:1", value: "8:1" }
+];
+
+const grsaiGptSizeOptions: Array<{ label: string; value: SizeMode }> = [
+  { label: "auto", value: "auto" },
+  { label: "1024x1024", value: "1024x1024" },
+  ...gptSizeOptions.filter((option) => option.value.includes(":")),
+  { label: "21:9", value: "21:9" },
+  { label: "9:21", value: "9:21" }
+];
+const grsaiGptVipSizeOptions = gptSizeOptions.filter(
+  (option) => option.value === "auto" || option.value === "custom" || /^\d+x\d+$/.test(option.value)
+);
+
 const qualityOptions: ThinkingValue[] = ["high", "medium", "low"];
 const nanoImageSizeOptions: NanoImageSize[] = ["1K", "2K", "4K"];
 
@@ -143,6 +166,7 @@ const normalizeThinking = (value: DrawJob["thinking"]): ThinkingValue =>
   value === "high" || value === "medium" || value === "low" ? value : "high";
 
 export function RegenerateEditDialog({
+  apiProviderId,
   open,
   job,
   isSubmitting,
@@ -163,8 +187,18 @@ export function RegenerateEditDialog({
   const dragDepthRef = useRef(0);
 
   const isNanoBanana = isNanoBananaModel(model);
+  const isDuomiNanoBanana = apiProviderId === "duomi" && isNanoBanana;
   const supportsNanoImageSize = supportsNanoBananaImageSize(model);
-  const currentSizeOptions = isNanoBanana ? nanoAspectRatioOptions : gptSizeOptions;
+  const imageModelGroups = getImageModelGroups(apiProviderId);
+  const currentSizeOptions = isNanoBanana
+    ? apiProviderId === "grsai" && supportsExtendedNanoAspectRatios(model)
+      ? extendedNanoAspectRatioOptions
+      : nanoAspectRatioOptions
+    : apiProviderId === "grsai" && isGptImageVipModel(model)
+      ? grsaiGptVipSizeOptions
+      : apiProviderId === "grsai"
+        ? grsaiGptSizeOptions
+        : gptSizeOptions;
 
   // 打开或切换到另一个任务时，用该任务的当前参数预填表单
   useEffect(() => {
@@ -194,12 +228,18 @@ export function RegenerateEditDialog({
     }
   }, [currentSizeOptions, sizeMode]);
 
+  useEffect(() => {
+    if (!isImageModelAvailableForProvider(model, apiProviderId)) {
+      setModel(GPT_IMAGE_MODEL);
+    }
+  }, [apiProviderId, model]);
+
   const uploadFiles = async (files: File[]) => {
     const imageFiles = getImageFiles(files);
     if (imageFiles.length === 0) return;
 
     let filesToUpload = imageFiles;
-    if (isNanoBanana) {
+    if (isDuomiNanoBanana) {
       const remaining = MAX_NANO_BANANA_REFERENCE_IMAGES - inputImages.length;
       if (remaining <= 0) {
         Message.error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
@@ -237,7 +277,7 @@ export function RegenerateEditDialog({
       Message.error("参考图片 URL 需要以 http:// 或 https:// 开头");
       return;
     }
-    if (isNanoBanana && inputImages.length >= MAX_NANO_BANANA_REFERENCE_IMAGES) {
+    if (isDuomiNanoBanana && inputImages.length >= MAX_NANO_BANANA_REFERENCE_IMAGES) {
       Message.error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
       return;
     }
@@ -326,7 +366,7 @@ export function RegenerateEditDialog({
       Message.error("正在上传图片，请稍后再试");
       return;
     }
-    if (isNanoBanana && inputImages.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
+    if (isDuomiNanoBanana && inputImages.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
       Message.error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
       return;
     }
@@ -334,7 +374,8 @@ export function RegenerateEditDialog({
     const resolvedSizeMode = currentSizeOptions.some((option) => option.value === sizeMode) ? sizeMode : "auto";
     const width = parseCustomDimension(customWidth);
     const height = parseCustomDimension(customHeight);
-    const customSizeError = resolvedSizeMode === "custom" ? getCustomSizeError(width, height) : "";
+    const maxAspectRatio = apiProviderId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
+    const customSizeError = resolvedSizeMode === "custom" ? getCustomSizeError(width, height, maxAspectRatio) : "";
     if (customSizeError) {
       const suggestion = getCustomSizeSuggestion(width, height);
       Message.error(
@@ -497,7 +538,9 @@ export function RegenerateEditDialog({
                 ? renderNanoImageSizeSelect()
                 : isNanoBanana
                   ? <Input value="自动" readOnly aria-label="分辨率" />
-                  : renderQualitySelect()}
+                  : apiProviderId === "grsai"
+                    ? <Input value="自动" readOnly aria-label="Quality" />
+                    : renderQualitySelect()}
             </Field>
             <Field>
               <FieldLabel>{isNanoBanana ? "比例" : "Size"}</FieldLabel>

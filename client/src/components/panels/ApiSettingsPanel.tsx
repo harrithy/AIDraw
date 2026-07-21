@@ -25,7 +25,8 @@ type ApiSettingsPanelProps = {
 };
 
 const apiProviderOptions = [
-  { label: "多米API", description: "https://duomiapi.com", value: "duomi" }
+  { label: "多米API", description: "https://duomiapi.com", value: "duomi" },
+  { label: "Grsai", description: "https://grsaiapi.com", value: "grsai" }
 ] as const;
 
 const getApiProviderLabel = (providerId: ApiProviderId) =>

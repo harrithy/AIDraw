@@ -14,10 +14,12 @@ import { getJobOutputImages } from "./lib/jobImages";
 import {
   GPT_IMAGE_MODEL,
   MAX_NANO_BANANA_REFERENCE_IMAGES,
+  isGptImageVipModel,
   isNanoBananaModel,
   supportsNanoBananaImageSize
 } from "./lib/imageModels";
 import { DuomiProvider } from "./lib/providers/DuomiProvider";
+import { GrsaiProvider } from "./lib/providers/GrsaiProvider";
 import { NanoBananaProvider } from "./lib/providers/NanoBananaProvider";
 import { MockProvider, dimensionsFromSize } from "./lib/providers/MockProvider";
 import type { ImageModelProvider, StoredSettings } from "./lib/providers/types";
@@ -30,6 +32,7 @@ const STATE_KEY = "app-state";
 const UPLOADED_IMAGE_STORE = "uploadedImages";
 const MAX_CONCURRENT = 10;
 const DEFAULT_BASE_URL = "https://duomiapi.com";
+const GRSAI_BASE_URL = "https://grsaiapi.com";
 const DEFAULT_MODEL = GPT_IMAGE_MODEL;
 const DEFAULT_SIZE: DrawSize = "auto";
 const DEFAULT_NANO_IMAGE_SIZE: NanoImageSize = "4K";
@@ -62,11 +65,17 @@ const presetSizeOptions = new Set<string>([
   "3:4",
   "5:4",
   "4:5",
-  "21:9"
+  "21:9",
+  "9:21",
+  "1:4",
+  "4:1",
+  "1:8",
+  "8:1"
 ]);
 
-const isValidCustomSize = (width: number, height: number) => {
+const isValidCustomSize = (width: number, height: number, maxAspectRatio?: number) => {
   const pixels = width * height;
+  const sideRatio = Math.max(width, height) / Math.min(width, height);
   return (
     Number.isInteger(width) &&
     Number.isInteger(height) &&
@@ -76,12 +85,13 @@ const isValidCustomSize = (width: number, height: number) => {
     height <= MAX_IMAGE_SIDE &&
     width % 16 === 0 &&
     height % 16 === 0 &&
+    (!maxAspectRatio || sideRatio <= maxAspectRatio) &&
     pixels >= MIN_IMAGE_PIXELS &&
     pixels <= MAX_IMAGE_PIXELS
   );
 };
 
-const normalizeSize = (value: unknown): DrawSize => {
+const normalizeSize = (value: unknown, maxAspectRatio?: number): DrawSize => {
   const size = String(value ?? "").trim() as DrawSize;
   if (presetSizeOptions.has(size)) return size;
 
@@ -90,7 +100,7 @@ const normalizeSize = (value: unknown): DrawSize => {
 
   const width = Number(customSize[1]);
   const height = Number(customSize[2]);
-  return isValidCustomSize(width, height) ? `${width}x${height}` : DEFAULT_SIZE;
+  return isValidCustomSize(width, height, maxAspectRatio) ? `${width}x${height}` : DEFAULT_SIZE;
 };
 
 const normalizeNanoImageSize = (value: unknown): NanoImageSize => {
@@ -319,6 +329,9 @@ const maskSecret = (value: string) => {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 };
 
+const getDefaultBaseUrl = (providerId: StoredSettings["providerId"]) =>
+  providerId === "grsai" ? GRSAI_BASE_URL : DEFAULT_BASE_URL;
+
 const getActiveApiKeyIndex = (settings: StoredSettings) =>
   settings.apiKey
     ? (settings.savedApiKeys || []).findIndex(
@@ -492,17 +505,19 @@ const uploadImageToHost = async (file: File) => {
 };
 
 const isProviderId = (value: unknown): value is ImageProviderId =>
-  value === "duomi" || value === "nano-banana" || value === "mock";
+  value === "duomi" || value === "nano-banana" || value === "grsai" || value === "mock";
 
 const resolveProviderId = (job: DrawJob, settings: StoredSettings): ImageProviderId => {
   if (isProviderId(job.provider)) return job.provider;
   if (job.remoteTaskId) return isNanoBananaModel(job.model) ? "nano-banana" : "duomi";
   if (!settings.apiKey) return "mock";
+  if (settings.providerId === "grsai") return "grsai";
   return isNanoBananaModel(job.model) ? "nano-banana" : "duomi";
 };
 
 const getProvider = (providerId: ImageProviderId): ImageModelProvider => {
   if (providerId === "mock") return new MockProvider();
+  if (providerId === "grsai") return new GrsaiProvider();
   if (providerId === "nano-banana") return new NanoBananaProvider();
   return new DuomiProvider();
 };
@@ -532,6 +547,10 @@ const executeJobBackground = async (job: DrawJob) => {
       const providerId = resolveProviderId(freshJob, settings);
       if (providerId !== "mock" && !settings.apiKey) {
         throw new Error("恢复远程任务需要原 API Key，请重新配置后再继续");
+      }
+      const requiredApiProvider = providerId === "grsai" ? "grsai" : providerId === "mock" ? null : "duomi";
+      if (requiredApiProvider && settings.providerId !== requiredApiProvider) {
+        throw new Error(`该任务需要 ${requiredApiProvider === "grsai" ? "Grsai" : "多米API"} 的 API Key，请切换后重试`);
       }
       const provider = getProvider(providerId);
 
@@ -759,11 +778,11 @@ export const api = {
         pending: jobs.filter((job) => job.status === "pending").length
       },
       imageProvider: {
-        textToImage: settings.apiKey ? "duomi" : "mock",
-        imageToImage: settings.apiKey ? "duomi" : "mock",
-        hasDuomiKey: Boolean(settings.apiKey),
-        duomiBaseUrl: settings.baseUrl || DEFAULT_BASE_URL,
-        duomiModel: settings.model || DEFAULT_MODEL,
+        textToImage: settings.apiKey ? settings.providerId : "mock",
+        imageToImage: settings.apiKey ? settings.providerId : "mock",
+        hasApiKey: Boolean(settings.apiKey),
+        baseUrl: settings.baseUrl || getDefaultBaseUrl(settings.providerId),
+        model: settings.model || DEFAULT_MODEL,
         apiKeyMasked: maskSecret(settings.apiKey),
         savedApiKeysMasked: (settings.savedApiKeys || []).map(maskSecret),
         providerId: settings.providerId,
@@ -913,17 +932,20 @@ export const api = {
         : [];
 
     const settings = await getSettings();
-    if (settings.apiKey && inputImageUrls.length > 0) assertDuomiImageUrls(inputImageUrls);
+    if (settings.apiKey && settings.providerId === "duomi" && inputImageUrls.length > 0) {
+      assertDuomiImageUrls(inputImageUrls);
+    }
 
     const mode = inputImageUrls.length > 0 ? "image-to-image" : "text-to-image";
     if (!prompt) throw new Error("提示词不能为空");
     if (!["text-to-image", "image-to-image"].includes(payload.mode)) throw new Error("绘图模式无效");
 
     const count = Math.min(Math.max(Math.floor(payload.count || 1), 1), 8);
-    const size = normalizeSize(payload.size);
-    const { width, height } = dimensionsFromSize(size);
     const model = payload.model || settings.model || DEFAULT_MODEL;
-    if (isNanoBananaModel(model) && inputImageUrls.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
+    const maxAspectRatio = settings.providerId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
+    const size = normalizeSize(payload.size, maxAspectRatio);
+    const { width, height } = dimensionsFromSize(size);
+    if (settings.providerId === "duomi" && isNanoBananaModel(model) && inputImageUrls.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
       throw new Error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
     }
 
@@ -1041,15 +1063,18 @@ export const api = {
 
     const inputImageUrls = edits.inputImageUrls.map((url) => url.trim()).filter(Boolean);
     const settings = await getSettings();
-    if (settings.apiKey && inputImageUrls.length > 0) assertDuomiImageUrls(inputImageUrls);
+    if (settings.apiKey && settings.providerId === "duomi" && inputImageUrls.length > 0) {
+      assertDuomiImageUrls(inputImageUrls);
+    }
 
     const model = edits.model || settings.model || DEFAULT_MODEL;
-    if (isNanoBananaModel(model) && inputImageUrls.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
+    if (settings.providerId === "duomi" && isNanoBananaModel(model) && inputImageUrls.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
       throw new Error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
     }
 
     const mode = inputImageUrls.length > 0 ? "image-to-image" : "text-to-image";
-    const size = normalizeSize(edits.size);
+    const maxAspectRatio = settings.providerId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
+    const size = normalizeSize(edits.size, maxAspectRatio);
     const { width, height } = dimensionsFromSize(size);
 
     const updated = await updateJob(jobId, {
@@ -1204,7 +1229,7 @@ export const api = {
   getImageProviderSettings: async (): Promise<ImageProviderSettings> => {
     const settings = await getSettings();
     return {
-      baseUrl: settings.baseUrl || DEFAULT_BASE_URL,
+      baseUrl: settings.baseUrl || getDefaultBaseUrl(settings.providerId),
       model: settings.model || DEFAULT_MODEL,
       hasApiKey: Boolean(settings.apiKey),
       apiKeyMasked: maskSecret(settings.apiKey),
@@ -1219,14 +1244,14 @@ export const api = {
     const settings = await getSettings();
 
     if (payload.baseUrl !== undefined) {
-      const baseUrl = payload.baseUrl.trim() || DEFAULT_BASE_URL;
+      const baseUrl = payload.baseUrl.trim() || getDefaultBaseUrl(payload.providerId || settings.providerId);
       try {
         const parsed = new URL(baseUrl);
         if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
       } catch {
         throw new Error("Base URL is invalid");
       }
-      settings.baseUrl = baseUrl || DEFAULT_BASE_URL;
+      settings.baseUrl = baseUrl || getDefaultBaseUrl(payload.providerId || settings.providerId);
     }
 
     if (payload.model !== undefined) {
@@ -1259,16 +1284,18 @@ export const api = {
       // 新增的 Key 直接设为当前使用项，让顶部状态与下拉框立即同步。
       settings.apiKey = newKey;
       settings.providerId = providerId;
+      settings.baseUrl = getDefaultBaseUrl(providerId);
     }
 
     if (typeof payload.setActiveApiKeyIndex === "number" && payload.setActiveApiKeyIndex >= 0 && payload.setActiveApiKeyIndex < settings.savedApiKeys.length) {
       settings.apiKey = settings.savedApiKeys[payload.setActiveApiKeyIndex];
       settings.providerId = settings.savedApiKeyProviderIds[payload.setActiveApiKeyIndex] || "duomi";
+      settings.baseUrl = getDefaultBaseUrl(settings.providerId);
     }
 
     await saveSettings(settings);
     return {
-      baseUrl: settings.baseUrl || DEFAULT_BASE_URL,
+      baseUrl: settings.baseUrl || getDefaultBaseUrl(settings.providerId),
       model: settings.model || DEFAULT_MODEL,
       hasApiKey: Boolean(settings.apiKey),
       apiKeyMasked: maskSecret(settings.apiKey),

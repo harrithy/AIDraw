@@ -28,7 +28,7 @@ export const getCustomSizeSuggestion = (width: number, height: number): CustomSi
   return suggestion.width === undefined && suggestion.height === undefined ? null : suggestion;
 };
 
-export const getCustomSizeError = (width: number, height: number) => {
+export const getCustomSizeError = (width: number, height: number, maxAspectRatio?: number) => {
   if (!Number.isInteger(width) || !Number.isInteger(height)) return "自定义尺寸需要填写整数宽高";
   if (width < MIN_IMAGE_SIDE || height < MIN_IMAGE_SIDE || width > MAX_IMAGE_SIDE || height > MAX_IMAGE_SIDE) {
     return `自定义尺寸每条边需在 ${MIN_IMAGE_SIDE} 到 ${MAX_IMAGE_SIDE} 之间`;
@@ -47,6 +47,10 @@ export const getCustomSizeError = (width: number, height: number) => {
       nearestSides.push(`高 ${suggestion.height}`);
     }
     return `自定义尺寸的${invalidSideLabels.join("和")}必须能被 ${CUSTOM_SIZE_STEP} 整除，最近可用值：${nearestSides.join("，")}`;
+  }
+
+  if (maxAspectRatio && Math.max(width, height) / Math.min(width, height) > maxAspectRatio) {
+    return `自定义尺寸的长边与短边之比不能超过 ${maxAspectRatio}:1`;
   }
 
   const pixels = width * height;

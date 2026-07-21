@@ -40,7 +40,12 @@ export type PresetDrawSize =
   | "3:4"
   | "5:4"
   | "4:5"
-  | "21:9";
+  | "21:9"
+  | "9:21"
+  | "1:4"
+  | "4:1"
+  | "1:8"
+  | "8:1";
 
 /**
  * 图像尺寸：可以是预设值，也可以是自定义 `宽x高` 格式
@@ -52,10 +57,10 @@ export type DrawSize = PresetDrawSize | `${number}x${number}`;
 export type NanoImageSize = "1K" | "2K" | "4K";
 
 /** 绘图任务实际使用的接口提供者 */
-export type ImageProviderId = "duomi" | "nano-banana" | "mock";
+export type ImageProviderId = "duomi" | "nano-banana" | "grsai" | "mock";
 
 /** API Key 所属的平台供应商 */
-export type ApiProviderId = "duomi";
+export type ApiProviderId = "duomi" | "grsai";
 
 /**
  * 文件夹（工作区）
@@ -188,19 +193,19 @@ export type QueueStats = {
 
 /**
  * 图像生成服务的提供者状态
- * 目前支持"多米API"和"浏览器模拟"两种后端
+ * 支持多米 API、Grsai API 和浏览器模拟后端
  */
 export type ImageProviderStatus = {
   /** 文生图使用的后端 */
-  textToImage: "duomi" | "mock";
+  textToImage: ApiProviderId | "mock";
   /** 图生图使用的后端 */
-  imageToImage: "duomi" | "mock";
-  /** 是否配置了多米 API Key */
-  hasDuomiKey: boolean;
-  /** 多米 API 基础 URL */
-  duomiBaseUrl: string;
+  imageToImage: ApiProviderId | "mock";
+  /** 是否配置了 API Key */
+  hasApiKey: boolean;
+  /** 当前供应商的 API 基础 URL */
+  baseUrl: string;
   /** 默认模型名称 */
-  duomiModel: string;
+  model: string;
   /** 已脱敏的 API Key（显示为 `sk-****xxxx`） */
   apiKeyMasked: string;
   /** 所有保存的脱敏 API Key 列表 */
