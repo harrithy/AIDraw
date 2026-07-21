@@ -7,6 +7,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Clock,
+  CloudUpload,
   Download,
   ImagePlus,
   Loader2,
@@ -28,6 +29,7 @@ import { statusLabel } from "../../lib/jobLabels";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { DrawJob } from "../../types";
 import { AnimatedModal } from "../ui/AnimatedModal";
+import { Message } from "../ui/message";
 import { RetryingImage } from "../ui/RetryingImage";
 
 const VERSION_GAP = 8;
@@ -44,6 +46,7 @@ type JobCardProps = {
   onPreview: (job: DrawJob) => void;
   onRetry: (jobId: string) => void;
   onEditRetry: (job: DrawJob) => void;
+  onUploadLatestImage?: (jobId: string) => Promise<void>;
   onUseImage?: (url: string) => void;
 };
 
@@ -66,12 +69,14 @@ export const JobCard = memo(function JobCard({
   onPreview,
   onRetry,
   onEditRetry,
+  onUploadLatestImage,
   onUseImage
 }: JobCardProps) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [retryMenuOpen, setRetryMenuOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isUploadingLatest, setIsUploadingLatest] = useState(false);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
   const [versionsExpanded, setVersionsExpanded] = useState(false);
   const [renderHistory, setRenderHistory] = useState(false);
@@ -207,6 +212,20 @@ export const JobCard = memo(function JobCard({
       await downloadImage(currentImageUrl, job.prompt);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleUploadLatest = async () => {
+    if (!currentImageUrl || !onUploadLatestImage || isUploadingLatest) return;
+
+    setIsUploadingLatest(true);
+    try {
+      await onUploadLatestImage(job.id);
+      Message.success("最新图片已上传到图床");
+    } catch (error) {
+      Message.error(error instanceof Error ? error.message : "上传最新图片失败");
+    } finally {
+      setIsUploadingLatest(false);
     }
   };
 
@@ -353,6 +372,16 @@ export const JobCard = memo(function JobCard({
                   <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
                     {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
                   </button>
+                  {onUploadLatestImage ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleUploadLatest()}
+                      disabled={isUploadingLatest}
+                      title="上传最新图片到图床"
+                    >
+                      {isUploadingLatest ? <Loader2 className="spin" size={15} /> : <CloudUpload size={15} />}
+                    </button>
+                  ) : null}
                   {onUseImage && (
                     <button type="button" onClick={() => onUseImage(currentImageUrl)} title="作为参考图引用">
                       <ImagePlus size={15} />

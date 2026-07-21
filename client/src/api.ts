@@ -515,6 +515,30 @@ const resolveProviderId = (job: DrawJob, settings: StoredSettings): ImageProvide
   return isNanoBananaModel(job.model) ? "nano-banana" : "duomi";
 };
 
+const imageExtensionFromType = (mimeType: string) => {
+  if (mimeType.includes("jpeg")) return "jpg";
+  if (mimeType.includes("webp")) return "webp";
+  if (mimeType.includes("gif")) return "gif";
+  if (mimeType.includes("svg")) return "svg";
+  return "png";
+};
+
+const createFileFromImageUrl = async (imageUrl: string, jobId: string) => {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    const mimeType = blob.type || "image/png";
+    if (!mimeType.startsWith("image/")) throw new Error("返回内容不是图片");
+    return new File([blob], `aidraw-${jobId}.${imageExtensionFromType(mimeType)}`, { type: mimeType });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error("读取最新图片失败：图片服务器可能不允许浏览器跨域读取该文件");
+    }
+    throw new Error(`读取最新图片失败：${error instanceof Error ? error.message : "未知错误"}`);
+  }
+};
+
 const getProvider = (providerId: ImageProviderId): ImageModelProvider => {
   if (providerId === "mock") return new MockProvider();
   if (providerId === "grsai") return new GrsaiProvider();
@@ -1201,6 +1225,16 @@ export const api = {
 
     broadcastStateUpdate(folderId);
     return image;
+  },
+
+  uploadLatestJobImage: async (jobId: string): Promise<UploadedImage> => {
+    const job = await ensureJob(jobId);
+    const outputImages = getJobOutputImages(job);
+    const latestImageUrl = outputImages[outputImages.length - 1];
+    if (!latestImageUrl) throw new Error("该图片盒子还没有可上传的图片");
+
+    const file = await createFileFromImageUrl(latestImageUrl, job.id);
+    return api.uploadImage(job.folderId, file);
   },
 
   deleteUploadedImage: async (imageId: string): Promise<void> => {

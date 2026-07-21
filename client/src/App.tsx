@@ -423,6 +423,13 @@ function App() {
     return api.uploadImage(activeFolderId, file);
   };
 
+  /** 将图片盒子的最新输出上传到图床，并同步到当前文件夹的图片库。 */
+  const uploadLatestJobImage = async (jobId: string) => {
+    const uploaded = await api.uploadLatestJobImage(jobId);
+    setUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
+    setNotice("最新图片已上传到图床和图片库");
+  };
+
   /**
    * 从当前文件夹的参考图库中移除指定的上传图片。
    * @param imageId - 图片 ID
@@ -527,6 +534,7 @@ function App() {
         onPreviewJob={setPreviewJob}
         onRetryJob={retryDrawing}
         onEditRetryJob={setEditingRetryJob}
+        onUploadLatestImage={uploadLatestJobImage}
         onUseImage={setImageToUse}
       />
 
