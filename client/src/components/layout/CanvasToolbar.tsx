@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CircleHelp, Clock, Copy, Maximize2, Moon, RefreshCw, Search, Settings, Sun, X, ZoomIn, ZoomOut, Check } from "lucide-react";
+import { CircleHelp, Clock, Copy, Github, Maximize2, Moon, RefreshCw, Search, Settings, Sun, X, ZoomIn, ZoomOut, Check } from "lucide-react";
 import type { DrawJob } from "../../types";
 
 type CanvasToolbarProps = {
@@ -224,6 +224,14 @@ export function CanvasToolbar({
         <button type="button" onClick={onOpenGuide} title="新手指引">
           <CircleHelp size={17} />
         </button>
+        <button
+          type="button"
+          onClick={() => window.open("https://github.com/harrithy/AIDraw", "_blank", "noopener,noreferrer")}
+          title="访问 GitHub 仓库"
+          aria-label="访问 GitHub 仓库"
+        >
+          <Github size={17} />
+        </button>
         <button type="button" onClick={onOpenApiSettings} title="接口设置" data-tour="api-settings">
           <Settings size={17} />
         </button>
@@ -239,5 +247,4 @@ export function CanvasToolbar({
     </div>
   );
 }
-
 

@@ -19,6 +19,7 @@ import {
   supportsNanoBananaImageSize,
   type SupportedImageModel
 } from "../../lib/imageModels";
+import { getCustomSizeError, getCustomSizeSuggestion } from "../../lib/customImageSize";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { CreateJobPayload, DrawMode, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
@@ -97,15 +98,6 @@ const isRemoteImageUrl = (value: string) => {
   } catch {
     return false;
   }
-};
-
-const getCustomSizeError = (width: number, height: number) => {
-  if (!Number.isInteger(width) || !Number.isInteger(height)) return "自定义尺寸需要填写整数宽高";
-  if (width < 16 || height < 16 || width > 3840 || height > 3840) return "自定义尺寸每条边需在 16 到 3840 之间";
-  if (width % 16 !== 0 || height % 16 !== 0) return "自定义尺寸的宽和高都必须能被 16 整除";
-  const pixels = width * height;
-  if (pixels < 655360 || pixels > 8294400) return "自定义尺寸像素预算需在 655,360 到 8,294,400 之间";
-  return "";
 };
 
 function ReferenceImagePreview({
@@ -453,7 +445,21 @@ export function CreateJobPanel({
     const height = parseCustomDimension(customHeight);
     const customSizeError = resolvedSizeMode === "custom" ? getCustomSizeError(width, height) : "";
     if (customSizeError) {
-      Message.error(customSizeError);
+      const suggestion = getCustomSizeSuggestion(width, height);
+      Message.error(
+        customSizeError,
+        suggestion
+          ? {
+              action: {
+                label: "填充",
+                onClick: () => {
+                  if (suggestion.width !== undefined) setCustomWidth(String(suggestion.width));
+                  if (suggestion.height !== undefined) setCustomHeight(String(suggestion.height));
+                }
+              }
+            }
+          : undefined
+      );
       return;
     }
 

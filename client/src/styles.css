@@ -94,6 +94,12 @@ button:disabled {
   opacity: 0.6;
 }
 
+.message-action {
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 7px;
+}
+
 .app-shell {
   position: relative;
   width: 100vw;
