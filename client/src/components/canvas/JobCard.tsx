@@ -363,7 +363,14 @@ export const JobCard = memo(function JobCard({
         <h3>{job.prompt}</h3>
       </div>
 
-      <div className="job-actions">
+      <div
+        className="job-actions"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center"
+        }}
+      >
         <button
           type="button"
           className="job-tools-toggle"
