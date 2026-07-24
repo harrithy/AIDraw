@@ -48,8 +48,8 @@ export const RetryingImage = memo(function RetryingImage({
             </>
           ) : (
             <>
-              <Loader2 size={24} className="spin image-skeleton-spinner" />
-              <span className="image-skeleton-text">图片加载中...</span>
+              <Loader2 size={16} className="spin image-skeleton-spinner" />
+              <span className="image-skeleton-text image-skeleton-loading-text">加载中</span>
             </>
           )}
         </div>

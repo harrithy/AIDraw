@@ -1345,8 +1345,7 @@ button:disabled {
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
+    color 160ms ease;
 }
 
 .floating-toolbar button:not(:disabled):hover,
@@ -1354,6 +1353,7 @@ button:disabled {
   border-color: var(--line-strong);
   background: var(--hover);
   transform: translateY(-1px);
+  transition: transform 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
 .floating-toolbar button,
@@ -1768,10 +1768,6 @@ button:disabled {
   outline-offset: 2px;
 }
 
-.job-card.has-output-versions.has-references .job-reference-strip {
-  left: calc(100% + 34px);
-}
-
 .job-image-version span {
   position: absolute;
   bottom: 7px;
@@ -1837,9 +1833,10 @@ button:disabled {
 .job-reference-strip {
   position: absolute;
   top: 54px;
-  left: calc(100% + 12px);
+  right: -82px;
   z-index: 7;
   display: grid;
+  width: 70px;
   gap: 8px;
   max-height: calc(var(--job-card-height, 356px) - 16px);
   overflow-y: auto;
@@ -1961,30 +1958,28 @@ button:disabled {
 
 .job-actions {
   position: absolute;
-  top: 0 !important;
-  right: auto;
-  left: calc(100% + 12px);
+  top: 0;
+  right: -44px;
   z-index: 8;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  width: 36px !important;
-  max-width: 36px !important;
-  gap: 6px;
-  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 36px;
+  height: auto;
+  gap: 4px;
+  padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--panel-strong);
-  box-shadow: 0 10px 24px rgba(16, 21, 19, 0.08);
-  backdrop-filter: none;
+  box-shadow: 0 8px 20px rgba(16, 21, 19, 0.08);
   pointer-events: auto;
-  transition: height 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .job-card.tools-open .job-actions {
-  height: var(--job-image-height, 292px) !important;
+  height: auto !important;
   flex-direction: column !important;
-  justify-content: space-between !important;
+  justify-content: flex-start !important;
   transform: none;
 }
 
@@ -2279,29 +2274,14 @@ button:disabled {
   justify-content: center;
   gap: 8px;
   padding: 16px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--subtle) 90%, #000) 0%,
-    color-mix(in srgb, var(--subtle) 40%, var(--green)) 50%,
-    color-mix(in srgb, var(--subtle) 90%, #000) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 2.2s infinite ease-in-out;
+  background: color-mix(in srgb, var(--subtle) 90%, var(--green));
   border-radius: inherit;
   pointer-events: none;
 }
 
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
 .image-skeleton-spinner {
-  color: var(--green);
+  color: color-mix(in srgb, var(--green) 76%, var(--muted));
+  animation-duration: 1.5s;
 }
 
 .image-skeleton-error-icon {
@@ -2313,6 +2293,12 @@ button:disabled {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.2px;
+}
+
+.image-skeleton-loading-text {
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .retrying-img {
@@ -3273,7 +3259,8 @@ button:disabled {
 
   .uploaded-image-item,
   .uploaded-image-skeleton-heading,
-  .uploaded-image-skeleton-tile {
+  .uploaded-image-skeleton-tile,
+  .image-skeleton-spinner {
     animation: none !important;
   }
 }

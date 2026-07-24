@@ -114,8 +114,7 @@ export const JobCard = memo(function JobCard({
     layoutVersionCount * cardSize.imageWidth + (layoutVersionCount - 1) * VERSION_GAP;
   const historyImageWidth =
     Math.max(1, displayedVersions.length) * cardSize.imageWidth + (Math.max(1, displayedVersions.length) - 1) * VERSION_GAP;
-  const expandedCardWidth = cardSize.cardWidth + expandedImageWidth - cardSize.imageWidth;
-  const expandedOffsetX = expandedCardWidth - cardSize.cardWidth;
+  const expandedOffsetX = expandedImageWidth - cardSize.imageWidth;
   const isRegenerating = Boolean(currentImageUrl) && (job.status === "pending" || job.status === "running");
   const sizeLabel = job.size || (job.width && job.height ? `${job.width}x${job.height}` : "auto");
   const usesNanoBanana = isNanoBananaModel(job.model);
@@ -143,19 +142,21 @@ export const JobCard = memo(function JobCard({
       | "--job-card-height"
       | "--job-image-width"
       | "--job-image-height"
+      | "--job-expanded-offset"
       | "--job-expanded-image-width"
       | "--job-history-image-width"
       | "--job-version-count",
       string
     > = {
-    left: `${posX - expandedOffsetX}px`,
+    left: `calc(${posX}px - var(--job-expanded-offset))`,
     top: `${posY}px`,
-    "--job-card-width": `${expandedCardWidth}px`,
+    "--job-card-width": `calc(${cardSize.cardWidth}px + var(--job-expanded-offset))`,
     "--job-card-base-width": `${cardSize.cardWidth}px`,
     "--job-card-height": `${cardSize.cardHeight}px`,
     "--job-image-width": `${cardSize.imageWidth}px`,
     "--job-image-height": `${cardSize.imageHeight}px`,
-    "--job-expanded-image-width": `${expandedImageWidth}px`,
+    "--job-expanded-offset": `${expandedOffsetX}px`,
+    "--job-expanded-image-width": `calc(${cardSize.imageWidth}px + var(--job-expanded-offset))`,
     "--job-history-image-width": `${historyImageWidth}px`,
     "--job-version-count": String(Math.max(1, displayedVersions.length))
   };
@@ -181,14 +182,13 @@ export const JobCard = memo(function JobCard({
 
     const cardStyles = window.getComputedStyle(card);
     const imageStyles = window.getComputedStyle(image);
-    const currentLeft = Number.parseFloat(cardStyles.left);
     const currentCardWidth = Number.parseFloat(cardStyles.width);
     const currentImageWidth = Number.parseFloat(imageStyles.width);
+    const currentOffset = Number.parseFloat(cardStyles.getPropertyValue("--job-expanded-offset"));
     const targetVersionCount = nextExpanded ? outputImages.length : 1;
     const targetImageWidth =
       targetVersionCount * cardSize.imageWidth + (targetVersionCount - 1) * VERSION_GAP;
-    const targetCardWidth = cardSize.cardWidth + targetImageWidth - cardSize.imageWidth;
-    const targetLeft = posX - (targetCardWidth - cardSize.cardWidth);
+    const targetOffset = targetImageWidth - cardSize.imageWidth;
 
     flushSync(() => {
       if (nextExpanded) setRenderHistory(true);
@@ -198,14 +198,18 @@ export const JobCard = memo(function JobCard({
     versionAnimationRef.current = gsap.fromTo(
       card,
       {
-        left: Number.isFinite(currentLeft) ? currentLeft : posX - expandedOffsetX,
-        "--job-card-width": `${Number.isFinite(currentCardWidth) ? currentCardWidth : expandedCardWidth}px`,
-        "--job-expanded-image-width": `${Number.isFinite(currentImageWidth) ? currentImageWidth : expandedImageWidth}px`
+        "--job-expanded-offset": `${
+          Number.isFinite(currentOffset)
+            ? currentOffset
+            : Number.isFinite(currentCardWidth)
+              ? currentCardWidth - cardSize.cardWidth
+              : Number.isFinite(currentImageWidth)
+                ? currentImageWidth - cardSize.imageWidth
+                : expandedOffsetX
+        }px`
       },
       {
-        left: targetLeft,
-        "--job-card-width": `${targetCardWidth}px`,
-        "--job-expanded-image-width": `${targetImageWidth}px`,
+        "--job-expanded-offset": `${targetOffset}px`,
         duration: 0.5,
         ease: "power2.inOut",
         overwrite: true,
@@ -278,21 +282,16 @@ export const JobCard = memo(function JobCard({
       if (!card) return;
 
       const previousImageWidth = previousCount * cardSize.imageWidth + (previousCount - 1) * VERSION_GAP;
-      const previousCardWidth = cardSize.cardWidth + previousImageWidth - cardSize.imageWidth;
-      const previousLeft = posX - (previousCardWidth - cardSize.cardWidth);
+      const previousOffset = previousImageWidth - cardSize.imageWidth;
 
       versionAnimationRef.current?.kill();
       versionAnimationRef.current = gsap.fromTo(
         card,
         {
-          left: previousLeft,
-          "--job-card-width": `${previousCardWidth}px`,
-          "--job-expanded-image-width": `${previousImageWidth}px`
+          "--job-expanded-offset": `${previousOffset}px`
         },
         {
-          left: posX - expandedOffsetX,
-          "--job-card-width": `${expandedCardWidth}px`,
-          "--job-expanded-image-width": `${expandedImageWidth}px`,
+          "--job-expanded-offset": `${expandedOffsetX}px`,
           duration: 0.5,
           ease: "power2.inOut",
           overwrite: true,
@@ -314,15 +313,14 @@ export const JobCard = memo(function JobCard({
 
       gsap.fromTo(
         toolButtons,
-        { y: -8, scale: 0.9, autoAlpha: 0 },
+        { y: -6, autoAlpha: 0 },
         {
           y: 0,
-          scale: 1,
           autoAlpha: 1,
-          duration: 0.24,
-          ease: "back.out(1.7)",
-          stagger: 0.035,
-          clearProps: "transform,visibility"
+          duration: 0.2,
+          ease: "power2.out",
+          stagger: 0.03,
+          clearProps: "all"
         }
       );
     },
