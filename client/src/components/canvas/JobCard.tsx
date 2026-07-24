@@ -382,34 +382,6 @@ export const JobCard = memo(function JobCard({
         </button>
         {toolsOpen ? (
           <>
-            <button type="button" onClick={() => onMove(job.id, -1)} disabled={index === 0} title="上移">
-              <ArrowUp size={15} />
-            </button>
-            <button type="button" onClick={() => onMove(job.id, 1)} disabled={index === total - 1} title="下移">
-              <ArrowDown size={15} />
-            </button>
-            {currentImageUrl ? (
-              <>
-                <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
-                  {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
-                </button>
-                {onUploadLatestImage ? (
-                  <button
-                    type="button"
-                    onClick={() => void handleUploadLatest()}
-                    disabled={isUploadingLatest}
-                    title="上传最新图片到图床"
-                  >
-                    {isUploadingLatest ? <Loader2 className="spin" size={15} /> : <CloudUpload size={15} />}
-                  </button>
-                ) : null}
-                {onUseImage && (
-                  <button type="button" onClick={() => onUseImage(currentImageUrl)} title="作为参考图引用">
-                    <ImagePlus size={15} />
-                  </button>
-                )}
-              </>
-            ) : null}
             {canRetry ? (
               <div className="job-retry-wrapper">
                 <button
@@ -452,6 +424,34 @@ export const JobCard = memo(function JobCard({
                   </div>
                 ) : null}
               </div>
+            ) : null}
+            <button type="button" onClick={() => onMove(job.id, -1)} disabled={index === 0} title="上移">
+              <ArrowUp size={15} />
+            </button>
+            <button type="button" onClick={() => onMove(job.id, 1)} disabled={index === total - 1} title="下移">
+              <ArrowDown size={15} />
+            </button>
+            {currentImageUrl ? (
+              <>
+                <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
+                  {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
+                </button>
+                {onUploadLatestImage ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleUploadLatest()}
+                    disabled={isUploadingLatest}
+                    title="上传最新图片到图床"
+                  >
+                    {isUploadingLatest ? <Loader2 className="spin" size={15} /> : <CloudUpload size={15} />}
+                  </button>
+                ) : null}
+                {onUseImage && (
+                  <button type="button" onClick={() => onUseImage(currentImageUrl)} title="作为参考图引用">
+                    <ImagePlus size={15} />
+                  </button>
+                )}
+              </>
             ) : null}
             {onDelete ? (
               <button
