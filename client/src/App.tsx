@@ -395,6 +395,21 @@ function App() {
   };
 
   /**
+   * 删除指定的任务盒子
+   * @param jobId - 任务 ID
+   */
+  const deleteJob = async (jobId: string) => {
+    try {
+      await api.deleteJob(jobId);
+      setJobs((current) => current.filter((j) => j.id !== jobId));
+      setPreviewJob((current) => (current?.id === jobId ? null : current));
+      setNotice("盒子已删除");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "删除盒子失败");
+    }
+  };
+
+  /**
    * 提交绘图任务
    * 创建任务后自动刷新队列状态
    * @param payload - 任务创建参数
@@ -534,6 +549,7 @@ function App() {
         onPreviewJob={setPreviewJob}
         onRetryJob={retryDrawing}
         onEditRetryJob={setEditingRetryJob}
+        onDeleteJob={deleteJob}
         onUploadLatestImage={uploadLatestJobImage}
         onUseImage={setImageToUse}
       />

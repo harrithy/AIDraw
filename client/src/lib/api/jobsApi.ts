@@ -254,5 +254,30 @@ export const jobsApi = {
     });
     broadcastStateUpdate(folderId);
     return updatedJobs;
+  },
+
+  deleteJob: async (jobId: string): Promise<void> => {
+    const db = await openDb();
+    let folderId = "";
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(JOB_STORE, "readwrite");
+      const store = transaction.objectStore(JOB_STORE);
+      const getReq = store.get(jobId);
+      getReq.onsuccess = () => {
+        const job = getReq.result as DrawJob | undefined;
+        if (!job) {
+          resolve();
+          return;
+        }
+        folderId = job.folderId;
+        store.delete(jobId);
+      };
+      getReq.onerror = () => reject(getReq.error);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    if (folderId) {
+      broadcastStateUpdate(folderId);
+    }
   }
 };

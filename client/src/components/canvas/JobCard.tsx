@@ -16,6 +16,7 @@ import {
   Play,
   RotateCcw,
   Sparkles,
+  Trash2,
   X
 } from "lucide-react";
 import { memo, type CSSProperties, useEffect, useRef, useState } from "react";
@@ -29,6 +30,15 @@ import { statusLabel } from "../../lib/jobLabels";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { DrawJob } from "../../types";
 import { AnimatedModal } from "../ui/AnimatedModal";
+import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "../ui/dialog";
 import { Message } from "../ui/message";
 import { RetryingImage } from "../ui/RetryingImage";
 
@@ -46,6 +56,7 @@ type JobCardProps = {
   onPreview: (job: DrawJob) => void;
   onRetry: (jobId: string) => void;
   onEditRetry: (job: DrawJob) => void;
+  onDelete?: (jobId: string) => void;
   onUploadLatestImage?: (jobId: string) => Promise<void>;
   onUseImage?: (url: string) => void;
 };
@@ -69,12 +80,14 @@ export const JobCard = memo(function JobCard({
   onPreview,
   onRetry,
   onEditRetry,
+  onDelete,
   onUploadLatestImage,
   onUseImage
 }: JobCardProps) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [retryMenuOpen, setRetryMenuOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isUploadingLatest, setIsUploadingLatest] = useState(false);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
@@ -301,9 +314,9 @@ export const JobCard = memo(function JobCard({
 
       gsap.fromTo(
         toolButtons,
-        { x: -8, scale: 0.9, autoAlpha: 0 },
+        { y: -8, scale: 0.9, autoAlpha: 0 },
         {
-          x: 0,
+          y: 0,
           scale: 1,
           autoAlpha: 1,
           duration: 0.24,
@@ -348,93 +361,103 @@ export const JobCard = memo(function JobCard({
 
       <div className="job-card-header">
         <h3>{job.prompt}</h3>
+      </div>
 
-        <div className="job-actions">
-          <button
-            type="button"
-            className="job-tools-toggle"
-            onClick={() => setToolsOpen((value) => !value)}
-            aria-expanded={toolsOpen}
-            title={toolsOpen ? "收起工具栏" : "展开工具栏"}
-          >
-            <MoreHorizontal size={15} />
-          </button>
-          {toolsOpen ? (
-            <>
-              <button type="button" onClick={() => onMove(job.id, -1)} disabled={index === 0} title="上移">
-                <ArrowUp size={15} />
-              </button>
-              <button type="button" onClick={() => onMove(job.id, 1)} disabled={index === total - 1} title="下移">
-                <ArrowDown size={15} />
-              </button>
-              {currentImageUrl ? (
-                <>
-                  <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
-                    {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
-                  </button>
-                  {onUploadLatestImage ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleUploadLatest()}
-                      disabled={isUploadingLatest}
-                      title="上传最新图片到图床"
-                    >
-                      {isUploadingLatest ? <Loader2 className="spin" size={15} /> : <CloudUpload size={15} />}
-                    </button>
-                  ) : null}
-                  {onUseImage && (
-                    <button type="button" onClick={() => onUseImage(currentImageUrl)} title="作为参考图引用">
-                      <ImagePlus size={15} />
-                    </button>
-                  )}
-                </>
-              ) : null}
-              {canRetry ? (
-                <div className="job-retry-wrapper">
+      <div className="job-actions">
+        <button
+          type="button"
+          className="job-tools-toggle"
+          onClick={() => setToolsOpen((value) => !value)}
+          aria-expanded={toolsOpen}
+          title={toolsOpen ? "收起工具栏" : "展开工具栏"}
+        >
+          <MoreHorizontal size={15} />
+        </button>
+        {toolsOpen ? (
+          <>
+            <button type="button" onClick={() => onMove(job.id, -1)} disabled={index === 0} title="上移">
+              <ArrowUp size={15} />
+            </button>
+            <button type="button" onClick={() => onMove(job.id, 1)} disabled={index === total - 1} title="下移">
+              <ArrowDown size={15} />
+            </button>
+            {currentImageUrl ? (
+              <>
+                <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
+                  {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
+                </button>
+                {onUploadLatestImage ? (
                   <button
                     type="button"
-                    className={`job-retry-toggle${retryMenuOpen ? " is-open" : ""}`}
-                    onClick={() => setRetryMenuOpen((value) => !value)}
-                    title="重新绘制"
-                    aria-haspopup="menu"
-                    aria-expanded={retryMenuOpen}
+                    onClick={() => void handleUploadLatest()}
+                    disabled={isUploadingLatest}
+                    title="上传最新图片到图床"
                   >
-                    <RotateCcw size={15} />
+                    {isUploadingLatest ? <Loader2 className="spin" size={15} /> : <CloudUpload size={15} />}
                   </button>
-                  {retryMenuOpen ? (
-                    <div className="job-retry-menu" role="menu">
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="job-retry-menu-item"
-                        onClick={() => {
-                          setRetryMenuOpen(false);
-                          setToolsOpen(false);
-                          onEditRetry(job);
-                        }}
-                      >
-                        <PenLine size={14} />
-                        <span>重新编辑</span>
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="job-retry-menu-item"
-                        onClick={() => {
-                          setRetryMenuOpen(false);
-                          onRetry(job.id);
-                        }}
-                      >
-                        <Play size={14} />
-                        <span>继续</span>
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </>
-          ) : null}
-        </div>
+                ) : null}
+                {onUseImage && (
+                  <button type="button" onClick={() => onUseImage(currentImageUrl)} title="作为参考图引用">
+                    <ImagePlus size={15} />
+                  </button>
+                )}
+              </>
+            ) : null}
+            {canRetry ? (
+              <div className="job-retry-wrapper">
+                <button
+                  type="button"
+                  className={`job-retry-toggle${retryMenuOpen ? " is-open" : ""}`}
+                  onClick={() => setRetryMenuOpen((value) => !value)}
+                  title="重新绘制"
+                  aria-haspopup="menu"
+                  aria-expanded={retryMenuOpen}
+                >
+                  <RotateCcw size={15} />
+                </button>
+                {retryMenuOpen ? (
+                  <div className="job-retry-menu" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="job-retry-menu-item"
+                      onClick={() => {
+                        setRetryMenuOpen(false);
+                        setToolsOpen(false);
+                        onEditRetry(job);
+                      }}
+                    >
+                      <PenLine size={14} />
+                      <span>重新编辑</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="job-retry-menu-item"
+                      onClick={() => {
+                        setRetryMenuOpen(false);
+                        onRetry(job.id);
+                      }}
+                    >
+                      <Play size={14} />
+                      <span>继续</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {onDelete ? (
+              <button
+                type="button"
+                className="job-delete-btn"
+                onClick={() => setShowDeleteConfirm(true)}
+                title="删除盒子"
+              >
+                <Trash2 size={15} />
+              </button>
+            ) : null}
+          </>
+        ) : null}
       </div>
 
       <div className={`job-image ${currentImageUrl ? "has-output" : ""}${hasMultipleVersions ? " has-versions" : ""}`}>
@@ -529,6 +552,31 @@ export const JobCard = memo(function JobCard({
           </>
         ) : null}
       </AnimatedModal>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除确认</DialogTitle>
+            <DialogDescription>
+              确定要删除这个盒子吗？内部生成的图片与相关数据均将被清除。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                onDelete?.(job.id);
+              }}
+            >
+              确定删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </article>
   );
 });

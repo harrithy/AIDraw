@@ -45,6 +45,7 @@ type WorkflowCanvasProps = {
   onPreviewJob: (job: DrawJob) => void;
   onRetryJob: (jobId: string) => void;
   onEditRetryJob: (job: DrawJob) => void;
+  onDeleteJob?: (jobId: string) => void;
   onUploadLatestImage?: (jobId: string) => Promise<void>;
   onUseImage?: (url: string) => void;
 };
@@ -66,6 +67,7 @@ export function WorkflowCanvas({
   onPreviewJob,
   onRetryJob,
   onEditRetryJob,
+  onDeleteJob,
   onUploadLatestImage,
   onUseImage
 }: WorkflowCanvasProps) {
@@ -129,6 +131,7 @@ export function WorkflowCanvas({
                 onPreview={onPreviewJob}
                 onRetry={onRetryJob}
                 onEditRetry={onEditRetryJob}
+                onDelete={onDeleteJob}
                 onUploadLatestImage={onUploadLatestImage}
                 onUseImage={onUseImage}
               />
