@@ -10,8 +10,15 @@ const MAX_IMAGE_PIXELS = 8294400;
  */
 const getNearestValidSide = (value: number) => Math.round(value / CUSTOM_SIZE_STEP) * CUSTOM_SIZE_STEP;
 
+/**
+ * 自定义尺寸修正建议。
+ * 当用户输入的自定义宽/高不能被 16 整除时，返回最接近的合法值。
+ * 只有需要修正的维度才会出现在对象中，无需修正的维度为 undefined。
+ */
 export type CustomSizeSuggestion = {
+  /** 修正后的宽度（最接近的 16 的倍数） */
   width?: number;
+  /** 修正后的高度（最接近的 16 的倍数） */
   height?: number;
 };
 

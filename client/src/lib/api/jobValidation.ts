@@ -49,6 +49,14 @@ const isValidCustomSize = (width: number, height: number, maxAspectRatio?: numbe
   );
 };
 
+/**
+ * 标准化用户输入的图像尺寸值。
+ * 合法的预设值（如 auto、1024x1024、16:9）原样返回；
+ * 自定义值需满足 16 的倍数、边长范围、像素预算等约束，否则退回默认值。
+ * @param value - 用户输入的尺寸（字符串或 undefined）
+ * @param maxAspectRatio - 自定义尺寸允许的最大长宽比，超出则退回默认值
+ * @returns 标准化后的 DrawSize
+ */
 export const normalizeSize = (value: unknown, maxAspectRatio?: number): DrawSize => {
   const size = String(value ?? "").trim() as DrawSize;
   if (presetSizeOptions.has(size)) return size;
@@ -61,6 +69,12 @@ export const normalizeSize = (value: unknown, maxAspectRatio?: number): DrawSize
   return isValidCustomSize(width, height, maxAspectRatio) ? `${width}x${height}` : DEFAULT_SIZE;
 };
 
+/**
+ * 标准化 NANO-BANANA 专用分辨率值。
+ * 仅接受 "1K" / "2K" / "4K"，无效值退回默认 4K。
+ * @param value - 用户选择的分辨率
+ * @returns 标准化后的 NanoImageSize
+ */
 export const normalizeNanoImageSize = (value: unknown): NanoImageSize => {
   if (value === "1K" || value === "2K" || value === "4K") return value;
   return DEFAULT_NANO_IMAGE_SIZE;

@@ -65,6 +65,11 @@ const fetchJson = async <T>(url: string, init: RequestInit, context: string) => 
   }
 };
 
+/**
+ * 多米 API 绘图提供者，对接 OpenAI Images 兼容接口。
+ * 支持 gpt-image-2 模型，使用 POST /v1/images/generations 提交任务，
+ * GET /v1/tasks/{id} 轮询异步结果。参考图仅支持公网 http(s) URL。
+ */
 export class DuomiProvider implements ImageModelProvider {
   private getDuomiEndpoint(settings: StoredSettings, path: string) {
     const configuredBaseUrl = (settings.baseUrl || "https://duomiapi.com").trim().replace(/\/+$/, "");

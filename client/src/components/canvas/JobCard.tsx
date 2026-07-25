@@ -42,8 +42,10 @@ import {
 import { Message } from "../ui/message";
 import { RetryingImage } from "../ui/RetryingImage";
 
+/** 同一任务多个版本之间的间距像素 */
 const VERSION_GAP = 8;
 
+/** JobCard 组件的 Props 类型 */
 type JobCardProps = {
   job: DrawJob;
   cardSize: JobCardSize;
@@ -68,6 +70,11 @@ const statusIcon = (status: DrawJob["status"]) => {
   return <Sparkles size={16} />;
 };
 
+/**
+ * 画布上的单个任务卡片组件。
+ * 显示任务的提示词、状态、生成图片缩略图，并提供重试、下载、删除、
+ * 重新绘制、拖拽排序等交互操作。使用 memo 避免无关更新引发的重渲染。
+ */
 export const JobCard = memo(function JobCard({
   job,
   cardSize,

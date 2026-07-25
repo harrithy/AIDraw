@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
+/** 输入框组合容器，支持前置/后置装饰元素（图标、按钮、文本等）。 */
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -144,6 +145,7 @@ function InputGroupTextarea({
   )
 }
 
+/** 输入框组合组件集，包含容器、装饰元素、文本域变体和按钮变体。 */
 export {
   InputGroup,
   InputGroupAddon,

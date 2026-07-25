@@ -14,7 +14,16 @@ import { DEFAULT_MODEL, getSettings } from "../storage/settings";
 import { broadcastStateUpdate } from "../storage/stateSync";
 import { assertRemoteImageUrls, normalizeNanoImageSize, normalizeSize } from "./jobValidation";
 
+/**
+ * 任务 CRUD API，封装任务创建、重试、重绘、排序和删除操作。
+ * 所有操作均会触发任务队列处理和状态广播。
+ */
 export const jobsApi = {
+  /**
+   * 列出指定文件夹下的所有任务，按 orderIndex + 创建时间排序。
+   * @param folderId - 文件夹 ID
+   * @returns 排序后的任务数组
+   */
   listJobs: async (folderId: string): Promise<DrawJob[]> => {
     const db = await openDb();
     await ensureFolder(folderId);
@@ -26,6 +35,12 @@ export const jobsApi = {
     });
   },
 
+  /**
+   * 批量创建绘图任务（1~8 个），自动校验参数且首个任务排在画布最前。
+   * @param folderId - 目标文件夹 ID
+   * @param payload - 创建参数（提示词、模式、尺寸、参考图等）
+   * @returns 创建的任务数组
+   */
   createJobs: async (folderId: string, payload: CreateJobPayload): Promise<DrawJob[]> => {
     const prompt = payload.prompt.trim();
     const inputImageUrls = payload.inputImageUrls?.length
@@ -121,6 +136,11 @@ export const jobsApi = {
     return created;
   },
 
+  /**
+   * 使用原参数重试失败或已完成的任务。
+   * @param jobId - 任务 ID
+   * @returns 重置为 pending 状态的任务对象
+   */
   retryJob: async (jobId: string): Promise<DrawJob> => {
     const job = await ensureJob(jobId);
     if (!["completed", "failed"].includes(job.status)) {
@@ -144,6 +164,12 @@ export const jobsApi = {
     return updated;
   },
 
+  /**
+   * 修改任务参数后重新生成（提示词、模型、尺寸、参考图均可修改）。
+   * @param jobId - 任务 ID
+   * @param edits - 编辑后的新参数
+   * @returns 更新后的任务对象
+   */
   regenerateJobWithEdits: async (
     jobId: string,
     edits: {
@@ -213,9 +239,22 @@ export const jobsApi = {
     return updated;
   },
 
+  /**
+   * 更新任务卡片在画布上的位置坐标。
+   * @param jobId - 任务 ID
+   * @param posX - 水平坐标
+   * @param posY - 垂直坐标
+   * @returns 更新后的任务对象
+   */
   updateJobPosition: async (jobId: string, posX: number, posY: number): Promise<DrawJob> =>
     updateJob(jobId, { posX, posY, hasCustomPosition: true }),
 
+  /**
+   * 按给定的 ID 顺序批量更新任务 orderIndex，实现拖拽排序。
+   * @param folderId - 文件夹 ID
+   * @param orderedIds - 按新顺序排列的任务 ID 数组
+   * @returns 更新后的任务数组
+   */
   reorderJobs: async (folderId: string, orderedIds: string[]): Promise<DrawJob[]> => {
     const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
     const db = await openDb();
@@ -256,6 +295,10 @@ export const jobsApi = {
     return updatedJobs;
   },
 
+  /**
+   * 删除指定任务，并广播状态以触发 UI 刷新。
+   * @param jobId - 任务 ID
+   */
   deleteJob: async (jobId: string): Promise<void> => {
     const db = await openDb();
     let folderId = "";

@@ -3,11 +3,16 @@ import gsap from "gsap";
 import { useRef } from "react";
 import { prefersReducedMotion } from "../../lib/motion";
 
+/** Metric 组件的 Props 类型 */
 type MetricProps = {
   label: string;
   value: string;
 };
 
+/**
+ * 数值指标展示组件。
+ * 数值变化时触发 GSAP 缩放弹跳动画，提升数据更新的视觉反馈。
+ */
 export function Metric({ label, value }: MetricProps) {
   const metricRef = useRef<HTMLDivElement | null>(null);
   const hasAnimatedRef = useRef(false);

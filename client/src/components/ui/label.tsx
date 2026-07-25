@@ -5,6 +5,7 @@ import { Label as LabelPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/** 表单标签组件，基于 Radix UI Label 封装，自动关联表单控件。 */
 function Label({
   className,
   ...props

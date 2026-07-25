@@ -2,6 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/** 通用文本输入框组件，基于 shadcn/ui 设计规范。 */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input

@@ -11,11 +11,17 @@ import type { DrawJob } from "../../types";
 import { AnimatedModal } from "../ui/AnimatedModal";
 import { RetryingImage } from "../ui/RetryingImage";
 
+/** 图片对比选中状态 */
 type ComparisonSelection = {
   jobId: string;
   imageIndex: number;
 };
 
+/**
+ * 图片预览模态框。
+ * 支持查看任务生成的大图，对比同一任务的不同版本输出，
+ * 并可将选中图片用作参考图或下载到本地。
+ */
 export function ImagePreview({
   job,
   onClose,

@@ -12,6 +12,7 @@ import type {
   UpdateImageProviderSettingsPayload
 } from "../../types";
 
+/** ApiSettingsDialog 组件的 Props 类型 */
 type ApiSettingsDialogProps = {
   open: boolean;
   settings: ImageProviderSettings;
@@ -19,6 +20,10 @@ type ApiSettingsDialogProps = {
   onSave: (payload: UpdateImageProviderSettingsPayload) => Promise<void>;
 };
 
+/**
+ * API 设置对话框，包装 ApiSettingsPanel 的模态窗口。
+ * 管理 Base URL、API Key、模型选择等绘图接口配置。
+ */
 export function ApiSettingsDialog({
   open,
   settings,

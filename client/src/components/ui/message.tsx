@@ -1,8 +1,10 @@
 import { createRoot } from "react-dom/client";
 import { AlertCircle, CheckCircle2, Info } from "lucide-react";
 
+/** 消息提示类型 */
 type MessageType = "success" | "error" | "info";
 
+/** 消息配置选项 */
 type MessageOptions = {
   action?: {
     label: string;
@@ -10,6 +12,15 @@ type MessageOptions = {
   };
 };
 
+/**
+ * 全局轻量消息提示工具。
+ * 以命令式 API 调用，动态创建 DOM 并自动消失。
+ * 支持 success / error / info 三种类型，可附带操作按钮。
+ *
+ * @example
+ * Message.success("保存成功")
+ * Message.error("网络错误", { action: { label: "重试", onClick: () => retry() } })
+ */
 export const Message = {
   success: (content: string, options?: MessageOptions) => showMessage(content, "success", options),
   error: (content: string, options?: MessageOptions) => showMessage(content, "error", options),

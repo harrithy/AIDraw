@@ -93,6 +93,11 @@ const fetchJson = async <T>(url: string, init: RequestInit, context: string) => 
   }
 };
 
+/**
+ * NANO-BANANA 绘图提供者，对接多米 API 的 Gemini 图片生成端点。
+ * 文生图调用 POST /api/gemini/nano-banana，图生图调用 /nano-banana-edit。
+ * 支持 image_size（1K/2K/4K）和 aspect_ratio 字段，参考图最多 10 张。
+ */
 export class NanoBananaProvider implements ImageModelProvider {
   private getNanoBananaEndpoint(settings: StoredSettings, path: string) {
     const configuredBaseUrl = (settings.baseUrl || "https://duomiapi.com").trim().replace(/\/+$/, "");

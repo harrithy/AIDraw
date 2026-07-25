@@ -43,9 +43,20 @@ const grsaiImageModelGroups = [
   { label: "Nano Banana", options: grsaiNanoBananaModelOptions }
 ] as const;
 
+/**
+ * 根据 API 提供者返回对应的模型分组列表，供下拉选择器渲染。
+ * Grsai 有独立的模型池（含 gpt-image-2-vip 和多款 nano-banana 变体），
+ * 其余提供者统一使用 Duomi 的模型分组。
+ * @param providerId - API 提供者标识（duomi / grsai）
+ * @returns 模型分组数组，每组包含 label 和 options
+ */
 export const getImageModelGroups = (providerId: ApiProviderId) =>
   providerId === "grsai" ? grsaiImageModelGroups : duomiImageModelGroups;
 
+/**
+ * 项目中所有被认可的模型值联合类型，从各组模型选项中自动推导。
+ * 用于类型收窄：确保 model 字段只能是下拉框中实际存在的选项之一。
+ */
 export type SupportedImageModel =
   | (typeof duomiGptModelOptions)[number]["value"]
   | (typeof grsaiGptModelOptions)[number]["value"]
@@ -62,6 +73,13 @@ const supportedImageModels = new Set<string>(
 export const isSupportedImageModel = (model: unknown): model is SupportedImageModel =>
   typeof model === "string" && supportedImageModels.has(model);
 
+/**
+ * 校验模型值在指定提供者的模型列表中是否存在。
+ * 与 isSupportedImageModel 不同，此函数按提供者分组校验，
+ * 避免 Grsai 专属模型被错误地识别为 Duomi 可用。
+ * @param model - 待校验的模型值
+ * @param providerId - 目标 API 提供者
+ */
 export const isImageModelAvailableForProvider = (
   model: unknown,
   providerId: ApiProviderId
@@ -78,11 +96,32 @@ const nanoBananaImageSizeModels = new Set<string>([
   ...grsaiNanoBananaModelOptions.map((option) => option.value)
 ]);
 
+/**
+ * 判断模型是否属于 NANO-BANANA 系列（基于 Gemini 的图片生成模型）。
+ * NANO-BANANA 使用独立的任务创建/轮询端点，与 GPT Image 接口路径不同。
+ * @param model - 模型名称
+ */
 export const isNanoBananaModel = (model: string) => nanoBananaModels.has(model);
 
+/**
+ * 判断模型是否支持 NANO-BANANA 特有的输出分辨率字段（1K/2K/4K）。
+ * 仅 NANO-BANANA 系列模型有此概念，GPT Image 模型使用传统的 size 参数。
+ * @param model - 模型名称
+ */
 export const supportsNanoBananaImageSize = (model: string) => nanoBananaImageSizeModels.has(model);
 
+/**
+ * 判断是否为 Grsai 平台的 GPT Image VIP 模型。
+ * VIP 模型支持更高的并发和更大的像素预算。
+ * @param model - 模型名称
+ */
 export const isGptImageVipModel = (model: string) => model === "gpt-image-2-vip";
 
+/**
+ * 判断 NANO-BANANA 模型是否支持扩展宽高比（1:4、4:1、1:8、8:1 等极端比例）。
+ * nano-banana-2 及其衍生变体（如 -2-cl、-2-2k-cl）支持这些极端比例，
+ * 而初代 nano-banana 和 nano-banana-pro 不支持。
+ * @param model - 模型名称
+ */
 export const supportsExtendedNanoAspectRatios = (model: string) =>
   /^nano-banana-2(?:-|$)/.test(model);

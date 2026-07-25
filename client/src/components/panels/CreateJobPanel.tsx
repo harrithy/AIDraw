@@ -27,6 +27,7 @@ import { prefersReducedMotion } from "../../lib/motion";
 import type { ApiProviderId, CreateJobPayload, DrawMode, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
 
+/** 文件上传结果 */
 type UploadResult = {
   url: string;
   originalName: string;

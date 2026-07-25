@@ -3,8 +3,11 @@ import { createPortal } from "react-dom";
 import { CircleHelp, Clock, Copy, Github, Maximize2, Moon, RefreshCw, Search, Settings, Sun, X, ZoomIn, ZoomOut, Check } from "lucide-react";
 import type { DrawJob } from "../../types";
 
+/** CanvasToolbar 组件的 Props 类型 */
 type CanvasToolbarProps = {
+  /** 当前画布缩放比例 */
   zoom: number;
+  /** 是否处于深色模式 */
   darkMode: boolean;
   onZoomOut: () => void;
   onZoomIn: () => void;
@@ -14,8 +17,10 @@ type CanvasToolbarProps = {
   onOpenGuide: () => void;
   onSortByName: () => void;
   onToggleTheme: () => void;
+  /** 搜索关键词 */
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
+  /** 当前画布上的所有任务，用于搜索过滤 */
   jobs: DrawJob[];
 };
 
@@ -34,6 +39,11 @@ const fuzzyMatch = (str: string, pattern: string) => {
   return patternIdx === pattern.length;
 };
 
+/**
+ * 画布工具栏组件。
+ * 提供缩放控制、画布重置、排序模式切换、深色模式切换、
+ * API 设置入口、新手引导入口及任务模糊搜索功能。
+ */
 export function CanvasToolbar({
   zoom,
   darkMode,

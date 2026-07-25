@@ -17,9 +17,12 @@ import type {
   UpdateImageProviderSettingsPayload,
 } from "../../types";
 
+/** ApiSettingsPanel 组件的 Props 类型 */
 type ApiSettingsPanelProps = {
+  /** 打开时是否自动聚焦 API Key 输入框 */
   autoFocusApiKey?: boolean;
   settings: ImageProviderSettings;
+  /** 展示变体：panel（嵌入式面板）或 dialog（对话框内嵌） */
   variant?: "panel" | "dialog";
   onSave: (payload: UpdateImageProviderSettingsPayload) => Promise<void>;
 };
@@ -32,6 +35,11 @@ const apiProviderOptions = [
 const getApiProviderLabel = (providerId: ApiProviderId) =>
   apiProviderOptions.find((option) => option.value === providerId)?.label ?? providerId;
 
+/**
+ * API 设置面板。
+ * 管理绘图 API 的连接配置，包括 Base URL、API Key 增删、
+ * 默认模型选择和提供者（Duomi / Grsai）切换。
+ */
 export function ApiSettingsPanel({
   autoFocusApiKey = false,
   settings,

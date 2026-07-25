@@ -51,6 +51,10 @@ type UploadResult = {
   originalName: string;
 };
 
+/**
+ * 重绘编辑参数，覆盖原任务的提示词、模型、尺寸等字段。
+ * 用于 RegenerateEditDialog 的 onConfirm 回调。
+ */
 export type RegenerateEdits = {
   prompt: string;
   model: string;
@@ -162,9 +166,15 @@ const deriveSizeState = (size: DrawSize | undefined) => {
   return { sizeMode: (value || "auto") as SizeMode, customWidth: "1024", customHeight: "1024" };
 };
 
+/** 标准化 thinking 值到合法枚举范围，无效值退回 "high"。 */
 const normalizeThinking = (value: DrawJob["thinking"]): ThinkingValue =>
   value === "high" || value === "medium" || value === "low" ? value : "high";
 
+/**
+ * 重绘编辑对话框。
+ * 任务完成或失败后，允许修改提示词、模型、尺寸、参考图等参数后重新生成。
+ * 复用 CreateJobPanel 的模型选择和图片上传逻辑（通过内嵌 CreateJobPanel 实现）。
+ */
 export function RegenerateEditDialog({
   apiProviderId,
   open,

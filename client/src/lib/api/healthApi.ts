@@ -9,7 +9,17 @@ import {
   maskSecret
 } from "../storage/settings";
 
+/**
+ * 应用健康检查与状态聚合 API。
+ * 同时返回当前系统状态、队列统计、及脱敏后的 API 配置信息，
+ * 供前端轮询和 UI 展示使用。
+ */
 export const healthApi = {
+  /**
+   * 获取系统健康状态摘要。
+   * 触发一次任务队列调度，收集队列统计、任务数量和当前 API 配置。
+   * @returns 包含队列状态、任务数和脱敏设置的 HealthPayload
+   */
   health: async (): Promise<HealthPayload> => {
     const db = await openDb();
     await processQueue();

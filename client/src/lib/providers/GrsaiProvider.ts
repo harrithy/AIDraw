@@ -58,6 +58,11 @@ const fetchJson = async <T>(url: string, init: RequestInit, context: string) => 
   }
 };
 
+/**
+ * Grsai API 绘图提供者。
+ * 支持 GPT Image 和 NANO-BANANA 双模型系列，使用 POST /v1/api/generate 提交任务，
+ * GET /v1/api/result 轮询结果。NANO-BANANA 模型额外支持 imageSize（1K/2K/4K）字段。
+ */
 export class GrsaiProvider implements ImageModelProvider {
   private getEndpoint(settings: StoredSettings, path: string) {
     const configuredBaseUrl = (settings.baseUrl || DEFAULT_GRSAI_BASE_URL).trim().replace(/\/+$/, "");

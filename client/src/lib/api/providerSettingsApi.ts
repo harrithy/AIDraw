@@ -19,10 +19,24 @@ const toPublicSettings = (settings: Awaited<ReturnType<typeof getSettings>>): Im
   activeApiKeyIndex: getActiveApiKeyIndex(settings)
 });
 
+/**
+ * API 提供者设置 API，封装配置的读写和脱敏处理。
+ * 完整 Key 仅存于浏览器本地，对外暴露时统一脱敏为 XXXX...XXXX 格式。
+ */
 export const providerSettingsApi = {
+  /**
+   * 获取当前 API 设置（返回脱敏版本）。
+   * @returns 脱敏后的 ImageProviderSettings
+   */
   getImageProviderSettings: async (): Promise<ImageProviderSettings> =>
     toPublicSettings(await getSettings()),
 
+  /**
+   * 更新 API 设置：Base URL、模型、API Key、多 Key 管理等。
+   * 支持切换提供者（duomi/grsai）并自动关联对应 Key。
+   * @param payload - 部分更新的设置字段
+   * @returns 更新后脱敏的 ImageProviderSettings
+   */
   updateImageProviderSettings: async (
     payload: UpdateImageProviderSettingsPayload
   ): Promise<ImageProviderSettings> => {

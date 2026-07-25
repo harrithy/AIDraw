@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 
+/** 表单字段集容器，用于分组相关表单控件。 */
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   return (
     <fieldset
@@ -20,6 +21,7 @@ function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   )
 }
 
+/** 字段集标题，支持 legend 和 label 两种样式变体。 */
 function FieldLegend({
   className,
   variant = "legend",
@@ -224,6 +226,7 @@ function FieldError({
   )
 }
 
+/** 表单字段组件集，包含字段集、图例、字段组、标签、描述、错误提示、分隔线等。 */
 export {
   Field,
   FieldLabel,

@@ -31,6 +31,11 @@ const escapeXml = (value: string) =>
     .replaceAll("\"", "&quot;")
     .replaceAll("'", "&apos;");
 
+/**
+ * 本地模拟绘图提供者，用于未配置 API Key 时的开发调试。
+ * 根据提示词的哈希值生成色彩渐变 + SVG 纹理的模拟图片，
+ * 延时 1.1~2.0 秒模拟异步生成过程。不发送任何网络请求。
+ */
 export class MockProvider implements ImageModelProvider {
   async createTask(_job: DrawJob, _settings: StoredSettings): Promise<CreatedProviderTask> {
     const taskId = `mock-task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;

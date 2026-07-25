@@ -43,7 +43,16 @@ const uploadImage = async (folderId: string, file: File): Promise<UploadedImage>
   return image;
 };
 
+/**
+ * 已上传图片管理 API，封装图片上传、列表查询和删除操作。
+ * 上传流程：本地文件 → 图床 → 公网 URL → IndexedDB 记录。
+ */
 export const uploadedImagesApi = {
+  /**
+   * 列出指定文件夹下所有已上传图片，按创建时间倒序。
+   * @param folderId - 文件夹 ID
+   * @returns 排序后的已上传图片数组
+   */
   listUploadedImages: async (folderId: string): Promise<UploadedImage[]> => {
     const db = await openDb();
     await ensureFolder(folderId);
@@ -57,6 +66,11 @@ export const uploadedImagesApi = {
 
   uploadImage,
 
+  /**
+   * 将任务生成的最新图片上传到图床并记录。
+   * @param jobId - 任务 ID
+   * @returns 上传后的图片记录
+   */
   uploadLatestJobImage: async (jobId: string): Promise<UploadedImage> => {
     const job = await ensureJob(jobId);
     const outputImages = getJobOutputImages(job);
@@ -67,6 +81,10 @@ export const uploadedImagesApi = {
     return uploadImage(job.folderId, file);
   },
 
+  /**
+   * 删除指定已上传图片的记录。
+   * @param imageId - 图片记录 ID
+   */
   deleteUploadedImage: async (imageId: string): Promise<void> => {
     const db = await openDb();
     let folderId = "";

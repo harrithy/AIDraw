@@ -13,6 +13,7 @@ import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, u
 import { createPortal } from "react-dom";
 import { useModalTransition } from "../../hooks/useModalTransition";
 
+/** OnboardingGuide 组件的 Props 类型 */
 type OnboardingGuideProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -178,6 +179,11 @@ const getPopoverLayout = (
   };
 };
 
+/**
+ * 新手引导分步教程。
+ * 以高亮遮罩 + 弹出提示的方式引导用户依次了解：创建文件夹、
+ * 创建任务、调整画布、API 设置等核心功能。首次使用自动弹出。
+ */
 export function OnboardingGuide({
   open,
   onOpenChange,

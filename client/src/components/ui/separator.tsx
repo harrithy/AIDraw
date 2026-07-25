@@ -3,6 +3,7 @@ import { Separator as SeparatorPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/** 分隔线组件，基于 Radix UI Separator，支持水平/垂直方向。 */
 function Separator({
   className,
   orientation = "horizontal",

@@ -12,9 +12,13 @@ import {
   DialogTitle
 } from "../ui/dialog";
 
+/** LeftSidebar 组件的 Props 类型 */
 type LeftSidebarProps = {
+  /** 侧边栏是否展开 */
   isOpen: boolean;
+  /** 所有文件夹列表 */
   folders: DrawFolder[];
+  /** 当前激活的文件夹 ID */
   activeFolderId: string | null;
   folderName: string;
   onFolderNameChange: (value: string) => void;
@@ -24,6 +28,10 @@ type LeftSidebarProps = {
   onDeleteFolder: (folderId: string) => void;
 };
 
+/**
+ * 左侧文件夹导航栏。
+ * 支持创建、选择、重命名和删除文件夹，每个文件夹对应独立的绘图画布。
+ */
 export function LeftSidebar({
   isOpen,
   folders,

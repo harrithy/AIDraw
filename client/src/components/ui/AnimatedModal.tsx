@@ -3,13 +3,19 @@ import { createPortal } from "react-dom";
 import { useModalTransition } from "../../hooks/useModalTransition";
 import { cn } from "../../lib/utils";
 
+/** AnimatedModal 组件的 Props 类型 */
 type AnimatedModalProps = {
+  /** 是否显示模态框 */
   open: boolean;
   onClose: () => void;
+  /** 无障碍标签 */
   ariaLabel: string;
   children: ReactNode;
+  /** 根容器额外 CSS 类 */
   rootClassName?: string;
+  /** 面板容器额外 CSS 类 */
   panelClassName?: string;
+  /** 是否通过 Portal 渲染到 body */
   portal?: boolean;
   onPointerDown?: PointerEventHandler<HTMLDivElement>;
 };
@@ -19,6 +25,11 @@ type PreservedModalContent = Pick<
   "ariaLabel" | "children" | "rootClassName" | "panelClassName"
 >;
 
+/**
+ * 通用动画模态框组件。
+ * 基于 GSAP 提供入场/出场动画，支持 Portal 渲染和 keepMounted 模式
+ * （关闭时保留 DOM 以便退出动画播放完再卸载）。
+ */
 export function AnimatedModal({
   open,
   onClose,

@@ -27,6 +27,7 @@ import {
 } from "../ui/dialog";
 import { RetryingImage } from "../ui/RetryingImage";
 
+/** UploadedImageLibrary 组件的 Props 类型 */
 type UploadedImageLibraryProps = {
   folderId: string;
   folderName: string;
