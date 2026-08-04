@@ -25,7 +25,7 @@ import type {
 } from "./types";
 
 const emptyQueue: QueueStats = {
-  maxConcurrent: 10,
+  maxConcurrent: 30,
   running: 0,
   pending: 0
 };

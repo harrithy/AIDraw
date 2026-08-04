@@ -13,7 +13,7 @@ A browser-based AI drawing workflow manager supporting Text-to-Image and Image-t
 
 - **📁 Folder Workspaces** — Create folders by theme (character designs, backgrounds, stickers, etc.), each with its own independent canvas
 - **🖼️ Dual Generation Modes** — Supports Text-to-Image and Image-to-Image. Drag-and-drop or paste local images as references
-- **📋 Task Queue Management** — Up to 10 concurrent jobs with automatic async status polling and retry for failed tasks
+- **📋 Task Queue Management** — Up to 30 concurrent jobs with automatic async status polling and retry for failed tasks
 - **🗺️ Infinite Canvas** — Zoomable and pannable canvas with drag-to-reorder task cards; canvas state is auto-saved
 - **🌓 Dark Mode** — Toggle between light and dark themes with persistent preference
 - **🔌 Flexible API Configuration** — Visual API settings panel compatible with any OpenAI Images-compatible service (defaults to Duomi API `gpt-image-2`)

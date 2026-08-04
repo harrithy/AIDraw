@@ -7,7 +7,7 @@ import { nowIso, sortJobs } from "./storage/helpers";
 import { getSettings } from "./storage/settings";
 import { broadcastStateUpdate } from "./storage/stateSync";
 
-export const MAX_CONCURRENT_JOBS = 10;
+export const MAX_CONCURRENT_JOBS = 30;
 const TASK_TIMEOUT_MINUTES = 30;
 const TASK_TIMEOUT_MS = TASK_TIMEOUT_MINUTES * 60 * 1000;
 const TASK_POLL_INTERVAL_MS = 10 * 1000;
