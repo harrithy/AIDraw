@@ -1,6 +1,6 @@
 import type { DrawJob } from "../../types";
 import { dimensionsFromSize } from "../imageDimensions";
-import { isGrokVideoModel } from "../imageModels";
+import { isVideoModel } from "../imageModels";
 import type { CreatedProviderTask, ImageModelProvider, ProviderTaskResult, StoredSettings } from "./types";
 
 const hashText = (text: string) => {
@@ -46,7 +46,7 @@ export class MockProvider implements ImageModelProvider {
   async queryTask(taskId: string, job: DrawJob, _settings: StoredSettings): Promise<ProviderTaskResult> {
     await new Promise((resolve) => window.setTimeout(resolve, 1100 + Math.floor(Math.random() * 900)));
 
-    if (isGrokVideoModel(job.model)) {
+    if (isVideoModel(job.model)) {
       return {
         state: "succeeded",
         imageUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"

@@ -16,6 +16,13 @@ const duomiGrokModelOptions = [
   { label: "grok-video", value: GROK_VIDEO_MODEL_BASE }
 ] as const;
 
+const duomiKlingModelOptions = [
+  { label: "kling-v3 (最新版)", value: "kling-v3" },
+  { label: "kling-v1-6", value: "kling-v1-6" },
+  { label: "kling-v1-5", value: "kling-v1-5" },
+  { label: "kling-v1", value: "kling-v1" }
+] as const;
+
 const grsaiGptModelOptions = [
   { label: GPT_IMAGE_MODEL, value: GPT_IMAGE_MODEL },
   { label: "gpt-image-2-vip", value: "gpt-image-2-vip" }
@@ -44,7 +51,8 @@ const duomiNanoBananaModelOptions = [
 const duomiImageModelGroups = [
   { label: "ChatGPT", options: duomiGptModelOptions },
   { label: "NANO-BANANA", options: duomiNanoBananaModelOptions },
-  { label: "GROK 视频", options: duomiGrokModelOptions }
+  { label: "GROK 视频", options: duomiGrokModelOptions },
+  { label: "KLING 视频", options: duomiKlingModelOptions }
 ] as const;
 
 const grsaiImageModelGroups = [
@@ -69,6 +77,7 @@ export const getImageModelGroups = (providerId: ApiProviderId) =>
 export type SupportedImageModel =
   | (typeof duomiGptModelOptions)[number]["value"]
   | (typeof duomiGrokModelOptions)[number]["value"]
+  | (typeof duomiKlingModelOptions)[number]["value"]
   | (typeof grsaiGptModelOptions)[number]["value"]
   | (typeof duomiNanoBananaModelOptions)[number]["value"]
   | (typeof grsaiNanoBananaModelOptions)[number]["value"];
@@ -144,8 +153,15 @@ export const isGrokVideoModel = (model: string) =>
   model === GROK_VIDEO_MODEL_1_5 || model === GROK_VIDEO_MODEL_BASE;
 
 /**
+ * 判断模型是否为 KLING（可灵）视频生成模型
+ * @param model - 模型名称
+ */
+export const isKlingVideoModel = (model: string) =>
+  model === "kling-v1" || model === "kling-v1-5" || model === "kling-v1-6" || model === "kling-v3";
+
+/**
  * 判断模型是否属于视频生成模型
  * @param model - 模型名称
  */
-export const isVideoModel = (model: string) => isGrokVideoModel(model);
+export const isVideoModel = (model: string) => isGrokVideoModel(model) || isKlingVideoModel(model);
 

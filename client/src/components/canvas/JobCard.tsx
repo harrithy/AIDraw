@@ -24,7 +24,7 @@ import { flushSync } from "react-dom";
 import type { JobCardSize } from "../../lib/canvas";
 import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
-import { isNanoBananaModel, isVideoModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
+import { isKlingVideoModel, isNanoBananaModel, isVideoModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
 import { getJobOutputImages } from "../../lib/jobImages";
 import { statusLabel } from "../../lib/jobLabels";
 import { prefersReducedMotion } from "../../lib/motion";
@@ -541,7 +541,7 @@ export const JobCard = memo(function JobCard({
           </span>
           <span className="job-meta-item">
             <em>{isVideoModel(job.model) ? "时长" : usesNanoBanana ? "分辨率" : "Quality"}</em>
-            <strong>{isVideoModel(job.model) ? `${job.duration ?? 10}秒` : qualityLabel}</strong>
+            <strong>{isVideoModel(job.model) ? `${job.duration ?? (isKlingVideoModel(job.model) ? 5 : 10)}秒` : qualityLabel}</strong>
           </span>
           <span className="job-meta-item">
             <em>尺寸</em>

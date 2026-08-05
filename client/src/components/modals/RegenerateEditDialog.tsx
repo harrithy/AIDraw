@@ -38,10 +38,12 @@ import {
   isGptImageVipModel,
   isGrokVideoModel,
   isImageModelAvailableForProvider,
+  isKlingVideoModel,
   isNanoBananaModel,
   isSupportedImageModel,
   supportsExtendedNanoAspectRatios,
   supportsNanoBananaImageSize,
+  isVideoModel,
   type SupportedImageModel
 } from "../../lib/imageModels";
 
@@ -51,6 +53,17 @@ const grokVideoSizeOptions: Array<{ label: string; value: SizeMode }> = [
   { label: "1:1", value: "1:1" },
   { label: "3:2", value: "3:2" },
   { label: "2:3", value: "2:3" }
+];
+
+const klingVideoSizeOptions: Array<{ label: string; value: SizeMode }> = [
+  { label: "16:9", value: "16:9" },
+  { label: "9:16", value: "9:16" },
+  { label: "1:1", value: "1:1" }
+];
+
+const klingVideoDurationOptions: Array<{ label: string; value: number }> = [
+  { label: "5 秒", value: 5 },
+  { label: "10 秒", value: 10 }
 ];
 
 const grokVideo15DurationOptions: Array<{ label: string; value: number }> = [
@@ -225,24 +238,30 @@ export function RegenerateEditDialog({
 
   const isNanoBanana = isNanoBananaModel(model);
   const isGrokVideo = isGrokVideoModel(model);
+  const isKlingVideo = isKlingVideoModel(model);
+  const isVideo = isVideoModel(model);
   const isDuomiNanoBanana = apiProviderId === "duomi" && isNanoBanana;
   const supportsNanoImageSize = supportsNanoBananaImageSize(model);
   const imageModelGroups = getImageModelGroups(apiProviderId);
-  const currentSizeOptions = isGrokVideo
-    ? grokVideoSizeOptions
-    : isNanoBanana
-      ? apiProviderId === "grsai" && supportsExtendedNanoAspectRatios(model)
-        ? extendedNanoAspectRatioOptions
-        : nanoAspectRatioOptions
-      : apiProviderId === "grsai" && isGptImageVipModel(model)
-        ? grsaiGptVipSizeOptions
-        : apiProviderId === "grsai"
-          ? grsaiGptSizeOptions
-          : gptSizeOptions;
+  const currentSizeOptions = isKlingVideo
+    ? klingVideoSizeOptions
+    : isGrokVideo
+      ? grokVideoSizeOptions
+      : isNanoBanana
+        ? apiProviderId === "grsai" && supportsExtendedNanoAspectRatios(model)
+          ? extendedNanoAspectRatioOptions
+          : nanoAspectRatioOptions
+        : apiProviderId === "grsai" && isGptImageVipModel(model)
+          ? grsaiGptVipSizeOptions
+          : apiProviderId === "grsai"
+            ? grsaiGptSizeOptions
+            : gptSizeOptions;
 
-  const currentVideoDurationOptions = model === GROK_VIDEO_MODEL_1_5
-    ? grokVideo15DurationOptions
-    : grokVideoBaseDurationOptions;
+  const currentVideoDurationOptions = isKlingVideo
+    ? klingVideoDurationOptions
+    : model === GROK_VIDEO_MODEL_1_5
+      ? grokVideo15DurationOptions
+      : grokVideoBaseDurationOptions;
 
   // 打开或切换到另一个任务时，用该任务的当前参数预填表单
   useEffect(() => {
@@ -269,15 +288,15 @@ export function RegenerateEditDialog({
   // 模型切换后，若当前 sizeMode 不在新模型的可选项里，回退到 16:9 或 auto
   useEffect(() => {
     if (!currentSizeOptions.some((option) => option.value === sizeMode)) {
-      setSizeMode(isGrokVideo ? "16:9" : "auto");
+      setSizeMode(isVideo ? "16:9" : "auto");
     }
-  }, [currentSizeOptions, sizeMode, isGrokVideo]);
+  }, [currentSizeOptions, sizeMode, isVideo]);
 
   useEffect(() => {
-    if (isGrokVideo && !currentVideoDurationOptions.some((opt) => opt.value === videoDuration)) {
-      setVideoDuration(10);
+    if (isVideo && !currentVideoDurationOptions.some((opt) => opt.value === videoDuration)) {
+      setVideoDuration(isKlingVideo ? 5 : 10);
     }
-  }, [isGrokVideo, currentVideoDurationOptions, videoDuration]);
+  }, [isVideo, isKlingVideo, currentVideoDurationOptions, videoDuration]);
 
   useEffect(() => {
     if (!isImageModelAvailableForProvider(model, apiProviderId)) {
@@ -446,7 +465,7 @@ export function RegenerateEditDialog({
       return;
     }
 
-    const requestSize: DrawSize = isGrokVideo
+    const requestSize: DrawSize = isVideo
       ? (resolvedSizeMode === "custom" || resolvedSizeMode === "auto" ? "16:9" : resolvedSizeMode)
       : resolvedSizeMode === "custom"
         ? `${width}x${height}`
@@ -458,7 +477,7 @@ export function RegenerateEditDialog({
       size: requestSize,
       thinking,
       imageSize: supportsNanoImageSize ? nanoImageSize : undefined,
-      duration: isGrokVideo ? videoDuration : undefined,
+      duration: isVideo ? videoDuration : undefined,
       inputImageUrls: inputImages.map((image) => image.url)
     });
   };
@@ -499,7 +518,7 @@ export function RegenerateEditDialog({
 
   const renderSizeSelect = () => (
     <Select value={sizeMode} onValueChange={(value) => setSizeMode(value as SizeMode)}>
-      <SelectTrigger aria-label={isGrokVideo || isNanoBanana ? "比例" : "Size"} className="composer-select-trigger">
+      <SelectTrigger aria-label={isVideo || isNanoBanana ? "比例" : "Size"} className="composer-select-trigger">
         <SelectValue>{currentSizeOptions.find((option) => option.value === sizeMode)?.label ?? "auto"}</SelectValue>
       </SelectTrigger>
       <SelectContent position="popper" align="start" className="composer-select-content size-select-content">
@@ -555,7 +574,7 @@ export function RegenerateEditDialog({
     <Dialog open={open} onOpenChange={(next) => { if (!next && !isSubmitting) onClose(); }}>
       <DialogContent showCloseButton={!isSubmitting} className="regenerate-edit-dialog sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isGrokVideo ? "重新编辑并生成视频" : "重新编辑并绘制"}</DialogTitle>
+          <DialogTitle>{isVideo ? "重新编辑并生成视频" : "重新编辑并绘制"}</DialogTitle>
           <DialogDescription>修改参数后重新生成，结果会作为新版本更新到当前任务卡片。</DialogDescription>
         </DialogHeader>
 
@@ -607,8 +626,8 @@ export function RegenerateEditDialog({
 
           <div className="form-grid">
             <Field>
-              <FieldLabel>{isGrokVideo ? "时长" : isNanoBanana ? "分辨率" : "Quality"}</FieldLabel>
-              {isGrokVideo
+              <FieldLabel>{isVideo ? "时长" : isNanoBanana ? "分辨率" : "Quality"}</FieldLabel>
+              {isVideo
                 ? renderVideoDurationSelect()
                 : isNanoBanana && supportsNanoImageSize
                   ? renderNanoImageSizeSelect()
@@ -619,7 +638,7 @@ export function RegenerateEditDialog({
                       : renderQualitySelect()}
             </Field>
             <Field>
-              <FieldLabel>{isGrokVideo || isNanoBanana ? "比例" : "Size"}</FieldLabel>
+              <FieldLabel>{isVideo || isNanoBanana ? "比例" : "Size"}</FieldLabel>
               {renderSizeSelect()}
             </Field>
           </div>
