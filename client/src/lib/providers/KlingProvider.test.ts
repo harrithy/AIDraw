@@ -70,7 +70,8 @@ describe("KlingProvider.createTask", () => {
       mode: "std",
       aspect_ratio: "16:9",
       duration: 5,
-      cfg_scale: 0.5
+      cfg_scale: 0.5,
+      sound: "off"
     });
     expect(body.image).toBeUndefined();
     expect(body.image_list).toBeUndefined();
@@ -84,7 +85,7 @@ describe("KlingProvider.createTask", () => {
     fetchMock.mockResolvedValue(jsonResponse({ code: 0, data: { task_id: "task-2" } }));
 
     await provider.createTask(
-      makeJob({ thinking: "high", duration: 10, size: "9:16" }),
+      makeJob({ thinking: "high", duration: 10, size: "9:16", sound: "on" }),
       makeSettings({ baseUrl: "https://my-proxy.com" })
     );
 
@@ -94,6 +95,7 @@ describe("KlingProvider.createTask", () => {
     expect(body.mode).toBe("pro");
     expect(body.duration).toBe(10);
     expect(body.aspect_ratio).toBe("9:16");
+    expect(body.sound).toBe("on");
   });
 
   it("aspect_ratio 不含冒号时回退为 16:9", async () => {

@@ -103,7 +103,8 @@ export class KlingProvider implements ImageModelProvider {
       mode: job.thinking === "high" ? "pro" : "std",
       aspect_ratio: aspectRatio,
       duration: job.duration ?? 5,
-      cfg_scale: 0.5
+      cfg_scale: 0.5,
+      sound: job.sound ?? "off"
     };
     const negativePrompt = job.negativePrompt?.trim();
     if (negativePrompt) {

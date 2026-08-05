@@ -84,10 +84,10 @@ export type DrawFolder = {
 };
 
 /**
- * 用户上传并保存到文件夹图片库中的图片
+ * 用户上传并保存到文件夹素材库中的图片或视频。
  */
 export type UploadedImage = {
-  /** 图片记录唯一 ID */
+  /** 素材记录唯一 ID */
   id: string;
   /** 所属文件夹 ID */
   folderId: string;
@@ -146,6 +146,8 @@ export type DrawJob = {
   imageSize?: NanoImageSize;
   /** 视频生成时长（秒） */
   duration?: number;
+  /** 音画同步：on=开启（有声），off=关闭（无声），仅 Kling 视频模型 */
+  sound?: "on" | "off";
   /** 排序索引（在同文件夹内） */
   orderIndex: number;
   /** 画布自由拖拽：卡片在画布坐标系中的 X 坐标 */
@@ -266,6 +268,8 @@ export type CreateJobPayload = {
   imageSize?: NanoImageSize;
   /** 视频生成时长（秒） */
   duration?: number;
+  /** 音画同步：on=开启（有声），off=关闭（无声），仅 Kling 视频模型 */
+  sound?: "on" | "off";
 };
 
 /**

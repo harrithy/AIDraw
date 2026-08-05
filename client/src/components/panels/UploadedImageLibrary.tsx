@@ -27,7 +27,7 @@ import {
 } from "../ui/dialog";
 import { RetryingImage } from "../ui/RetryingImage";
 
-/** UploadedImageLibrary 组件的 Props 类型 */
+/** UploadedImageLibrary 组件的 Props 类型。 */
 type UploadedImageLibraryProps = {
   folderId: string;
   folderName: string;
@@ -57,6 +57,9 @@ const getDateLabel = (value: string) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "日期未知" : dateLabelFormatter.format(date);
 };
+
+const isUploadedVideo = (media: UploadedImage) =>
+  media.mimeType?.startsWith("video/") || /\.(?:mp4|webm|mov)(?:\?|$)/i.test(media.url);
 
 export function UploadedImageLibrary({
   folderId,
@@ -217,8 +220,8 @@ export function UploadedImageLibrary({
           type="button"
           className="uploaded-image-library-trigger"
           onClick={() => setIsOpen((value) => !value)}
-          title="上传图片"
-          aria-label="上传图片"
+          title="上传素材"
+          aria-label="上传素材"
           aria-expanded={isOpen}
           aria-controls={popoverId}
           aria-haspopup="dialog"
@@ -232,13 +235,13 @@ export function UploadedImageLibrary({
           id={popoverId}
           className="uploaded-image-library-popover"
           role="dialog"
-          aria-label={`${folderName}的上传图片`}
+          aria-label={`${folderName}的上传素材`}
           aria-hidden={!isOpen}
         >
           <div className="uploaded-image-library-header">
             <div className="uploaded-image-library-title">
               <Images size={15} aria-hidden="true" />
-              <span>上传图片</span>
+              <span>上传素材</span>
             </div>
             {images.length > 0 ? (
               <span className="uploaded-image-library-total" aria-hidden="true">
@@ -255,7 +258,7 @@ export function UploadedImageLibrary({
                 value={dateFilter}
                 onChange={(event) => setDateFilter(event.target.value)}
                 className="uploaded-image-date-input"
-                aria-label="按日期筛选上传图片"
+                aria-label="按日期筛选上传素材"
               />
               {dateFilter ? (
                 <button
@@ -285,7 +288,7 @@ export function UploadedImageLibrary({
             ) : groupedImages.length === 0 ? (
               <div className="uploaded-image-library-state">
                 <Images size={22} />
-                <span>{dateFilter ? "该日期没有图片" : "暂无上传图片"}</span>
+                <span>{dateFilter ? "该日期没有素材" : "暂无上传素材"}</span>
               </div>
             ) : (
               groupedImages.map((group) => {
@@ -325,7 +328,11 @@ export function UploadedImageLibrary({
                                 onClick={() => setPreviewImage(image)}
                                 title={`预览 ${image.originalName}`}
                               >
-                                <RetryingImage src={image.url} alt={image.originalName} />
+                                {isUploadedVideo(image) ? (
+                                  <video src={image.url} muted playsInline preload="metadata" aria-label={image.originalName} />
+                                ) : (
+                                  <RetryingImage src={image.url} alt={image.originalName} />
+                                )}
                               </button>
                               <div className="uploaded-image-overlay">
                                 <Button
@@ -344,17 +351,19 @@ export function UploadedImageLibrary({
                                   <span className="uploaded-image-overlay-name" title={image.originalName}>
                                     {image.originalName}
                                   </span>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-xs"
-                                    className="uploaded-image-action-btn use-btn"
-                                    onClick={() => onUseImage(image.url)}
-                                    title="用作参考图"
-                                    aria-label={`${image.originalName} 用作参考图`}
-                                  >
-                                    <ImagePlus size={13} />
-                                  </Button>
+                                  {!isUploadedVideo(image) ? (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-xs"
+                                      className="uploaded-image-action-btn use-btn"
+                                      onClick={() => onUseImage(image.url)}
+                                      title="用作参考图"
+                                      aria-label={`${image.originalName} 用作参考图`}
+                                    >
+                                      <ImagePlus size={13} />
+                                    </Button>
+                                  ) : null}
                                 </div>
                               </div>
                             </article>
@@ -373,7 +382,7 @@ export function UploadedImageLibrary({
       <AnimatedModal
         open={Boolean(previewImage)}
         onClose={() => setPreviewImage(null)}
-        ariaLabel="上传图片预览"
+        ariaLabel={previewImage && isUploadedVideo(previewImage) ? "上传视频预览" : "上传图片预览"}
         panelClassName="uploaded-image-preview-panel"
       >
         {previewImage ? (
@@ -390,22 +399,28 @@ export function UploadedImageLibrary({
                 <X />
               </Button>
             </div>
-            <RetryingImage src={previewImage.url} alt={previewImage.originalName} />
+            {isUploadedVideo(previewImage) ? (
+              <video src={previewImage.url} controls autoPlay muted loop playsInline preload="metadata" />
+            ) : (
+              <RetryingImage src={previewImage.url} alt={previewImage.originalName} />
+            )}
             <div className="image-preview-caption uploaded-image-preview-caption">
               <div>
                 <strong>{previewImage.originalName}</strong>
                 <span>{formatDate(previewImage.createdAt)}</span>
               </div>
-              <Button
-                type="button"
-                onClick={() => {
-                  onUseImage(previewImage.url);
-                  setPreviewImage(null);
-                }}
-              >
-                <ImagePlus data-icon="inline-start" />
-                用作参考图
-              </Button>
+              {!isUploadedVideo(previewImage) ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    onUseImage(previewImage.url);
+                    setPreviewImage(null);
+                  }}
+                >
+                  <ImagePlus data-icon="inline-start" />
+                  用作参考图
+                </Button>
+              ) : null}
             </div>
           </>
         ) : null}
@@ -415,7 +430,7 @@ export function UploadedImageLibrary({
         <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>移除上传记录</DialogTitle>
-            <DialogDescription>只会从当前文件夹的图片列表中移除，不会删除图床文件。</DialogDescription>
+            <DialogDescription>只会从当前文件夹的素材列表中移除，不会删除图床文件。</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setDeleteImage(null)} disabled={isDeleting}>取消</Button>

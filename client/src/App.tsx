@@ -438,23 +438,23 @@ function App() {
     return api.uploadImage(activeFolderId, file);
   };
 
-  /** 将图片盒子的最新输出上传到图床，并同步到当前文件夹的图片库。 */
-  const uploadLatestJobImage = async (jobId: string) => {
-    const uploaded = await api.uploadLatestJobImage(jobId);
+  /** 将任务的最新图片或视频上传到图床，并同步到当前文件夹的素材库。 */
+  const uploadLatestJobMedia = async (jobId: string) => {
+    const uploaded = await api.uploadLatestJobMedia(jobId);
     setUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
-    setNotice("最新图片已上传到图床和图片库");
+    setNotice("最新结果已上传到图床和素材库");
   };
 
   /**
-   * 从当前文件夹的参考图库中移除指定的上传图片。
-   * @param imageId - 图片 ID
+   * 从当前文件夹的素材库中移除指定记录。
+   * @param imageId - 素材 ID
    */
   const deleteUploadedImage = async (imageId: string) => {
     try {
       await api.deleteUploadedImage(imageId);
-      setNotice("已从图片列表移除");
+      setNotice("已从素材列表移除");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "图片移除失败");
+      setNotice(error instanceof Error ? error.message : "素材移除失败");
       throw error;
     }
   };
@@ -550,7 +550,7 @@ function App() {
         onRetryJob={retryDrawing}
         onEditRetryJob={setEditingRetryJob}
         onDeleteJob={deleteJob}
-        onUploadLatestImage={uploadLatestJobImage}
+        onUploadLatestMedia={uploadLatestJobMedia}
         onUseImage={setImageToUse}
       />
 

@@ -81,6 +81,7 @@ const grokVideoBaseDurationOptions: Array<{ label: string; value: number }> = [
   { label: "30 秒 (0.84元)", value: 30 }
 ];
 import { getCustomSizeError, getCustomSizeSuggestion } from "../../lib/customImageSize";
+import { formatKlingPrice, getKlingPrice, type KlingSound } from "../../lib/klingPricing";
 import type { ApiProviderId, DrawJob, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
 
@@ -100,6 +101,7 @@ export type RegenerateEdits = {
   thinking: ThinkingValue;
   imageSize?: NanoImageSize;
   duration?: number;
+  sound?: KlingSound;
   inputImageUrls: string[];
 };
 
@@ -231,6 +233,7 @@ export function RegenerateEditDialog({
   const [model, setModel] = useState<SupportedImageModel>(GPT_IMAGE_MODEL);
   const [nanoImageSize, setNanoImageSize] = useState<NanoImageSize>("4K");
   const [videoDuration, setVideoDuration] = useState<number>(10);
+  const [sound, setSound] = useState<KlingSound>("on");
   const [inputImages, setInputImages] = useState<UploadResult[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -263,6 +266,11 @@ export function RegenerateEditDialog({
       ? grokVideo15DurationOptions
       : grokVideoBaseDurationOptions;
 
+  /** Kling 预计价格：与提交时的 mode 映射保持一致（thinking=high → pro，其余 → std） */
+  const klingPrice = isKlingVideo
+    ? getKlingPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound)
+    : null;
+
   // 打开或切换到另一个任务时，用该任务的当前参数预填表单
   useEffect(() => {
     if (!job) return;
@@ -270,7 +278,8 @@ export function RegenerateEditDialog({
     setThinking(normalizeThinking(job.thinking));
     setModel(isSupportedImageModel(job.model) ? job.model : GPT_IMAGE_MODEL);
     setNanoImageSize(job.imageSize ?? "4K");
-    setVideoDuration(job.duration ?? 10);
+    setVideoDuration(job.duration ?? (isKlingVideoModel(job.model) ? 5 : 10));
+    setSound(job.sound ?? "off");
     const derived = deriveSizeState(job.size);
     setSizeMode(derived.sizeMode);
     setCustomWidth(derived.customWidth);
@@ -478,6 +487,7 @@ export function RegenerateEditDialog({
       thinking,
       imageSize: supportsNanoImageSize ? nanoImageSize : undefined,
       duration: isVideo ? videoDuration : undefined,
+      sound: isKlingVideo ? sound : undefined,
       inputImageUrls: inputImages.map((image) => image.url)
     });
   };
@@ -545,6 +555,20 @@ export function RegenerateEditDialog({
               {option}
             </SelectItem>
           ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+
+  const renderSoundSelect = () => (
+    <Select value={sound} onValueChange={(value) => setSound(value as KlingSound)}>
+      <SelectTrigger aria-label="音画同步" className="composer-select-trigger">
+        <SelectValue>{sound === "on" ? "开启" : "关闭"}</SelectValue>
+      </SelectTrigger>
+      <SelectContent position="popper" align="start" className="composer-select-content">
+        <SelectGroup>
+          <SelectItem value="on" className="composer-select-item">开启（有声）</SelectItem>
+          <SelectItem value="off" className="composer-select-item">关闭（无声）</SelectItem>
         </SelectGroup>
       </SelectContent>
     </Select>
@@ -668,6 +692,19 @@ export function RegenerateEditDialog({
                   value={customHeight}
                   onChange={(event) => setCustomHeight(event.target.value)}
                 />
+              </Field>
+            </div>
+          ) : null}
+
+          {isKlingVideo ? (
+            <div className="form-grid">
+              <Field>
+                <FieldLabel>音画同步</FieldLabel>
+                {renderSoundSelect()}
+              </Field>
+              <Field>
+                <FieldLabel>预计价格</FieldLabel>
+                <div className="kling-price-value">{formatKlingPrice(klingPrice)}</div>
               </Field>
             </div>
           ) : null}

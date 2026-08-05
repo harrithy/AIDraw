@@ -27,6 +27,7 @@ import { formatDate } from "../../lib/format";
 import { isKlingVideoModel, isNanoBananaModel, isVideoModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
 import { getJobOutputImages } from "../../lib/jobImages";
 import { statusLabel } from "../../lib/jobLabels";
+import { formatKlingPrice, getKlingPrice } from "../../lib/klingPricing";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { DrawJob } from "../../types";
 import { AnimatedModal } from "../ui/AnimatedModal";
@@ -59,7 +60,7 @@ type JobCardProps = {
   onRetry: (jobId: string) => void;
   onEditRetry: (job: DrawJob) => void;
   onDelete?: (jobId: string) => void;
-  onUploadLatestImage?: (jobId: string) => Promise<void>;
+  onUploadLatestMedia?: (jobId: string) => Promise<void>;
   onUseImage?: (url: string) => void;
 };
 
@@ -88,7 +89,7 @@ export const JobCard = memo(function JobCard({
   onRetry,
   onEditRetry,
   onDelete,
-  onUploadLatestImage,
+  onUploadLatestMedia,
   onUseImage
 }: JobCardProps) {
   const cardRef = useRef<HTMLElement | null>(null);
@@ -105,6 +106,7 @@ export const JobCard = memo(function JobCard({
   const outputImages = getJobOutputImages(job);
   const previousOutputCountRef = useRef(Math.max(1, outputImages.length));
   const currentImageUrl = outputImages[outputImages.length - 1];
+  const mediaLabel = isVideoModel(job.model) ? "视频" : "图片";
   const hasMultipleVersions = outputImages.length > 1;
   const displayedVersions = hasMultipleVersions
     ? renderHistory
@@ -142,6 +144,12 @@ export const JobCard = memo(function JobCard({
           )
         )
       : [];
+  /** Kling 预计价格：无 sound 字段的旧任务按关闭（off）计（与 KlingProvider 默认一致） */
+  const klingJobPrice = isKlingVideoModel(job.model)
+    ? getKlingPrice(job.model, job.thinking === "high" ? "pro" : "std", job.duration ?? 5, job.sound ?? "off")
+    : null;
+  const klingPriceLabel = klingJobPrice === null ? "价格未知" : `约${formatKlingPrice(klingJobPrice)}`;
+  const klingSoundLabel = job.sound === "on" ? "有声" : job.sound === "off" ? "无声" : null;
   const cardStyle: CSSProperties &
     Record<
       | "--job-card-width"
@@ -240,14 +248,14 @@ export const JobCard = memo(function JobCard({
   };
 
   const handleUploadLatest = async () => {
-    if (!currentImageUrl || !onUploadLatestImage || isUploadingLatest) return;
+    if (!currentImageUrl || !onUploadLatestMedia || isUploadingLatest) return;
 
     setIsUploadingLatest(true);
     try {
-      await onUploadLatestImage(job.id);
-      Message.success("最新图片已上传到图床");
+      await onUploadLatestMedia(job.id);
+      Message.success(`最新${mediaLabel}已上传到图床`);
     } catch (error) {
-      Message.error(error instanceof Error ? error.message : "上传最新图片失败");
+      Message.error(error instanceof Error ? error.message : `上传最新${mediaLabel}失败`);
     } finally {
       setIsUploadingLatest(false);
     }
@@ -438,20 +446,20 @@ export const JobCard = memo(function JobCard({
             </button>
             {currentImageUrl ? (
               <>
-                <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title="下载图片">
+                <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title={`下载${mediaLabel}`}>
                   {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
                 </button>
-                {onUploadLatestImage ? (
+                {onUploadLatestMedia ? (
                   <button
                     type="button"
                     onClick={() => void handleUploadLatest()}
                     disabled={isUploadingLatest}
-                    title="上传最新图片到图床"
+                    title={`上传最新${mediaLabel}到图床`}
                   >
                     {isUploadingLatest ? <Loader2 className="spin" size={15} /> : <CloudUpload size={15} />}
                   </button>
                 ) : null}
-                {onUseImage && (
+                {onUseImage && !isVideoModel(job.model) && (
                   <button type="button" onClick={() => onUseImage(currentImageUrl)} title="作为参考图引用">
                     <ImagePlus size={15} />
                   </button>
@@ -547,6 +555,12 @@ export const JobCard = memo(function JobCard({
             <em>尺寸</em>
             <strong>{sizeLabel}</strong>
           </span>
+          {isKlingVideoModel(job.model) ? (
+            <span className="job-meta-item">
+              <em>{klingSoundLabel ? "声音" : "价格"}</em>
+              <strong>{klingSoundLabel ? `${klingSoundLabel} · ${klingPriceLabel}` : klingPriceLabel}</strong>
+            </span>
+          ) : null}
         </div>
         {job.errorMessage ? <small className="error-text">{job.errorMessage}</small> : null}
       </div>

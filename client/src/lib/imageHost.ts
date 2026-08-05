@@ -1,10 +1,12 @@
 const IMAGE_UPLOAD_BASE_URL = "https://image.harrio.xyz";
 const IMAGE_UPLOAD_PROXY_PATH = "/image-upload/upload";
 
-type ImageUploadResponse = Array<{
+type MediaUploadResponse = Array<{
   src?: string;
   url?: string;
 }>;
+
+type MediaKind = "image" | "video";
 
 const getErrorMessage = (payload: unknown, fallback: string) => {
   const data = payload as {
@@ -25,25 +27,25 @@ const getErrorMessage = (payload: unknown, fallback: string) => {
   return message ?? fallback;
 };
 
-const extractUploadedImageUrl = (payload: ImageUploadResponse | null) => {
+const extractUploadedMediaUrl = (payload: MediaUploadResponse | null) => {
   const uploaded = payload?.find((item) => typeof item.src === "string" || typeof item.url === "string");
   const rawUrl = uploaded?.src ?? uploaded?.url;
-  if (!rawUrl) throw new Error("图床上传成功，但未返回图片地址");
+  if (!rawUrl) throw new Error("图床上传成功，但未返回媒体地址");
   return new URL(rawUrl, IMAGE_UPLOAD_BASE_URL).toString();
 };
 
-/** 上传本地图片，并返回图床提供的公网地址。 */
-export const uploadImageToHost = async (file: File) => {
+/** 上传本地图片或视频，并返回图床提供的公网地址。 */
+export const uploadMediaToHost = async (file: File) => {
   const body = new FormData();
   body.append("file", file);
 
   try {
     const response = await fetch(IMAGE_UPLOAD_PROXY_PATH, { method: "POST", body });
-    const payload = (await response.json().catch(() => null)) as ImageUploadResponse | null;
+    const payload = (await response.json().catch(() => null)) as MediaUploadResponse | null;
     if (!response.ok) {
       throw new Error(getErrorMessage(payload, `图床上传失败：HTTP ${response.status}`));
     }
-    return extractUploadedImageUrl(payload);
+    return extractUploadedMediaUrl(payload);
   } catch (error) {
     if (error instanceof TypeError) {
       throw new Error("上传到图床失败：可能是网络不可达、CORS 限制，或 image.harrio.xyz 暂时不可用");
@@ -52,27 +54,61 @@ export const uploadImageToHost = async (file: File) => {
   }
 };
 
-const imageExtensionFromType = (mimeType: string) => {
+const mediaExtensionFromType = (mimeType: string, mediaUrl: string) => {
+  if (mimeType.includes("webm")) return "webm";
+  if (mimeType.includes("quicktime")) return "mov";
+  if (mimeType.includes("mp4") || mimeType.startsWith("video/")) return "mp4";
   if (mimeType.includes("jpeg")) return "jpg";
   if (mimeType.includes("webp")) return "webp";
   if (mimeType.includes("gif")) return "gif";
   if (mimeType.includes("svg")) return "svg";
+  if (mimeType.startsWith("image/")) return "png";
+
+  try {
+    const extension = new URL(mediaUrl).pathname.match(/\.([a-z0-9]+)$/i)?.[1];
+    if (extension) return extension.toLowerCase();
+  } catch {
+    // URL 已由调用方提供；解析失败时使用媒体类型的默认扩展名。
+  }
   return "png";
 };
 
-/** 将远程生成结果转换为 File，供用户手动再次上传到图床。 */
-export const createFileFromImageUrl = async (imageUrl: string, jobId: string) => {
+const resolveMediaKind = (mimeType: string, mediaUrl: string, expectedKind: MediaKind) => {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType && mimeType !== "application/octet-stream" && mimeType !== "binary/octet-stream") return null;
+
+  let extension = "";
   try {
-    const response = await fetch(imageUrl);
+    extension = new URL(mediaUrl).pathname.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() ?? "";
+  } catch {
+    extension = "";
+  }
+  if (["mp4", "webm", "mov"].includes(extension)) return "video";
+  if (["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(extension)) return "image";
+  return expectedKind;
+};
+
+/** 将远程生成结果转换为 File，供用户手动再次上传到图床。 */
+export const createFileFromMediaUrl = async (mediaUrl: string, jobId: string, expectedKind: MediaKind) => {
+  try {
+    const response = await fetch(mediaUrl);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();
-    const mimeType = blob.type || "image/png";
-    if (!mimeType.startsWith("image/")) throw new Error("返回内容不是图片");
-    return new File([blob], `aidraw-${jobId}.${imageExtensionFromType(mimeType)}`, { type: mimeType });
+    const mediaKind = resolveMediaKind(blob.type, mediaUrl, expectedKind);
+    if (!mediaKind) throw new Error("返回内容不是图片或视频");
+
+    const mimeType = blob.type.startsWith(`${mediaKind}/`)
+      ? blob.type
+      : mediaKind === "video"
+        ? "video/mp4"
+        : "image/png";
+    const extension = mediaExtensionFromType(mimeType, mediaUrl);
+    return new File([blob], `aidraw-${jobId}.${extension}`, { type: mimeType });
   } catch (error) {
     if (error instanceof TypeError) {
-      throw new Error("读取最新图片失败：图片服务器可能不允许浏览器跨域读取该文件");
+      throw new Error("读取最新媒体失败：远程服务器可能不允许浏览器跨域读取该文件");
     }
-    throw new Error(`读取最新图片失败：${error instanceof Error ? error.message : "未知错误"}`);
+    throw new Error(`读取最新媒体失败：${error instanceof Error ? error.message : "未知错误"}`);
   }
 };

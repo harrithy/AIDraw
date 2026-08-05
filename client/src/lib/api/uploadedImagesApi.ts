@@ -1,5 +1,6 @@
 import type { UploadedImage } from "../../types";
-import { createFileFromImageUrl, uploadImageToHost } from "../imageHost";
+import { createFileFromMediaUrl, uploadMediaToHost } from "../imageHost";
+import { isVideoModel } from "../imageModels";
 import { getJobOutputImages } from "../jobImages";
 import { FOLDER_STORE, openDb, UPLOADED_IMAGE_STORE } from "../storage/database";
 import { ensureFolder, ensureJob } from "../storage/entities";
@@ -11,8 +12,8 @@ const uploadImage = async (folderId: string, file: File): Promise<UploadedImage>
   const image: UploadedImage = {
     id: createId(),
     folderId,
-    url: await uploadImageToHost(file),
-    originalName: file.name || "上传图片",
+    url: await uploadMediaToHost(file),
+    originalName: file.name || "上传素材",
     mimeType: file.type || "application/octet-stream",
     byteSize: file.size,
     createdAt: nowIso()
@@ -44,14 +45,14 @@ const uploadImage = async (folderId: string, file: File): Promise<UploadedImage>
 };
 
 /**
- * 已上传图片管理 API，封装图片上传、列表查询和删除操作。
+ * 已上传素材管理 API，封装图片/视频上传、列表查询和删除操作。
  * 上传流程：本地文件 → 图床 → 公网 URL → IndexedDB 记录。
  */
 export const uploadedImagesApi = {
   /**
-   * 列出指定文件夹下所有已上传图片，按创建时间倒序。
+   * 列出指定文件夹下所有已上传素材，按创建时间倒序。
    * @param folderId - 文件夹 ID
-   * @returns 排序后的已上传图片数组
+   * @returns 排序后的已上传素材数组
    */
   listUploadedImages: async (folderId: string): Promise<UploadedImage[]> => {
     const db = await openDb();
@@ -67,23 +68,23 @@ export const uploadedImagesApi = {
   uploadImage,
 
   /**
-   * 将任务生成的最新图片上传到图床并记录。
+   * 将任务生成的最新图片或视频上传到图床并记录。
    * @param jobId - 任务 ID
-   * @returns 上传后的图片记录
+   * @returns 上传后的素材记录
    */
-  uploadLatestJobImage: async (jobId: string): Promise<UploadedImage> => {
+  uploadLatestJobMedia: async (jobId: string): Promise<UploadedImage> => {
     const job = await ensureJob(jobId);
-    const outputImages = getJobOutputImages(job);
-    const latestImageUrl = outputImages[outputImages.length - 1];
-    if (!latestImageUrl) throw new Error("该图片盒子还没有可上传的图片");
+    const outputMedia = getJobOutputImages(job);
+    const latestMediaUrl = outputMedia[outputMedia.length - 1];
+    if (!latestMediaUrl) throw new Error("该任务还没有可上传的结果");
 
-    const file = await createFileFromImageUrl(latestImageUrl, job.id);
+    const file = await createFileFromMediaUrl(latestMediaUrl, job.id, isVideoModel(job.model) ? "video" : "image");
     return uploadImage(job.folderId, file);
   },
 
   /**
-   * 删除指定已上传图片的记录。
-   * @param imageId - 图片记录 ID
+   * 删除指定已上传素材的记录。
+   * @param imageId - 素材记录 ID
    */
   deleteUploadedImage: async (imageId: string): Promise<void> => {
     const db = await openDb();

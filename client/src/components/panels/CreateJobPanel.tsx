@@ -8,6 +8,7 @@ import { Message } from "@/components/ui/message";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { AnimatedModal } from "@/components/ui/AnimatedModal";
 import {
@@ -61,6 +62,7 @@ const grokVideoBaseDurationOptions: Array<{ label: string; value: number }> = [
   { label: "30 秒 (0.84元)", value: 30 }
 ];
 import { getCustomSizeError, getCustomSizeSuggestion } from "../../lib/customImageSize";
+import { formatKlingPrice, getKlingPrice, type KlingSound } from "../../lib/klingPricing";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { ApiProviderId, CreateJobPayload, DrawMode, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
@@ -201,6 +203,7 @@ interface FolderDraft {
   model: SupportedImageModel;
   nanoImageSize: NanoImageSize;
   videoDuration?: number;
+  sound?: KlingSound;
   inputImages: UploadResult[];
 }
 
@@ -243,6 +246,7 @@ export function CreateJobPanel({
   const [model, setModel] = useState<SupportedImageModel>(GPT_IMAGE_MODEL);
   const [nanoImageSize, setNanoImageSize] = useState<NanoImageSize>("4K");
   const [videoDuration, setVideoDuration] = useState<number>(10);
+  const [sound, setSound] = useState<KlingSound>("on");
   const [inputImages, setInputImages] = useState<UploadResult[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadResult | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -277,6 +281,11 @@ export function CreateJobPanel({
       ? grokVideo15DurationOptions
       : grokVideoBaseDurationOptions;
 
+  /** Kling 预计价格：与提交时的 mode 映射保持一致（thinking=high → pro，其余 → std） */
+  const klingPrice = isKlingVideo
+    ? getKlingPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound)
+    : null;
+
   const isUpdatingDraftRef = useRef(false);
 
   // Load draft when activeFolderId changes
@@ -291,10 +300,11 @@ export function CreateJobPanel({
       setSizeMode(draft.sizeMode ?? "auto");
       setCustomWidth(draft.customWidth ?? "1024");
       setCustomHeight(draft.customHeight ?? "1024");
-      setThinking(draft.thinking ?? "high");
+      setThinking(qualityOptions.includes(draft.thinking) ? draft.thinking : "high");
       setModel(isSupportedImageModel(draft.model) ? draft.model : GPT_IMAGE_MODEL);
       setNanoImageSize(draft.nanoImageSize ?? "4K");
       setVideoDuration(draft.videoDuration ?? 10);
+      setSound(draft.sound ?? "on");
       setInputImages(draft.inputImages ?? []);
     } else {
       setPrompt("");
@@ -306,6 +316,7 @@ export function CreateJobPanel({
       setModel(GPT_IMAGE_MODEL);
       setNanoImageSize("4K");
       setVideoDuration(10);
+      setSound("on");
       setInputImages([]);
     }
 
@@ -329,6 +340,7 @@ export function CreateJobPanel({
       model,
       nanoImageSize,
       videoDuration,
+      sound,
       inputImages
     });
   }, [
@@ -342,6 +354,7 @@ export function CreateJobPanel({
     model,
     nanoImageSize,
     videoDuration,
+    sound,
     inputImages
   ]);
 
@@ -587,7 +600,8 @@ export function CreateJobPanel({
       thinking,
       model,
       imageSize: supportsNanoImageSize ? nanoImageSize : undefined,
-      duration: isVideo ? videoDuration : undefined
+      duration: isVideo ? videoDuration : undefined,
+      sound: isKlingVideo ? sound : undefined
     });
   };
 
@@ -672,6 +686,16 @@ export function CreateJobPanel({
         </SelectGroup>
       </SelectContent>
     </Select>
+  );
+
+  const renderSoundSwitch = (id?: string) => (
+    <Switch
+      id={id}
+      checked={sound === "on"}
+      onCheckedChange={(checked) => setSound(checked ? "on" : "off")}
+      aria-label="音画同步"
+      title={sound === "on" ? "关闭音画同步" : "开启音画同步"}
+    />
   );
 
   const renderModelSelect = (id?: string, side: "top" | "bottom" = "bottom") => (
@@ -785,14 +809,19 @@ export function CreateJobPanel({
                 <FieldLabel htmlFor="composer-model">模型</FieldLabel>
                 {renderModelSelect("composer-model", "top")}
               </Field>
+              {isKlingVideo ? (
+                <>
+                  <Field orientation="horizontal" className="kling-sound-field">
+                    <FieldLabel htmlFor="composer-sound">音画同步</FieldLabel>
+                    {renderSoundSwitch("composer-sound")}
+                  </Field>
+                  <div className="kling-price-pill" title={`预计价格：${formatKlingPrice(klingPrice)}`}>
+                    <span>预计</span>
+                    <strong>{formatKlingPrice(klingPrice)}</strong>
+                  </div>
+                </>
+              ) : null}
             </div>
-
-            {notice ? (
-              <div className="notice-line composer-notice">
-                <MousePointer2 size={15} />
-                <span>{inputImages.length > 0 ? "检测到图片，将自动使用图生图" : notice}</span>
-              </div>
-            ) : null}
 
             <Button 
               type="button" 
@@ -818,6 +847,12 @@ export function CreateJobPanel({
                 placeholder="描述你想生成的画面"
               />
               <InputGroupAddon className="composer-actions absolute bottom-2 right-2 flex items-center gap-2">
+                {notice ? (
+                  <div className="notice-line composer-notice-inline">
+                    <MousePointer2 size={14} />
+                    <span>{inputImages.length > 0 ? "检测到图片，将自动使用图生图" : notice}</span>
+                  </div>
+                ) : null}
                 <Button type="button" variant="outline" size="icon" asChild title="上传参考图片">
                   <label>
                     <input className="sr-only" type="file" accept="image/*" multiple onChange={uploadImage} />
@@ -941,6 +976,19 @@ export function CreateJobPanel({
           {renderModelSelect()}
         </Field>
       </div>
+
+      {isKlingVideo ? (
+        <div className="form-grid">
+          <Field>
+            <FieldLabel>音画同步</FieldLabel>
+            {renderSoundSwitch()}
+          </Field>
+          <Field>
+            <FieldLabel>预计价格</FieldLabel>
+            <div className="kling-price-value">{formatKlingPrice(klingPrice)}</div>
+          </Field>
+        </div>
+      ) : null}
 
 
 

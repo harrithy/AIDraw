@@ -3,7 +3,9 @@ import {
   MAX_NANO_BANANA_REFERENCE_IMAGES,
   isGptImageVipModel,
   isGrokVideoModel,
+  isKlingVideoModel,
   isNanoBananaModel,
+  isVideoModel,
   supportsNanoBananaImageSize
 } from "../imageModels";
 import { dimensionsFromSize } from "../imageDimensions";
@@ -112,6 +114,8 @@ export const jobsApi = {
               imageSize: supportsNanoBananaImageSize(model)
                 ? normalizeNanoImageSize(payload.imageSize)
                 : undefined,
+              duration: isVideoModel(model) ? payload.duration : undefined,
+              sound: isKlingVideoModel(model) ? (payload.sound ?? "off") : undefined,
               orderIndex: baseOrderIndex + index,
               posX: 0,
               posY: 0,
@@ -180,6 +184,7 @@ export const jobsApi = {
       thinking: "high" | "medium" | "low";
       imageSize?: NanoImageSize;
       duration?: number;
+      sound?: "on" | "off";
       inputImageUrls: string[];
     }
   ): Promise<DrawJob> => {
@@ -225,7 +230,12 @@ export const jobsApi = {
       imageSize: supportsNanoBananaImageSize(model)
         ? normalizeNanoImageSize(edits.imageSize)
         : undefined,
-      duration: isGrokVideoModel(model) ? (edits.duration ?? 10) : undefined,
+      duration: isGrokVideoModel(model)
+        ? (edits.duration ?? 10)
+        : isKlingVideoModel(model)
+          ? (edits.duration ?? 5)
+          : undefined,
+      sound: isKlingVideoModel(model) ? (edits.sound ?? "off") : undefined,
       status: "pending",
       errorMessage: undefined,
       provider: undefined,

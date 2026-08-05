@@ -25,7 +25,7 @@ import { WorkflowLinks } from "./WorkflowLinks";
  * @param onPreviewJob - 预览任务图片
  * @param onRetryJob - 重试失败任务
  * @param onEditRetryJob - 带着原始参数跳转到编辑页重绘
- * @param onUploadLatestImage - 将任务的最新图片上传到图床
+ * @param onUploadLatestMedia - 将任务的最新图片或视频上传到图床
  * @param onUseImage - 将输出图片用作参考图
  */
 type WorkflowCanvasProps = {
@@ -46,7 +46,7 @@ type WorkflowCanvasProps = {
   onRetryJob: (jobId: string) => void;
   onEditRetryJob: (job: DrawJob) => void;
   onDeleteJob?: (jobId: string) => void;
-  onUploadLatestImage?: (jobId: string) => Promise<void>;
+  onUploadLatestMedia?: (jobId: string) => Promise<void>;
   onUseImage?: (url: string) => void;
 };
 
@@ -68,7 +68,7 @@ export function WorkflowCanvas({
   onRetryJob,
   onEditRetryJob,
   onDeleteJob,
-  onUploadLatestImage,
+  onUploadLatestMedia,
   onUseImage
 }: WorkflowCanvasProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -132,7 +132,7 @@ export function WorkflowCanvas({
                 onRetry={onRetryJob}
                 onEditRetry={onEditRetryJob}
                 onDelete={onDeleteJob}
-                onUploadLatestImage={onUploadLatestImage}
+                onUploadLatestMedia={onUploadLatestMedia}
                 onUseImage={onUseImage}
               />
             ))}
