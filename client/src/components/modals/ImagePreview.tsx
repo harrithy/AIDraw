@@ -4,7 +4,7 @@ import { Download, ImagePlus, Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
-import { isNanoBananaModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
+import { isNanoBananaModel, isVideoModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
 import { getJobOutputImages } from "../../lib/jobImages";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { DrawJob } from "../../types";
@@ -17,10 +17,30 @@ type ComparisonSelection = {
   imageIndex: number;
 };
 
+const renderMediaItem = (imageUrl: string, altText: string, className?: string, ariaHidden?: boolean) => {
+  const isVideo = /\.mp4(?:\?|$)/i.test(imageUrl);
+  if (isVideo) {
+    return (
+      <video
+        src={imageUrl}
+        controls
+        autoPlay
+        loop
+        muted
+        playsInline
+        className={className}
+        aria-hidden={ariaHidden}
+        style={{ maxWidth: "100%", maxHeight: "75vh", borderRadius: "12px" }}
+      />
+    );
+  }
+  return <RetryingImage src={imageUrl} alt={altText} className={className} aria-hidden={ariaHidden} />;
+};
+
 /**
- * 图片预览模态框。
- * 支持查看任务生成的大图，对比同一任务的不同版本输出，
- * 并可将选中图片用作参考图或下载到本地。
+ * 媒体（图片/视频）预览模态框。
+ * 支持查看任务生成的视频或图片，对比同一任务的不同版本输出，
+ * 并可将选中媒体用作参考图或下载到本地。
  */
 export function ImagePreview({
   job,
@@ -37,6 +57,7 @@ export function ImagePreview({
   const [comparisonSelection, setComparisonSelection] = useState<ComparisonSelection | null>(null);
   const imageUrls = job ? getJobOutputImages(job) : [];
   const currentImageUrl = imageUrls[imageUrls.length - 1];
+  const isJobVideo = job ? isVideoModel(job.model) : false;
   const hasComparison = imageUrls.length > 1;
   const latestComparisonIndex = Math.max(0, imageUrls.length - 2);
   const selectedComparisonIndex = comparisonSelection && comparisonSelection.jobId === job?.id
@@ -53,7 +74,7 @@ export function ImagePreview({
       }
 
       const layers = previewRef.current
-        ? Array.from(previewRef.current.querySelectorAll<HTMLImageElement>(".image-comparison-layer"))
+        ? Array.from(previewRef.current.querySelectorAll<HTMLElement>(".image-comparison-layer"))
         : [];
       const currentJobId = job.id;
       const jobChanged = animatedJobIdRef.current !== currentJobId;
@@ -84,7 +105,7 @@ export function ImagePreview({
 
   if (!job || !currentImageUrl) {
     return (
-      <AnimatedModal open={false} onClose={onClose} ariaLabel="图片预览">
+      <AnimatedModal open={false} onClose={onClose} ariaLabel="媒体预览">
         {null}
       </AnimatedModal>
     );
@@ -109,11 +130,13 @@ export function ImagePreview({
     }
   };
 
+  const isCurrentVideo = isJobVideo || /\.mp4(?:\?|$)/i.test(currentImageUrl);
+
   return (
     <AnimatedModal
       open
       onClose={onClose}
-      ariaLabel="图片预览"
+      ariaLabel={isCurrentVideo ? "视频预览" : "图片预览"}
       panelClassName={hasComparison ? "comparison-preview-panel" : undefined}
     >
       <div className="image-preview-actions">
@@ -122,7 +145,7 @@ export function ImagePreview({
           className="image-preview-action"
           onClick={() => void handleDownload()}
           disabled={isDownloading}
-          title="下载图片"
+          title={isCurrentVideo ? "下载视频" : "下载图片"}
         >
           {isDownloading ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
         </button>
@@ -155,13 +178,12 @@ export function ImagePreview({
               </figcaption>
               <div ref={previewRef} className="image-comparison-stage">
                 {imageUrls.slice(0, -1).map((imageUrl, imageIndex) => (
-                  <RetryingImage
-                    key={`${imageIndex}-${imageUrl}`}
-                    className={`image-comparison-layer${imageIndex === safeComparisonIndex ? " is-selected" : ""}`}
-                    src={imageUrl}
-                    alt={`${job.prompt}，版本 ${imageIndex + 1}`}
-                    aria-hidden={imageIndex !== safeComparisonIndex}
-                  />
+                  renderMediaItem(
+                    imageUrl,
+                    `${job.prompt}，版本 ${imageIndex + 1}`,
+                    `image-comparison-layer${imageIndex === safeComparisonIndex ? " is-selected" : ""}`,
+                    imageIndex !== safeComparisonIndex
+                  )
                 ))}
               </div>
             </figure>
@@ -170,11 +192,7 @@ export function ImagePreview({
                 <span>当前版本</span>
                 <strong>V{imageUrls.length}</strong>
               </figcaption>
-              <RetryingImage
-                key={currentImageUrl}
-                src={currentImageUrl}
-                alt={`${job.prompt}，当前版本 ${imageUrls.length}`}
-              />
+              {renderMediaItem(currentImageUrl, `${job.prompt}，当前版本 ${imageUrls.length}`)}
             </figure>
           </div>
           {imageUrls.length > 2 ? (
@@ -190,7 +208,7 @@ export function ImagePreview({
                     aria-pressed={imageIndex === safeComparisonIndex}
                     title={`与当前版本对比 V${imageIndex + 1}`}
                   >
-                    <RetryingImage src={imageUrl} alt={`版本 ${imageIndex + 1}`} />
+                    {renderMediaItem(imageUrl, `版本 ${imageIndex + 1}`)}
                     <span>V{imageIndex + 1}</span>
                   </button>
                 ))}
@@ -199,12 +217,12 @@ export function ImagePreview({
           ) : null}
         </>
       ) : (
-        <RetryingImage key={currentImageUrl} src={currentImageUrl} alt={job.prompt} />
+        renderMediaItem(currentImageUrl, job.prompt)
       )}
       <div className="image-preview-caption">
         <strong>{job.prompt}</strong>
         <span>
-          {formatDate(job.createdAt)} · {usesNanoBanana ? "分辨率" : "quality"} {qualityLabel} · {sizeLabel}
+          {formatDate(job.createdAt)} · {isCurrentVideo ? "格式 MP4" : usesNanoBanana ? "分辨率 " + qualityLabel : "quality " + qualityLabel} · {sizeLabel}
           {hasComparison ? ` · 共 ${imageUrls.length} 个版本` : ""}
         </span>
       </div>

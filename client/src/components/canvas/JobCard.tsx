@@ -24,7 +24,7 @@ import { flushSync } from "react-dom";
 import type { JobCardSize } from "../../lib/canvas";
 import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
-import { isNanoBananaModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
+import { isNanoBananaModel, isVideoModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
 import { getJobOutputImages } from "../../lib/jobImages";
 import { statusLabel } from "../../lib/jobLabels";
 import { prefersReducedMotion } from "../../lib/motion";
@@ -478,6 +478,7 @@ export const JobCard = memo(function JobCard({
             <div className="job-image-comparison">
               {displayedVersions.map(({ imageUrl, versionNumber }) => {
                 const isLatest = versionNumber === outputImages.length;
+                const isMediaVideo = isVideoModel(job.model) || /\.mp4(?:\?|$)/i.test(imageUrl);
 
                 return (
                   <button
@@ -487,7 +488,11 @@ export const JobCard = memo(function JobCard({
                     onClick={() => onPreview(job)}
                     title={isLatest ? `查看当前版本 V${versionNumber}` : `查看并对比 V${versionNumber}`}
                   >
-                    <RetryingImage src={imageUrl} alt={`${job.prompt}，版本 ${versionNumber}`} />
+                    {isMediaVideo ? (
+                      <video src={imageUrl} autoPlay loop muted playsInline className="retrying-img is-loaded" />
+                    ) : (
+                      <RetryingImage src={imageUrl} alt={`${job.prompt}，版本 ${versionNumber}`} />
+                    )}
                     <span>{isLatest ? "当前" : "上一版"} · V{versionNumber}</span>
                   </button>
                 );
@@ -495,7 +500,11 @@ export const JobCard = memo(function JobCard({
             </div>
           ) : (
             <button type="button" className="job-image-button" onClick={() => onPreview(job)} title="放大预览">
-              <RetryingImage key={currentImageUrl} src={currentImageUrl} alt={job.prompt} />
+              {isVideoModel(job.model) || /\.mp4(?:\?|$)/i.test(currentImageUrl) ? (
+                <video src={currentImageUrl} autoPlay loop muted playsInline className="retrying-img is-loaded" />
+              ) : (
+                <RetryingImage key={currentImageUrl} src={currentImageUrl} alt={job.prompt} />
+              )}
             </button>
           )
         ) : (
@@ -531,8 +540,8 @@ export const JobCard = memo(function JobCard({
             <strong>{formatDate(job.createdAt)}</strong>
           </span>
           <span className="job-meta-item">
-            <em>{usesNanoBanana ? "分辨率" : "Quality"}</em>
-            <strong>{qualityLabel}</strong>
+            <em>{isVideoModel(job.model) ? "时长" : usesNanoBanana ? "分辨率" : "Quality"}</em>
+            <strong>{isVideoModel(job.model) ? `${job.duration ?? 10}秒` : qualityLabel}</strong>
           </span>
           <span className="job-meta-item">
             <em>尺寸</em>

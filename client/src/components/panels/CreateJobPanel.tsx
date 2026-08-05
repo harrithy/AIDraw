@@ -12,9 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { AnimatedModal } from "@/components/ui/AnimatedModal";
 import {
   GPT_IMAGE_MODEL,
+  GROK_VIDEO_MODEL_1_5,
   MAX_NANO_BANANA_REFERENCE_IMAGES,
   getImageModelGroups,
   isGptImageVipModel,
+  isGrokVideoModel,
   isImageModelAvailableForProvider,
   isNanoBananaModel,
   isSupportedImageModel,
@@ -22,6 +24,29 @@ import {
   supportsNanoBananaImageSize,
   type SupportedImageModel
 } from "../../lib/imageModels";
+
+const grokVideoSizeOptions: Array<{ label: string; value: SizeMode }> = [
+  { label: "16:9", value: "16:9" },
+  { label: "9:16", value: "9:16" },
+  { label: "1:1", value: "1:1" },
+  { label: "3:2", value: "3:2" },
+  { label: "2:3", value: "2:3" }
+];
+
+const grokVideo15DurationOptions: Array<{ label: string; value: number }> = [
+  { label: "6 秒 (0.28元)", value: 6 },
+  { label: "10 秒 (0.28元 - 默认)", value: 10 },
+  { label: "15 秒 (0.56元)", value: 15 }
+];
+
+const grokVideoBaseDurationOptions: Array<{ label: string; value: number }> = [
+  { label: "6 秒 (0.28元)", value: 6 },
+  { label: "10 秒 (0.28元 - 默认)", value: 10 },
+  { label: "15 秒 (0.56元)", value: 15 },
+  { label: "20 秒 (0.56元)", value: 20 },
+  { label: "25 秒 (0.84元)", value: 25 },
+  { label: "30 秒 (0.84元)", value: 30 }
+];
 import { getCustomSizeError, getCustomSizeSuggestion } from "../../lib/customImageSize";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { ApiProviderId, CreateJobPayload, DrawMode, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
@@ -162,6 +187,7 @@ interface FolderDraft {
   thinking: ThinkingValue;
   model: SupportedImageModel;
   nanoImageSize: NanoImageSize;
+  videoDuration?: number;
   inputImages: UploadResult[];
 }
 
@@ -203,6 +229,7 @@ export function CreateJobPanel({
   const [thinking, setThinking] = useState<ThinkingValue>("high");
   const [model, setModel] = useState<SupportedImageModel>(GPT_IMAGE_MODEL);
   const [nanoImageSize, setNanoImageSize] = useState<NanoImageSize>("4K");
+  const [videoDuration, setVideoDuration] = useState<number>(10);
   const [inputImages, setInputImages] = useState<UploadResult[]>([]);
   const [previewImage, setPreviewImage] = useState<UploadResult | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -211,18 +238,25 @@ export function CreateJobPanel({
   const dragDepthRef = useRef(0);
   const currentMode: DrawMode = inputImages.length > 0 ? "image-to-image" : "text-to-image";
   const isNanoBanana = isNanoBananaModel(model);
+  const isGrokVideo = isGrokVideoModel(model);
   const isDuomiNanoBanana = apiProviderId === "duomi" && isNanoBanana;
   const supportsNanoImageSize = supportsNanoBananaImageSize(model);
   const imageModelGroups = getImageModelGroups(apiProviderId);
-  const currentSizeOptions = isNanoBanana
-    ? apiProviderId === "grsai" && supportsExtendedNanoAspectRatios(model)
-      ? extendedNanoAspectRatioOptions
-      : nanoAspectRatioOptions
-    : apiProviderId === "grsai" && isGptImageVipModel(model)
-      ? grsaiGptVipSizeOptions
-      : apiProviderId === "grsai"
-        ? grsaiGptSizeOptions
-        : gptSizeOptions;
+  const currentSizeOptions = isGrokVideo
+    ? grokVideoSizeOptions
+    : isNanoBanana
+      ? apiProviderId === "grsai" && supportsExtendedNanoAspectRatios(model)
+        ? extendedNanoAspectRatioOptions
+        : nanoAspectRatioOptions
+      : apiProviderId === "grsai" && isGptImageVipModel(model)
+        ? grsaiGptVipSizeOptions
+        : apiProviderId === "grsai"
+          ? grsaiGptSizeOptions
+          : gptSizeOptions;
+
+  const currentVideoDurationOptions = model === GROK_VIDEO_MODEL_1_5
+    ? grokVideo15DurationOptions
+    : grokVideoBaseDurationOptions;
 
   const isUpdatingDraftRef = useRef(false);
 
@@ -241,6 +275,7 @@ export function CreateJobPanel({
       setThinking(draft.thinking ?? "high");
       setModel(isSupportedImageModel(draft.model) ? draft.model : GPT_IMAGE_MODEL);
       setNanoImageSize(draft.nanoImageSize ?? "4K");
+      setVideoDuration(draft.videoDuration ?? 10);
       setInputImages(draft.inputImages ?? []);
     } else {
       setPrompt("");
@@ -251,6 +286,7 @@ export function CreateJobPanel({
       setThinking("high");
       setModel(GPT_IMAGE_MODEL);
       setNanoImageSize("4K");
+      setVideoDuration(10);
       setInputImages([]);
     }
 
@@ -273,6 +309,7 @@ export function CreateJobPanel({
       thinking,
       model,
       nanoImageSize,
+      videoDuration,
       inputImages
     });
   }, [
@@ -285,14 +322,21 @@ export function CreateJobPanel({
     thinking,
     model,
     nanoImageSize,
+    videoDuration,
     inputImages
   ]);
 
   useEffect(() => {
     if (!currentSizeOptions.some((option) => option.value === sizeMode)) {
-      setSizeMode("auto");
+      setSizeMode(isGrokVideo ? "16:9" : "auto");
     }
-  }, [currentSizeOptions, sizeMode]);
+  }, [currentSizeOptions, sizeMode, isGrokVideo]);
+
+  useEffect(() => {
+    if (isGrokVideo && !currentVideoDurationOptions.some((opt) => opt.value === videoDuration)) {
+      setVideoDuration(10);
+    }
+  }, [isGrokVideo, currentVideoDurationOptions, videoDuration]);
 
   useEffect(() => {
     if (!isImageModelAvailableForProvider(model, apiProviderId)) {
@@ -505,7 +549,12 @@ export function CreateJobPanel({
       return;
     }
 
-    const requestSize: DrawSize = resolvedSizeMode === "custom" ? `${width}x${height}` : resolvedSizeMode;
+    const requestSize: DrawSize = isGrokVideo
+      ? (resolvedSizeMode === "custom" || resolvedSizeMode === "auto" ? "16:9" : resolvedSizeMode)
+      : resolvedSizeMode === "custom"
+        ? `${width}x${height}`
+        : resolvedSizeMode;
+
     await onSubmit({
       mode: currentMode,
       prompt: nextPrompt,
@@ -518,7 +567,8 @@ export function CreateJobPanel({
       strength: currentMode === "image-to-image" ? 0.55 : undefined,
       thinking,
       model,
-      imageSize: supportsNanoImageSize ? nanoImageSize : undefined
+      imageSize: supportsNanoImageSize ? nanoImageSize : undefined,
+      duration: isGrokVideo ? videoDuration : undefined
     });
   };
 
@@ -588,6 +638,23 @@ export function CreateJobPanel({
     </Select>
   );
 
+  const renderVideoDurationSelect = (id?: string, side: "top" | "bottom" = "bottom") => (
+    <Select value={String(videoDuration)} onValueChange={(val) => setVideoDuration(Number(val))}>
+      <SelectTrigger id={id} aria-label="时长" className="composer-select-trigger">
+        <SelectValue>{currentVideoDurationOptions.find((opt) => opt.value === videoDuration)?.label ?? `${videoDuration}秒`}</SelectValue>
+      </SelectTrigger>
+      <SelectContent side={side} sideOffset={6} position="popper" align="start" className="composer-select-content">
+        <SelectGroup>
+          {currentVideoDurationOptions.map((opt) => (
+            <SelectItem key={opt.value} value={String(opt.value)} className="composer-select-item">
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+
   const renderModelSelect = (id?: string, side: "top" | "bottom" = "bottom") => (
     <Select value={model} onValueChange={(value) => setModel(value as SupportedImageModel)}>
       <SelectTrigger id={id} aria-label="模型" className="composer-select-trigger">
@@ -650,17 +717,19 @@ export function CreateJobPanel({
                 />
               </Field>
               <Field orientation="horizontal">
-                <FieldLabel htmlFor="composer-quality">{isNanoBanana ? "分辨率" : "Quality"}</FieldLabel>
-                {isNanoBanana && supportsNanoImageSize
-                  ? renderNanoImageSizeSelect("composer-quality", "top")
-                  : isNanoBanana
-                    ? <Input id="composer-quality" value="自动" readOnly aria-label="分辨率" />
-                    : apiProviderId === "grsai"
-                      ? <Input id="composer-quality" value="自动" readOnly aria-label="Quality" />
-                      : renderQualitySelect("composer-quality", "top")}
+                <FieldLabel htmlFor="composer-quality">{isGrokVideo ? "时长" : isNanoBanana ? "分辨率" : "Quality"}</FieldLabel>
+                {isGrokVideo
+                  ? renderVideoDurationSelect("composer-quality", "top")
+                  : isNanoBanana && supportsNanoImageSize
+                    ? renderNanoImageSizeSelect("composer-quality", "top")
+                    : isNanoBanana
+                      ? <Input id="composer-quality" value="自动" readOnly aria-label="分辨率" />
+                      : apiProviderId === "grsai"
+                        ? <Input id="composer-quality" value="自动" readOnly aria-label="Quality" />
+                        : renderQualitySelect("composer-quality", "top")}
               </Field>
               <Field orientation="horizontal">
-                <FieldLabel htmlFor="composer-size">{isNanoBanana ? "比例" : "Size"}</FieldLabel>
+                <FieldLabel htmlFor="composer-size">{isGrokVideo || isNanoBanana ? "比例" : "Size"}</FieldLabel>
                 {renderSizeSelect("composer-size", "top")}
               </Field>
               {!isNanoBanana && sizeMode === "custom" ? (
@@ -763,8 +832,8 @@ export function CreateJobPanel({
     >
       <div className="panel-title">
         <div>
-          <p className="eyebrow">绘图任务</p>
-          <h2>创建绘制</h2>
+          <p className="eyebrow">{isGrokVideo ? "视频任务" : "绘图任务"}</p>
+          <h2>{isGrokVideo ? "创建视频" : "创建绘制"}</h2>
         </div>
         <Play size={24} />
       </div>
@@ -801,7 +870,7 @@ export function CreateJobPanel({
           />
         </Field>
         <Field>
-          <FieldLabel>{isNanoBanana ? "比例" : "Size"}</FieldLabel>
+          <FieldLabel>{isGrokVideo || isNanoBanana ? "比例" : "Size"}</FieldLabel>
           {renderSizeSelect()}
         </Field>
       </div>
@@ -837,14 +906,16 @@ export function CreateJobPanel({
 
       <div className="form-grid">
         <Field>
-          <FieldLabel>{isNanoBanana ? "分辨率" : "Quality"}</FieldLabel>
-          {isNanoBanana && supportsNanoImageSize
-            ? renderNanoImageSizeSelect()
-            : isNanoBanana
-              ? <Input value="自动" readOnly aria-label="分辨率" />
-              : apiProviderId === "grsai"
-                ? <Input value="自动" readOnly aria-label="Quality" />
-                : renderQualitySelect()}
+          <FieldLabel>{isGrokVideo ? "时长" : isNanoBanana ? "分辨率" : "Quality"}</FieldLabel>
+          {isGrokVideo
+            ? renderVideoDurationSelect()
+            : isNanoBanana && supportsNanoImageSize
+              ? renderNanoImageSizeSelect()
+              : isNanoBanana
+                ? <Input value="自动" readOnly aria-label="分辨率" />
+                : apiProviderId === "grsai"
+                  ? <Input value="自动" readOnly aria-label="Quality" />
+                  : renderQualitySelect()}
         </Field>
         <Field>
           <FieldLabel>模型</FieldLabel>

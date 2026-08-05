@@ -3,6 +3,8 @@
  * 从 response blob 的 MIME 类型反推后缀
  */
 const contentTypeToExtension = (contentType: string) => {
+  if (contentType.includes("mp4")) return "mp4";
+  if (contentType.includes("video")) return "mp4";
   if (contentType.includes("svg")) return "svg";
   if (contentType.includes("jpeg")) return "jpg";
   if (contentType.includes("png")) return "png";
@@ -12,8 +14,8 @@ const contentTypeToExtension = (contentType: string) => {
 };
 
 /**
- * 从图片 URL 中提取文件扩展名
- * 例如 `https://example.com/image.png?w=100` → `png`
+ * 从媒体 URL 中提取文件扩展名
+ * 例如 `https://example.com/video.mp4?token=123` → `mp4`
  */
 const getExtensionFromUrl = (imageUrl: string) => {
   try {

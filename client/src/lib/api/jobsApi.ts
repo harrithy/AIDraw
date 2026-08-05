@@ -2,6 +2,7 @@ import type { CreateJobPayload, DrawJob, DrawSize, NanoImageSize } from "../../t
 import {
   MAX_NANO_BANANA_REFERENCE_IMAGES,
   isGptImageVipModel,
+  isGrokVideoModel,
   isNanoBananaModel,
   supportsNanoBananaImageSize
 } from "../imageModels";
@@ -178,6 +179,7 @@ export const jobsApi = {
       size: DrawSize;
       thinking: "high" | "medium" | "low";
       imageSize?: NanoImageSize;
+      duration?: number;
       inputImageUrls: string[];
     }
   ): Promise<DrawJob> => {
@@ -223,6 +225,7 @@ export const jobsApi = {
       imageSize: supportsNanoBananaImageSize(model)
         ? normalizeNanoImageSize(edits.imageSize)
         : undefined,
+      duration: isGrokVideoModel(model) ? (edits.duration ?? 10) : undefined,
       status: "pending",
       errorMessage: undefined,
       provider: undefined,

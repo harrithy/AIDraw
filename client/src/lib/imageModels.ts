@@ -2,10 +2,18 @@ import type { ApiProviderId } from "../types";
 
 export const GPT_IMAGE_MODEL = "gpt-image-2";
 export const NANO_BANANA_MODEL = "gemini-3-pro-image-preview";
+export const GROK_VIDEO_MODEL_1_5 = "grok-video-1.5";
+export const GROK_VIDEO_MODEL_BASE = "grok-video";
+export const GROK_VIDEO_MODEL = GROK_VIDEO_MODEL_1_5;
 export const MAX_NANO_BANANA_REFERENCE_IMAGES = 10;
 
 const duomiGptModelOptions = [
   { label: GPT_IMAGE_MODEL, value: GPT_IMAGE_MODEL }
+] as const;
+
+const duomiGrokModelOptions = [
+  { label: "grok-video-1.5 (最新版)", value: GROK_VIDEO_MODEL_1_5 },
+  { label: "grok-video", value: GROK_VIDEO_MODEL_BASE }
 ] as const;
 
 const grsaiGptModelOptions = [
@@ -35,7 +43,8 @@ const duomiNanoBananaModelOptions = [
 
 const duomiImageModelGroups = [
   { label: "ChatGPT", options: duomiGptModelOptions },
-  { label: "NANO-BANANA", options: duomiNanoBananaModelOptions }
+  { label: "NANO-BANANA", options: duomiNanoBananaModelOptions },
+  { label: "GROK 视频", options: duomiGrokModelOptions }
 ] as const;
 
 const grsaiImageModelGroups = [
@@ -59,6 +68,7 @@ export const getImageModelGroups = (providerId: ApiProviderId) =>
  */
 export type SupportedImageModel =
   | (typeof duomiGptModelOptions)[number]["value"]
+  | (typeof duomiGrokModelOptions)[number]["value"]
   | (typeof grsaiGptModelOptions)[number]["value"]
   | (typeof duomiNanoBananaModelOptions)[number]["value"]
   | (typeof grsaiNanoBananaModelOptions)[number]["value"];
@@ -125,3 +135,17 @@ export const isGptImageVipModel = (model: string) => model === "gpt-image-2-vip"
  */
 export const supportsExtendedNanoAspectRatios = (model: string) =>
   /^nano-banana-2(?:-|$)/.test(model);
+
+/**
+ * 判断模型是否为 GROK 视频生成模型
+ * @param model - 模型名称
+ */
+export const isGrokVideoModel = (model: string) =>
+  model === GROK_VIDEO_MODEL_1_5 || model === GROK_VIDEO_MODEL_BASE;
+
+/**
+ * 判断模型是否属于视频生成模型
+ * @param model - 模型名称
+ */
+export const isVideoModel = (model: string) => isGrokVideoModel(model);
+

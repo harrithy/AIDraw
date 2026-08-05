@@ -1,5 +1,6 @@
 import type { DrawJob } from "../../types";
 import { dimensionsFromSize } from "../imageDimensions";
+import { isGrokVideoModel } from "../imageModels";
 import type { CreatedProviderTask, ImageModelProvider, ProviderTaskResult, StoredSettings } from "./types";
 
 const hashText = (text: string) => {
@@ -32,8 +33,8 @@ const escapeXml = (value: string) =>
     .replaceAll("'", "&apos;");
 
 /**
- * 本地模拟绘图提供者，用于未配置 API Key 时的开发调试。
- * 根据提示词的哈希值生成色彩渐变 + SVG 纹理的模拟图片，
+ * 本地模拟绘图/视频提供者，用于未配置 API Key 时的开发调试。
+ * 针对图片生成色彩渐变 SVG，针对视频返回演示 mp4。
  * 延时 1.1~2.0 秒模拟异步生成过程。不发送任何网络请求。
  */
 export class MockProvider implements ImageModelProvider {
@@ -44,6 +45,13 @@ export class MockProvider implements ImageModelProvider {
 
   async queryTask(taskId: string, job: DrawJob, _settings: StoredSettings): Promise<ProviderTaskResult> {
     await new Promise((resolve) => window.setTimeout(resolve, 1100 + Math.floor(Math.random() * 900)));
+
+    if (isGrokVideoModel(job.model)) {
+      return {
+        state: "succeeded",
+        imageUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+      };
+    }
 
     const { width, height } = dimensionsFromSize(job.size || "auto");
     const palette = paletteFromPrompt(`${job.prompt}-${taskId}`);
@@ -87,3 +95,4 @@ export class MockProvider implements ImageModelProvider {
     };
   }
 }
+

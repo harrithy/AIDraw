@@ -144,6 +144,8 @@ export type DrawJob = {
   model: string;
   /** NANO-BANANA 输出分辨率 */
   imageSize?: NanoImageSize;
+  /** 视频生成时长（秒） */
+  duration?: number;
   /** 排序索引（在同文件夹内） */
   orderIndex: number;
   /** 画布自由拖拽：卡片在画布坐标系中的 X 坐标 */
@@ -262,6 +264,8 @@ export type CreateJobPayload = {
   model?: string;
   /** NANO-BANANA 输出分辨率 */
   imageSize?: NanoImageSize;
+  /** 视频生成时长（秒） */
+  duration?: number;
 };
 
 /**

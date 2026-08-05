@@ -1,4 +1,5 @@
 import type { DrawJob } from "../../types";
+import { isGrokVideoModel } from "../imageModels";
 import type { CreatedProviderTask, ImageModelProvider, ProviderTaskResult, StoredSettings } from "./types";
 
 const DUOMI_API_PREFIX = "/v1";
@@ -66,9 +67,10 @@ const fetchJson = async <T>(url: string, init: RequestInit, context: string) => 
 };
 
 /**
- * 多米 API 绘图提供者，对接 OpenAI Images 兼容接口。
- * 支持 gpt-image-2 模型，使用 POST /v1/images/generations 提交任务，
- * GET /v1/tasks/{id} 轮询异步结果。参考图仅支持公网 http(s) URL。
+ * 多米 API 绘图与视频提供者。
+ * 对接 OpenAI Images 兼容接口及 GROK 视频生成接口。
+ * - 图片：POST /v1/images/generations，GET /v1/tasks/{id} 轮询。
+ * - 视频：POST /v1/videos/generations，GET /v1/videos/tasks/{id} 轮询。
  */
 export class DuomiProvider implements ImageModelProvider {
   private getDuomiEndpoint(settings: StoredSettings, path: string) {
@@ -82,6 +84,49 @@ export class DuomiProvider implements ImageModelProvider {
   async createTask(job: DrawJob, settings: StoredSettings): Promise<CreatedProviderTask> {
     const inputImages = job.inputImageUrls?.length ? job.inputImageUrls : job.inputImageUrl ? [job.inputImageUrl] : [];
     if (inputImages.length > 0) assertDuomiImageUrls(inputImages);
+
+    const isVideo = isGrokVideoModel(job.model);
+
+    if (isVideo) {
+      const aspectRatio = job.size && job.size.includes(":") ? job.size : "16:9";
+      const requestBody: Record<string, unknown> = {
+        model: job.model,
+        prompt: job.prompt.trim(),
+        aspect_ratio: aspectRatio,
+        duration: job.duration ?? 10,
+        quality: "720p",
+        oversea: false
+      };
+
+      if (inputImages.length > 0) {
+        requestBody.image_urls = inputImages;
+      }
+
+      const payload = await fetchJson<{
+        id?: string;
+        task_id?: string;
+        taskId?: string;
+        data?: { id?: string; task_id?: string; taskId?: string };
+      }>(
+        this.getDuomiEndpoint(settings, "/videos/generations"),
+        {
+          method: "POST",
+          headers: {
+            Authorization: settings.apiKey,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(requestBody)
+        },
+        "提交多米API GROK 视频生成任务"
+      );
+
+      const taskId = payload?.id ?? payload?.task_id ?? payload?.taskId ?? payload?.data?.id ?? payload?.data?.task_id ?? payload?.data?.taskId;
+      if (!taskId) throw new Error("多米API未返回视频任务 id");
+      return {
+        taskId,
+        queryUrl: this.getDuomiEndpoint(settings, `/videos/tasks/${encodeURIComponent(taskId)}`)
+      };
+    }
 
     const requestBody: Record<string, unknown> = {
       model: job.model || settings.model || DEFAULT_MODEL,
@@ -122,14 +167,23 @@ export class DuomiProvider implements ImageModelProvider {
   }
 
   async queryTask(taskId: string, job: DrawJob, settings: StoredSettings): Promise<ProviderTaskResult> {
+    const isVideo = isGrokVideoModel(job.model);
+    const defaultQueryUrl = isVideo
+      ? this.getDuomiEndpoint(settings, `/videos/tasks/${encodeURIComponent(taskId)}`)
+      : this.getDuomiEndpoint(settings, `/tasks/${encodeURIComponent(taskId)}`);
+
     const payload = await fetchJson<{
       id?: string;
       state?: string;
-      data?: { images?: Array<{ url?: string; file_name?: string }>; description?: string };
+      data?: {
+        images?: Array<{ url?: string; file_name?: string }>;
+        videos?: Array<{ url?: string; file_name?: string }>;
+        description?: string;
+      };
       error?: { message?: string };
       message?: string;
     }>(
-      job.queryUrl || this.getDuomiEndpoint(settings, `/tasks/${encodeURIComponent(taskId)}`),
+      job.queryUrl || defaultQueryUrl,
       {
         method: "GET",
         headers: {
@@ -140,9 +194,11 @@ export class DuomiProvider implements ImageModelProvider {
     );
 
     if (payload?.state === "succeeded") {
-      const imageUrl = payload?.data?.images?.find((image) => typeof image.url === "string" && image.url.trim())?.url;
-      if (!imageUrl) throw new Error("多米API任务已完成，但未返回图片地址");
-      return { state: "succeeded", imageUrl };
+      const videoUrl = payload?.data?.videos?.find((v) => typeof v.url === "string" && v.url.trim())?.url;
+      const imageUrl = payload?.data?.images?.find((img) => typeof img.url === "string" && img.url.trim())?.url;
+      const mediaUrl = videoUrl || imageUrl;
+      if (!mediaUrl) throw new Error("多米API任务已完成，但未返回结果视频/图片地址");
+      return { state: "succeeded", imageUrl: mediaUrl };
     }
     if (payload?.state === "error") {
       return { state: "error", errorMessage: getErrorMessage(payload, `多米API任务失败：${taskId}`) };
@@ -153,3 +209,4 @@ export class DuomiProvider implements ImageModelProvider {
     throw new Error("多米API查询结果缺少有效的任务状态");
   }
 }
+

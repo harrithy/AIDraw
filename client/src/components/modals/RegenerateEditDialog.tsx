@@ -32,9 +32,11 @@ import {
 } from "@/components/ui/select";
 import {
   GPT_IMAGE_MODEL,
+  GROK_VIDEO_MODEL_1_5,
   MAX_NANO_BANANA_REFERENCE_IMAGES,
   getImageModelGroups,
   isGptImageVipModel,
+  isGrokVideoModel,
   isImageModelAvailableForProvider,
   isNanoBananaModel,
   isSupportedImageModel,
@@ -42,6 +44,29 @@ import {
   supportsNanoBananaImageSize,
   type SupportedImageModel
 } from "../../lib/imageModels";
+
+const grokVideoSizeOptions: Array<{ label: string; value: SizeMode }> = [
+  { label: "16:9", value: "16:9" },
+  { label: "9:16", value: "9:16" },
+  { label: "1:1", value: "1:1" },
+  { label: "3:2", value: "3:2" },
+  { label: "2:3", value: "2:3" }
+];
+
+const grokVideo15DurationOptions: Array<{ label: string; value: number }> = [
+  { label: "6 秒 (0.28元)", value: 6 },
+  { label: "10 秒 (0.28元 - 默认)", value: 10 },
+  { label: "15 秒 (0.56元)", value: 15 }
+];
+
+const grokVideoBaseDurationOptions: Array<{ label: string; value: number }> = [
+  { label: "6 秒 (0.28元)", value: 6 },
+  { label: "10 秒 (0.28元 - 默认)", value: 10 },
+  { label: "15 秒 (0.56元)", value: 15 },
+  { label: "20 秒 (0.56元)", value: 20 },
+  { label: "25 秒 (0.84元)", value: 25 },
+  { label: "30 秒 (0.84元)", value: 30 }
+];
 import { getCustomSizeError, getCustomSizeSuggestion } from "../../lib/customImageSize";
 import type { ApiProviderId, DrawJob, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
@@ -61,6 +86,7 @@ export type RegenerateEdits = {
   size: DrawSize;
   thinking: ThinkingValue;
   imageSize?: NanoImageSize;
+  duration?: number;
   inputImageUrls: string[];
 };
 
@@ -191,24 +217,32 @@ export function RegenerateEditDialog({
   const [thinking, setThinking] = useState<ThinkingValue>("high");
   const [model, setModel] = useState<SupportedImageModel>(GPT_IMAGE_MODEL);
   const [nanoImageSize, setNanoImageSize] = useState<NanoImageSize>("4K");
+  const [videoDuration, setVideoDuration] = useState<number>(10);
   const [inputImages, setInputImages] = useState<UploadResult[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
   const dragDepthRef = useRef(0);
 
   const isNanoBanana = isNanoBananaModel(model);
+  const isGrokVideo = isGrokVideoModel(model);
   const isDuomiNanoBanana = apiProviderId === "duomi" && isNanoBanana;
   const supportsNanoImageSize = supportsNanoBananaImageSize(model);
   const imageModelGroups = getImageModelGroups(apiProviderId);
-  const currentSizeOptions = isNanoBanana
-    ? apiProviderId === "grsai" && supportsExtendedNanoAspectRatios(model)
-      ? extendedNanoAspectRatioOptions
-      : nanoAspectRatioOptions
-    : apiProviderId === "grsai" && isGptImageVipModel(model)
-      ? grsaiGptVipSizeOptions
-      : apiProviderId === "grsai"
-        ? grsaiGptSizeOptions
-        : gptSizeOptions;
+  const currentSizeOptions = isGrokVideo
+    ? grokVideoSizeOptions
+    : isNanoBanana
+      ? apiProviderId === "grsai" && supportsExtendedNanoAspectRatios(model)
+        ? extendedNanoAspectRatioOptions
+        : nanoAspectRatioOptions
+      : apiProviderId === "grsai" && isGptImageVipModel(model)
+        ? grsaiGptVipSizeOptions
+        : apiProviderId === "grsai"
+          ? grsaiGptSizeOptions
+          : gptSizeOptions;
+
+  const currentVideoDurationOptions = model === GROK_VIDEO_MODEL_1_5
+    ? grokVideo15DurationOptions
+    : grokVideoBaseDurationOptions;
 
   // 打开或切换到另一个任务时，用该任务的当前参数预填表单
   useEffect(() => {
@@ -217,6 +251,7 @@ export function RegenerateEditDialog({
     setThinking(normalizeThinking(job.thinking));
     setModel(isSupportedImageModel(job.model) ? job.model : GPT_IMAGE_MODEL);
     setNanoImageSize(job.imageSize ?? "4K");
+    setVideoDuration(job.duration ?? 10);
     const derived = deriveSizeState(job.size);
     setSizeMode(derived.sizeMode);
     setCustomWidth(derived.customWidth);
@@ -231,12 +266,18 @@ export function RegenerateEditDialog({
     setIsDragActive(false);
   }, [job]);
 
-  // 模型切换后，若当前 sizeMode 不在新模型的可选项里，回退到 auto
+  // 模型切换后，若当前 sizeMode 不在新模型的可选项里，回退到 16:9 或 auto
   useEffect(() => {
     if (!currentSizeOptions.some((option) => option.value === sizeMode)) {
-      setSizeMode("auto");
+      setSizeMode(isGrokVideo ? "16:9" : "auto");
     }
-  }, [currentSizeOptions, sizeMode]);
+  }, [currentSizeOptions, sizeMode, isGrokVideo]);
+
+  useEffect(() => {
+    if (isGrokVideo && !currentVideoDurationOptions.some((opt) => opt.value === videoDuration)) {
+      setVideoDuration(10);
+    }
+  }, [isGrokVideo, currentVideoDurationOptions, videoDuration]);
 
   useEffect(() => {
     if (!isImageModelAvailableForProvider(model, apiProviderId)) {
@@ -405,16 +446,39 @@ export function RegenerateEditDialog({
       return;
     }
 
-    const requestSize: DrawSize = resolvedSizeMode === "custom" ? `${width}x${height}` : resolvedSizeMode;
+    const requestSize: DrawSize = isGrokVideo
+      ? (resolvedSizeMode === "custom" || resolvedSizeMode === "auto" ? "16:9" : resolvedSizeMode)
+      : resolvedSizeMode === "custom"
+        ? `${width}x${height}`
+        : resolvedSizeMode;
+
     await onConfirm(job.id, {
       prompt: nextPrompt,
       model,
       size: requestSize,
       thinking,
       imageSize: supportsNanoImageSize ? nanoImageSize : undefined,
+      duration: isGrokVideo ? videoDuration : undefined,
       inputImageUrls: inputImages.map((image) => image.url)
     });
   };
+
+  const renderVideoDurationSelect = () => (
+    <Select value={String(videoDuration)} onValueChange={(val) => setVideoDuration(Number(val))}>
+      <SelectTrigger aria-label="时长" className="composer-select-trigger">
+        <SelectValue>{currentVideoDurationOptions.find((opt) => opt.value === videoDuration)?.label ?? `${videoDuration}秒`}</SelectValue>
+      </SelectTrigger>
+      <SelectContent position="popper" align="start" className="composer-select-content">
+        <SelectGroup>
+          {currentVideoDurationOptions.map((opt) => (
+            <SelectItem key={opt.value} value={String(opt.value)} className="composer-select-item">
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
 
   const renderQualitySelect = () => (
     <Select value={thinking} onValueChange={(value) => setThinking(value as ThinkingValue)}>
@@ -435,7 +499,7 @@ export function RegenerateEditDialog({
 
   const renderSizeSelect = () => (
     <Select value={sizeMode} onValueChange={(value) => setSizeMode(value as SizeMode)}>
-      <SelectTrigger aria-label={isNanoBanana ? "比例" : "Size"} className="composer-select-trigger">
+      <SelectTrigger aria-label={isGrokVideo || isNanoBanana ? "比例" : "Size"} className="composer-select-trigger">
         <SelectValue>{currentSizeOptions.find((option) => option.value === sizeMode)?.label ?? "auto"}</SelectValue>
       </SelectTrigger>
       <SelectContent position="popper" align="start" className="composer-select-content size-select-content">
@@ -491,8 +555,8 @@ export function RegenerateEditDialog({
     <Dialog open={open} onOpenChange={(next) => { if (!next && !isSubmitting) onClose(); }}>
       <DialogContent showCloseButton={!isSubmitting} className="regenerate-edit-dialog sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>重新编辑并绘制</DialogTitle>
-          <DialogDescription>修改参数后重新绘制，结果会作为新版本更新到当前任务卡片。</DialogDescription>
+          <DialogTitle>{isGrokVideo ? "重新编辑并生成视频" : "重新编辑并绘制"}</DialogTitle>
+          <DialogDescription>修改参数后重新生成，结果会作为新版本更新到当前任务卡片。</DialogDescription>
         </DialogHeader>
 
         <form
@@ -543,17 +607,19 @@ export function RegenerateEditDialog({
 
           <div className="form-grid">
             <Field>
-              <FieldLabel>{isNanoBanana ? "分辨率" : "Quality"}</FieldLabel>
-              {isNanoBanana && supportsNanoImageSize
-                ? renderNanoImageSizeSelect()
-                : isNanoBanana
-                  ? <Input value="自动" readOnly aria-label="分辨率" />
-                  : apiProviderId === "grsai"
-                    ? <Input value="自动" readOnly aria-label="Quality" />
-                    : renderQualitySelect()}
+              <FieldLabel>{isGrokVideo ? "时长" : isNanoBanana ? "分辨率" : "Quality"}</FieldLabel>
+              {isGrokVideo
+                ? renderVideoDurationSelect()
+                : isNanoBanana && supportsNanoImageSize
+                  ? renderNanoImageSizeSelect()
+                  : isNanoBanana
+                    ? <Input value="自动" readOnly aria-label="分辨率" />
+                    : apiProviderId === "grsai"
+                      ? <Input value="自动" readOnly aria-label="Quality" />
+                      : renderQualitySelect()}
             </Field>
             <Field>
-              <FieldLabel>{isNanoBanana ? "比例" : "Size"}</FieldLabel>
+              <FieldLabel>{isGrokVideo || isNanoBanana ? "比例" : "Size"}</FieldLabel>
               {renderSizeSelect()}
             </Field>
           </div>
