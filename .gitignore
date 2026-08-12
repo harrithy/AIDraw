@@ -6,3 +6,4 @@ data/
 .env.local
 npm-debug.log*
 client/tsconfig.tsbuildinfo
+.vercel/
