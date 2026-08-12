@@ -1,5 +1,23 @@
 const IMAGE_UPLOAD_BASE_URL = "https://image.harrio.xyz";
 const IMAGE_UPLOAD_PROXY_PATH = "/image-upload/upload";
+const MEDIA_PROXY_PATH = "/api/media-proxy";
+
+/**
+ * 把远程媒体地址转换为同源代理地址，绕过浏览器 CORS 限制。
+ * 本地开发由 vite 中间件处理，生产由 Vercel serverless（api/media-proxy.ts）处理。
+ */
+export const getMediaProxyUrl = (mediaUrl: string) => {
+  try {
+    const url = new URL(mediaUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return mediaUrl;
+  } catch {
+    return mediaUrl;
+  }
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}${MEDIA_PROXY_PATH}?url=${encodeURIComponent(mediaUrl)}`;
+  }
+  return mediaUrl;
+};
 
 type MediaUploadResponse = Array<{
   src?: string;
@@ -92,7 +110,7 @@ const resolveMediaKind = (mimeType: string, mediaUrl: string, expectedKind: Medi
 /** 将远程生成结果转换为 File，供用户手动再次上传到图床。 */
 export const createFileFromMediaUrl = async (mediaUrl: string, jobId: string, expectedKind: MediaKind) => {
   try {
-    const response = await fetch(mediaUrl);
+    const response = await fetch(getMediaProxyUrl(mediaUrl));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();
     const mediaKind = resolveMediaKind(blob.type, mediaUrl, expectedKind);
