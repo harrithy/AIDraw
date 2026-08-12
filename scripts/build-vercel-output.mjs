@@ -17,6 +17,27 @@ mkdirSync(funcDir, { recursive: true });
 
 cpSync(join(root, "client", "dist"), staticDir, { recursive: true });
 
+/**
+ * Build Output API 至少需要 version: 3。先检查静态文件和函数，
+ * 只有未命中时才回退到 SPA，避免 /api/media-proxy 被 index.html 吞掉。
+ */
+writeFileSync(
+  join(outputDir, "config.json"),
+  JSON.stringify(
+    {
+      version: 3,
+      routes: [
+        { src: "/image-upload/(.*)", dest: "https://image.harrio.xyz/$1" },
+        { handle: "filesystem" },
+        { src: "/.*", dest: "/index.html" }
+      ]
+    },
+    null,
+    2
+  ),
+  "utf8"
+);
+
 const proxyHandler = `"use strict";
 
 const MAX_PROXY_BYTES = 200 * 1024 * 1024;
@@ -87,4 +108,4 @@ writeFileSync(
   "utf8"
 );
 
-console.log("Vervel output written to .vercel/output (static + api/media-proxy.func)");
+console.log("Vercel output written to .vercel/output (config + static + api/media-proxy.func)");
