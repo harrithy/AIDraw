@@ -1,5 +1,5 @@
 import type { UploadedImage } from "../../types";
-import { createFileFromMediaUrl, uploadMediaToHost } from "../imageHost";
+import { uploadMediaToHost, uploadMediaUrlToHost } from "../imageHost";
 import { isVideoModel } from "../imageModels";
 import { getJobOutputImages } from "../jobImages";
 import { FOLDER_STORE, openDb, UPLOADED_IMAGE_STORE } from "../storage/database";
@@ -7,17 +7,9 @@ import { ensureFolder, ensureJob } from "../storage/entities";
 import { createId, nowIso, sortUploadedImages } from "../storage/helpers";
 import { broadcastStateUpdate } from "../storage/stateSync";
 
-const uploadImage = async (folderId: string, file: File): Promise<UploadedImage> => {
+const saveUploadedMedia = async (image: UploadedImage): Promise<UploadedImage> => {
+  const { folderId } = image;
   await ensureFolder(folderId);
-  const image: UploadedImage = {
-    id: createId(),
-    folderId,
-    url: await uploadMediaToHost(file),
-    originalName: file.name || "上传素材",
-    mimeType: file.type || "application/octet-stream",
-    byteSize: file.size,
-    createdAt: nowIso()
-  };
   const db = await openDb();
 
   await new Promise<void>((resolve, reject) => {
@@ -42,6 +34,19 @@ const uploadImage = async (folderId: string, file: File): Promise<UploadedImage>
 
   broadcastStateUpdate(folderId);
   return image;
+};
+
+const uploadImage = async (folderId: string, file: File): Promise<UploadedImage> => {
+  await ensureFolder(folderId);
+  return saveUploadedMedia({
+    id: createId(),
+    folderId,
+    url: await uploadMediaToHost(file),
+    originalName: file.name || "上传素材",
+    mimeType: file.type || "application/octet-stream",
+    byteSize: file.size,
+    createdAt: nowIso()
+  });
 };
 
 /**
@@ -78,8 +83,17 @@ export const uploadedImagesApi = {
     const latestMediaUrl = outputMedia[outputMedia.length - 1];
     if (!latestMediaUrl) throw new Error("该任务还没有可上传的结果");
 
-    const file = await createFileFromMediaUrl(latestMediaUrl, job.id, isVideoModel(job.model) ? "video" : "image");
-    return uploadImage(job.folderId, file);
+    const media = await uploadMediaUrlToHost(
+      latestMediaUrl,
+      job.id,
+      isVideoModel(job.model) ? "video" : "image"
+    );
+    return saveUploadedMedia({
+      id: createId(),
+      folderId: job.folderId,
+      ...media,
+      createdAt: nowIso()
+    });
   },
 
   /**

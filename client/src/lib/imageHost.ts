@@ -26,21 +26,29 @@ type MediaUploadResponse = Array<{
 
 type MediaKind = "image" | "video";
 
+export type HostedRemoteMedia = {
+  url: string;
+  originalName: string;
+  mimeType: string;
+  byteSize: number;
+};
+
 const getErrorMessage = (payload: unknown, fallback: string) => {
   const data = payload as {
-    error?: { code?: string; message?: string; type?: string };
+    error?: string | { code?: string; message?: string; type?: string };
     message?: string;
     msg?: string;
     data?: { description?: string; msg?: string };
   } | null;
+  const apiError = data?.error;
   const message = [
-    data?.error?.message,
+    typeof apiError === "string" ? apiError : apiError?.message,
     data?.message,
     data?.data?.msg,
     data?.data?.description,
     data?.msg
   ].find((value) => typeof value === "string" && value.trim());
-  const details = [data?.error?.code, data?.error?.type].filter(Boolean).join(" / ");
+  const details = typeof apiError === "object" ? [apiError.code, apiError.type].filter(Boolean).join(" / ") : "";
   if (message && details) return `${message}（${details}）`;
   return message ?? fallback;
 };
@@ -68,6 +76,37 @@ export const uploadMediaToHost = async (file: File) => {
     if (error instanceof TypeError) {
       throw new Error("上传到图床失败：可能是网络不可达、CORS 限制，或 image.harrio.xyz 暂时不可用");
     }
+    throw error;
+  }
+};
+
+/** 让同源服务端把远程媒体直接转存到图床，浏览器不再中转大文件。 */
+export const uploadMediaUrlToHost = async (
+  mediaUrl: string,
+  jobId: string,
+  expectedKind: MediaKind
+): Promise<HostedRemoteMedia> => {
+  try {
+    const response = await fetch("/api/media-upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mediaUrl, jobId, expectedKind })
+    });
+    const payload = (await response.json().catch(() => null)) as Partial<HostedRemoteMedia> | null;
+    if (!response.ok) {
+      throw new Error(getErrorMessage(payload, `远程媒体上传失败：HTTP ${response.status}`));
+    }
+    if (
+      typeof payload?.url !== "string" ||
+      typeof payload.originalName !== "string" ||
+      typeof payload.mimeType !== "string" ||
+      typeof payload.byteSize !== "number"
+    ) {
+      throw new Error("远程媒体上传成功，但返回结果不完整");
+    }
+    return payload as HostedRemoteMedia;
+  } catch (error) {
+    if (error instanceof TypeError) throw new Error("远程媒体上传服务暂时不可用");
     throw error;
   }
 };

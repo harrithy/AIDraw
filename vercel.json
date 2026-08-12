@@ -3,14 +3,17 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "outputDirectory": "client/dist",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/image-upload/(.*)",
-      "destination": "https://image.harrio.xyz/$1"
+      "src": "/image-upload/(.*)",
+      "dest": "https://image.harrio.xyz/$1"
     },
     {
-      "source": "/((?!api(?:/|$)|image-upload(?:/|$)|.*\\.(xml|txt|png|svg|ico|js|css|woff2?|ttf|json|webmanifest)).*)",
-      "destination": "/index.html"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
     }
   ]
 }

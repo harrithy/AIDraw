@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
 const MAX_PROXY_BYTES = 200 * 1024 * 1024;
 
@@ -51,12 +53,40 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return;
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    res.statusCode = 200;
+    if (!response.body) {
+      sendJson(res, 502, { error: "上游未返回媒体内容" });
+      return;
+    }
+
+    let streamedBytes = 0;
+    const limiter = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        streamedBytes += chunk.length;
+        if (streamedBytes > MAX_PROXY_BYTES) {
+          callback(new Error("媒体文件过大，无法代理"));
+          return;
+        }
+        callback(null, chunk);
+      }
+    });
+
+    res.statusCode = response.status;
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Cache-Control", "public, max-age=3600");
-    res.end(buffer);
+    res.setHeader("Cache-Control", "no-store");
+    if (contentLength > 0) res.setHeader("Content-Length", contentLength);
+    const contentRange = response.headers.get("content-range");
+    if (contentRange) res.setHeader("Content-Range", contentRange);
+
+    // 流式转发避免整个视频成为 Vercel Function 的大型响应缓冲区。
+    const source = Readable.fromWeb(
+      response.body as unknown as import("node:stream/web").ReadableStream
+    );
+    await pipeline(source, limiter, res);
   } catch (error) {
+    if (res.headersSent) {
+      res.destroy(error instanceof Error ? error : undefined);
+      return;
+    }
     sendJson(res, 502, { error: `代理请求失败：${error instanceof Error ? error.message : "未知错误"}` });
   }
 }
