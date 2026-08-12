@@ -153,6 +153,64 @@ export function useCanvasInteractions({
   }, [updateCanvas]);
 
   /**
+   * 把指定任务卡片移动到画布的主要可视区域中央。
+   * 会避开已展开的左侧栏、顶部工具栏和底部创作框，并保留当前缩放比例。
+   */
+  const focusCanvasOnJob = useCallback(
+    (positionedJob: PositionedJob) => {
+      if (!activeFolder) return;
+      const stage = document.querySelector<HTMLElement>(".canvas-stage");
+      if (!stage) return;
+
+      const stageRect = stage.getBoundingClientRect();
+      const leftPanel = document.querySelector<HTMLElement>(".left-panel:not(.closed)");
+      const toolbar = document.querySelector<HTMLElement>(".floating-toolbar");
+      const composer = document.querySelector<HTMLElement>(".composer-panel, .bottom-composer-empty");
+
+      const visibleLeft = leftPanel
+        ? Math.min(stageRect.width, Math.max(0, leftPanel.getBoundingClientRect().right - stageRect.left + 12))
+        : 0;
+      const visibleTop = toolbar
+        ? Math.min(stageRect.height, Math.max(0, toolbar.getBoundingClientRect().bottom - stageRect.top + 12))
+        : 0;
+      const visibleBottom = composer
+        ? Math.max(visibleTop, Math.min(stageRect.height, composer.getBoundingClientRect().top - stageRect.top - 12))
+        : stageRect.height;
+      const viewportCenter = {
+        x: visibleLeft + (stageRect.width - visibleLeft) / 2,
+        y: visibleTop + (visibleBottom - visibleTop) / 2
+      };
+      const cardElement = Array.from(stage.querySelectorAll<HTMLElement>(".job-card")).find(
+        (element) => element.dataset.jobId === positionedJob.job.id
+      );
+
+      // 优先按当前 DOM 尺寸定位，确保展开后的 V1/V2/V3 整组版本也能完整居中。
+      if (cardElement) {
+        const cardRect = cardElement.getBoundingClientRect();
+        updateCanvas({
+          canvasPanX:
+            activeFolder.canvasPanX + stageRect.left + viewportCenter.x - (cardRect.left + cardRect.width / 2),
+          canvasPanY:
+            activeFolder.canvasPanY + stageRect.top + viewportCenter.y - (cardRect.top + cardRect.height / 2)
+        });
+        return;
+      }
+
+      // 卡片尚未挂载时退回画布坐标计算。
+      const cardCenter = {
+        x: positionedJob.x + positionedJob.cardSize.cardWidth / 2,
+        y: positionedJob.y + positionedJob.cardSize.cardHeight / 2
+      };
+
+      updateCanvas({
+        canvasPanX: viewportCenter.x - cardCenter.x * activeFolder.canvasZoom,
+        canvasPanY: viewportCenter.y - cardCenter.y * activeFolder.canvasZoom
+      });
+    },
+    [activeFolder, updateCanvas]
+  );
+
+  /**
    * 开始拖拽（Pointer Down）
    * 自动判断：点中卡片 -> 卡片拖拽；点中空白 -> 画布拖拽
    * 忽略对按钮、输入框等交互元素的点击
@@ -434,6 +492,7 @@ export function useCanvasInteractions({
   return {
     canvasDrag,
     cardDrag,
+    focusCanvasOnJob,
     lockedCardPositionRef,
     moveCanvasDrag,
     resetCanvas,

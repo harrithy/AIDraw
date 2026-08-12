@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CircleHelp, Clock, Copy, Github, Maximize2, Moon, RefreshCw, Search, Settings, Sun, X, ZoomIn, ZoomOut, Check } from "lucide-react";
+import { Check, CircleHelp, Clock, Copy, Github, LocateFixed, Maximize2, Moon, RefreshCw, Search, Settings, Sun, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { DrawJob } from "../../types";
 
 /** CanvasToolbar 组件的 Props 类型 */
@@ -12,6 +12,9 @@ type CanvasToolbarProps = {
   onZoomOut: () => void;
   onZoomIn: () => void;
   onResetCanvas: () => void;
+  /** 当前文件夹是否已有可跳转的生成结果 */
+  hasLatestOutput: boolean;
+  onJumpToLatestOutput: () => void;
   onSortByTime: () => void;
   onOpenApiSettings: () => void;
   onOpenGuide: () => void;
@@ -50,6 +53,8 @@ export function CanvasToolbar({
   onZoomOut,
   onZoomIn,
   onResetCanvas,
+  hasLatestOutput,
+  onJumpToLatestOutput,
   onSortByTime,
   onOpenApiSettings,
   onOpenGuide,
@@ -136,6 +141,15 @@ export function CanvasToolbar({
         </button>
         <button type="button" onClick={onResetCanvas} title="重置画布">
           <Maximize2 size={17} />
+        </button>
+        <button
+          type="button"
+          onClick={onJumpToLatestOutput}
+          disabled={!hasLatestOutput}
+          title={hasLatestOutput ? "跳到最新图片或视频盒子" : "当前文件夹暂无生成结果"}
+          aria-label={hasLatestOutput ? "跳到最新图片或视频盒子" : "当前文件夹暂无生成结果"}
+        >
+          <LocateFixed size={17} />
         </button>
       </div>
 

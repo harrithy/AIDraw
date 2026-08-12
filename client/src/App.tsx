@@ -14,6 +14,7 @@ import { Metric } from "./components/ui/Metric";
 import { useAppAnimations } from "./hooks/useAppAnimations";
 import { useCanvasInteractions } from "./hooks/useCanvasInteractions";
 import { BOARD_PADDING, getPositionedJobs, type PositionedJob } from "./lib/canvas";
+import { getJobOutputImages } from "./lib/jobImages";
 import type {
   CreateJobPayload,
   DrawFolder,
@@ -42,6 +43,12 @@ const emptyProviderSettings: ImageProviderSettings = {
 };
 
 const ONBOARDING_STORAGE_KEY = "aidraw-onboarding-v1";
+
+/** 获取任务最近一次生成结果的时间，用于判断哪个结果盒子最新。 */
+const getLatestOutputTime = (job: DrawJob) => {
+  const timestamp = Date.parse(job.completedAt ?? job.updatedAt ?? job.createdAt);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+};
 
 /** 轮询结果没有实际变化时复用原数组，避免无意义的全画布渲染。 */
 const areJobSnapshotsEqual = (current: DrawJob[], next: DrawJob[]) =>
@@ -107,6 +114,7 @@ function App() {
   const {
     canvasDrag,
     cardDrag,
+    focusCanvasOnJob,
     lockedCardPositionRef,
     moveCanvasDrag,
     resetCanvas,
@@ -125,6 +133,22 @@ function App() {
   const positionedJobs = useMemo<PositionedJob[]>(
     () => getPositionedJobs(jobs),
     [jobs]
+  );
+
+  /** 当前文件夹中最近完成、且确实包含图片或视频结果的任务卡片。 */
+  const latestOutputJob = useMemo(
+    () =>
+      positionedJobs.reduce<PositionedJob | null>((latest, current) => {
+        if (
+          current.job.folderId !== activeFolderId ||
+          getJobOutputImages(current.job).length === 0
+        ) {
+          return latest;
+        }
+        if (!latest) return current;
+        return getLatestOutputTime(current.job) >= getLatestOutputTime(latest.job) ? current : latest;
+      }, null),
+    [activeFolderId, positionedJobs]
   );
 
   const boardSize = useMemo(() => {
@@ -358,6 +382,16 @@ function App() {
     setNotice(mode === "time" ? "已按生成时间排序" : "已按提示词排序");
   };
 
+  /** 将画布定位到当前文件夹最近生成出结果的图片或视频盒子。 */
+  const jumpToLatestOutput = () => {
+    if (!latestOutputJob) {
+      setNotice("当前文件夹还没有已生成的图片或视频");
+      return;
+    }
+    focusCanvasOnJob(latestOutputJob);
+    setNotice("已跳转到最新生成盒子");
+  };
+
   /**
    * 持久化任务顺序到服务器
    * 乐观更新本地 state -> 发请求保存 -> 失败时回滚
@@ -579,6 +613,8 @@ function App() {
         onZoomOut={() => zoomCanvas(-0.1)}
         onZoomIn={() => zoomCanvas(0.1)}
         onResetCanvas={resetCanvas}
+        hasLatestOutput={Boolean(latestOutputJob)}
+        onJumpToLatestOutput={jumpToLatestOutput}
         onSortByTime={() => void sortJobs("time")}
         onSortByName={() => void sortJobs("name")}
         onOpenApiSettings={() => setApiSettingsOpen(true)}
