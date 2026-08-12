@@ -2,8 +2,8 @@ import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-import mediaProxyHandler from "../api/media-proxy";
-import mediaUploadHandler from "../api/media-upload";
+import mediaProxyHandler from "./api/media-proxy";
+import mediaUploadHandler from "./api/media-upload";
 
 const mediaProxyPlugin = (): Plugin => ({
   name: "media-proxy",
