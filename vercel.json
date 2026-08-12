@@ -1,6 +1,8 @@
 {
-  "buildCommand": "npm run build && node scripts/build-vercel-output.mjs",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
   "installCommand": "npm install",
+  "outputDirectory": "client/dist",
   "rewrites": [
     {
       "source": "/image-upload/(.*)",

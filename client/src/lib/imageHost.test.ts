@@ -29,7 +29,8 @@ describe("imageHost 媒体上传", () => {
     await createFileFromMediaUrl("https://cdn.example.com/result.mp4", "job-3", "video");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      `${window.location.origin}/api/media-proxy?url=${encodeURIComponent("https://cdn.example.com/result.mp4")}`
+      `${window.location.origin}/api/media-proxy?url=${encodeURIComponent("https://cdn.example.com/result.mp4")}`,
+      { cache: "no-store" }
     );
   });
 

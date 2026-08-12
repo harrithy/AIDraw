@@ -110,7 +110,8 @@ const resolveMediaKind = (mimeType: string, mediaUrl: string, expectedKind: Medi
 /** 将远程生成结果转换为 File，供用户手动再次上传到图床。 */
 export const createFileFromMediaUrl = async (mediaUrl: string, jobId: string, expectedKind: MediaKind) => {
   try {
-    const response = await fetch(getMediaProxyUrl(mediaUrl));
+    // 禁用浏览器缓存，避免部署路由修复后仍复用此前误返回的 index.html。
+    const response = await fetch(getMediaProxyUrl(mediaUrl), { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();
     const mediaKind = resolveMediaKind(blob.type, mediaUrl, expectedKind);
