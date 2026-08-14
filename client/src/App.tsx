@@ -160,7 +160,7 @@ function App() {
     };
   }, [positionedJobs]);
   const jobAnimationKey = useMemo(
-    () => jobs.map((job) => `${job.id}:${job.status}:${job.outputImageUrl ?? ""}`).join("|"),
+    () => jobs.map((job) => `${job.id}:${job.status}:${job.outputImageUrl ?? ""}:${job.outputAssets?.length ?? 0}:${job.outputText ?? ""}`).join("|"),
     [jobs]
   );
 

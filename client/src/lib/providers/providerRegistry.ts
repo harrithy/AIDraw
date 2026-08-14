@@ -1,6 +1,7 @@
 import type { ApiProviderId, DrawJob, ImageProviderId } from "../../types";
 import { isKlingVideoModel, isNanoBananaModel } from "../imageModels";
 import { DuomiProvider } from "./DuomiProvider";
+import { DuomiCapabilityProvider } from "./DuomiCapabilityProvider";
 import { GrsaiProvider } from "./GrsaiProvider";
 import { KlingProvider } from "./KlingProvider";
 import { MockProvider } from "./MockProvider";
@@ -14,6 +15,8 @@ const providers: Record<ImageProviderId, ImageModelProvider> = {
   kling: new KlingProvider(),
   mock: new MockProvider()
 };
+
+const duomiCapabilityProvider = new DuomiCapabilityProvider();
 
 const isProviderId = (value: unknown): value is ImageProviderId =>
   value === "duomi" || value === "nano-banana" || value === "grsai" || value === "mock" || value === "kling";
@@ -37,6 +40,13 @@ export const resolveProviderId = (job: DrawJob, settings: StoredSettings): Image
  * @returns Provider 单例实例
  */
 export const getProvider = (providerId: ImageProviderId) => providers[providerId];
+
+/** 注册表能力全部使用多米通用执行器；旧模型继续走原 Provider。 */
+export const getProviderForJob = (job: DrawJob, settings: StoredSettings) => {
+  if (job.capabilityId) return { providerId: "duomi" as const, provider: duomiCapabilityProvider };
+  const providerId = resolveProviderId(job, settings);
+  return { providerId, provider: providers[providerId] };
+};
 
 /**
  * 返回 Provider 所需的 API Key 类型。

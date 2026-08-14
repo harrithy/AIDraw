@@ -9,6 +9,7 @@ import {
   supportsNanoBananaImageSize
 } from "../imageModels";
 import { dimensionsFromSize } from "../imageDimensions";
+import { getDuomiCapability, isDuomiCapabilitySubmittable } from "../duomiCapabilities";
 import { processQueue } from "../jobQueue";
 import { FOLDER_STORE, JOB_STORE, openDb } from "../storage/database";
 import { ensureFolder, ensureJob, updateJob } from "../storage/entities";
@@ -57,11 +58,28 @@ export const jobsApi = {
       assertRemoteImageUrls(inputImageUrls);
     }
 
+    const capability = payload.capabilityId ? getDuomiCapability(payload.capabilityId) : undefined;
+    if (payload.capabilityId && !capability) throw new Error("多米能力不存在或已更新，请重新选择");
+    if (capability && !isDuomiCapabilitySubmittable(capability)) {
+      throw new Error(`${capability.name}当前不可提交`);
+    }
+    if (capability) {
+      const missingField = capability.fields.find((field) => {
+        if (!field.required) return false;
+        const value = payload.capabilityParams?.[field.key] ?? field.defaultValue;
+        if (value === undefined || value === null) return true;
+        if (typeof value === "string") return value.trim().length === 0;
+        if (Array.isArray(value)) return value.length === 0;
+        return false;
+      });
+      if (missingField) throw new Error(`请填写${missingField.label}`);
+    }
+
     const mode = inputImageUrls.length > 0 ? "image-to-image" : "text-to-image";
     if (!prompt) throw new Error("提示词不能为空");
     if (!["text-to-image", "image-to-image"].includes(payload.mode)) throw new Error("绘图模式无效");
 
-    const count = Math.min(Math.max(Math.floor(payload.count || 1), 1), 8);
+    const count = capability ? 1 : Math.min(Math.max(Math.floor(payload.count || 1), 1), 8);
     const model = payload.model || settings.model || DEFAULT_MODEL;
     const maxAspectRatio = settings.providerId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
     const size = normalizeSize(payload.size, maxAspectRatio);
@@ -111,6 +129,11 @@ export const jobsApi = {
               strength: payload.strength,
               thinking: payload.thinking || "high",
               model,
+              capabilityId: payload.capabilityId,
+              category: payload.category,
+              outputKind: payload.outputKind,
+              capabilityParams: payload.capabilityParams,
+              estimatedPriceLabel: payload.estimatedPriceLabel,
               imageSize: supportsNanoBananaImageSize(model)
                 ? normalizeNanoImageSize(payload.imageSize)
                 : undefined,
@@ -157,6 +180,7 @@ export const jobsApi = {
       errorMessage: undefined,
       provider: undefined,
       remoteTaskId: undefined,
+      remoteTaskIds: undefined,
       remoteStatus: undefined,
       submitTime: undefined,
       queryUrl: undefined,
@@ -240,6 +264,7 @@ export const jobsApi = {
       errorMessage: undefined,
       provider: undefined,
       remoteTaskId: undefined,
+      remoteTaskIds: undefined,
       remoteStatus: undefined,
       submitTime: undefined,
       queryUrl: undefined,

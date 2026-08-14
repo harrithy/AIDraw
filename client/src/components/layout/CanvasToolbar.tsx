@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, CircleHelp, Clock, Copy, Github, LocateFixed, Maximize2, Moon, RefreshCw, Search, Settings, Sun, X, ZoomIn, ZoomOut } from "lucide-react";
+import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import type { DrawJob } from "../../types";
 
 /** CanvasToolbar 组件的 Props 类型 */
@@ -198,14 +199,15 @@ export function CanvasToolbar({
                 {matchingJobs.map((job) => (
                   <li key={job.id} className="search-dropdown-item">
                     <div className="search-dropdown-image">
-                      {job.outputImageUrl || (job.outputImageUrls && job.outputImageUrls.length > 0) ? (
-                        <img
-                          src={job.outputImageUrl || (job.outputImageUrls && job.outputImageUrls[0]) || ""}
-                          alt="result"
-                        />
-                      ) : (
-                        <div className="search-dropdown-placeholder" />
-                      )}
+                      {(() => {
+                        const resultUrl = getJobOutputImages(job).at(-1);
+                        if (!resultUrl) return <div className="search-dropdown-placeholder" />;
+                        return getJobVisualKind(job, resultUrl) === "video" ? (
+                          <video src={resultUrl} muted playsInline preload="metadata" aria-label="视频结果" />
+                        ) : (
+                          <img src={resultUrl} alt="图片结果" />
+                        );
+                      })()}
                     </div>
                     <div className="search-dropdown-content">
                       <div className="search-dropdown-prompt" title={job.prompt}>

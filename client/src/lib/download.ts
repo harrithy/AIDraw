@@ -2,7 +2,7 @@
  * 根据 Content-Type 推断文件扩展名
  * 从 response blob 的 MIME 类型反推后缀
  */
-const contentTypeToExtension = (contentType: string) => {
+const contentTypeToExtension = (contentType: string, mediaKind: "image" | "video") => {
   if (contentType.includes("mp4")) return "mp4";
   if (contentType.includes("video")) return "mp4";
   if (contentType.includes("svg")) return "svg";
@@ -10,19 +10,19 @@ const contentTypeToExtension = (contentType: string) => {
   if (contentType.includes("png")) return "png";
   if (contentType.includes("webp")) return "webp";
   if (contentType.includes("gif")) return "gif";
-  return "png";
+  return mediaKind === "video" ? "mp4" : "png";
 };
 
 /**
  * 从媒体 URL 中提取文件扩展名
  * 例如 `https://example.com/video.mp4?token=123` → `mp4`
  */
-const getExtensionFromUrl = (imageUrl: string) => {
+const getExtensionFromUrl = (imageUrl: string, mediaKind: "image" | "video") => {
   try {
     const extension = new URL(imageUrl).pathname.match(/\.([a-z0-9]+)$/i)?.[1];
-    return extension ? extension.toLowerCase() : "png";
+    return extension ? extension.toLowerCase() : mediaKind === "video" ? "mp4" : "png";
   } catch {
-    return "png";
+    return mediaKind === "video" ? "mp4" : "png";
   }
 };
 
@@ -66,16 +66,20 @@ const triggerDownload = (href: string, fileName: string, openInNewTab = false) =
  * @param imageUrl - 图片的远程 URL
  * @param prompt - 原始提示词（用作文件名的一部分）
  */
-export const downloadImage = async (imageUrl: string, prompt: string) => {
+export const downloadImage = async (
+  imageUrl: string,
+  prompt: string,
+  mediaKind: "image" | "video" = "image"
+) => {
   const baseName = sanitizeFileName(`AIDraw ${prompt}`);
-  const fallbackName = `${baseName}.${getExtensionFromUrl(imageUrl)}`;
+  const fallbackName = `${baseName}.${getExtensionFromUrl(imageUrl, mediaKind)}`;
 
   try {
     const response = await fetch(imageUrl);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const blob = await response.blob();
-    const extension = contentTypeToExtension(blob.type);
+    const extension = contentTypeToExtension(blob.type, mediaKind);
     const objectUrl = URL.createObjectURL(blob);
     triggerDownload(objectUrl, `${baseName}.${extension}`);
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);

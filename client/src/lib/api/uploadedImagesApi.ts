@@ -1,7 +1,6 @@
 import type { UploadedImage } from "../../types";
 import { uploadMediaToHost, uploadMediaUrlToHost } from "../imageHost";
-import { isVideoModel } from "../imageModels";
-import { getJobOutputImages } from "../jobImages";
+import { getJobOutputImages, getJobVisualKind } from "../jobImages";
 import { FOLDER_STORE, openDb, UPLOADED_IMAGE_STORE } from "../storage/database";
 import { ensureFolder, ensureJob } from "../storage/entities";
 import { createId, nowIso, sortUploadedImages } from "../storage/helpers";
@@ -82,11 +81,13 @@ export const uploadedImagesApi = {
     const outputMedia = getJobOutputImages(job);
     const latestMediaUrl = outputMedia[outputMedia.length - 1];
     if (!latestMediaUrl) throw new Error("该任务还没有可上传的结果");
+    const expectedKind = getJobVisualKind(job, latestMediaUrl);
+    if (!expectedKind) throw new Error("音频或文件结果不能加入图片素材库");
 
     const media = await uploadMediaUrlToHost(
       latestMediaUrl,
       job.id,
-      isVideoModel(job.model) ? "video" : "image"
+      expectedKind
     );
     return saveUploadedMedia({
       id: createId(),

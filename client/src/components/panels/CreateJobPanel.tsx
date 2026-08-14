@@ -1,7 +1,7 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { ChevronDown, ImagePlus, ImageUp, Loader2, MousePointer2, PenLine, Play, X } from "lucide-react";
-import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, useEffect, useRef, useState } from "react";
+import { ChevronDown, ImagePlus, ImageUp, Loader2, MousePointer2, PenLine, Play, Shapes, Sparkles, X } from "lucide-react";
+import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Message } from "@/components/ui/message";
@@ -11,6 +11,16 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { AnimatedModal } from "@/components/ui/AnimatedModal";
+import { DuomiCapabilityFields } from "./DuomiCapabilityFields";
+import {
+  DUOMI_CATEGORY_LABELS,
+  getDuomiCapabilitiesByCategory,
+  getDuomiCapability,
+  getDuomiCapabilityDefaultValues,
+  isDuomiCapabilitySubmittable,
+  type DuomiCapability,
+  type DuomiCapabilityOutputKind
+} from "../../lib/duomiCapabilities";
 import {
   GPT_IMAGE_MODEL,
   GROK_VIDEO_MODEL_1_5,
@@ -48,23 +58,32 @@ const klingVideoDurationOptions: Array<{ label: string; value: number }> = [
 ];
 
 const grokVideo15DurationOptions: Array<{ label: string; value: number }> = [
-  { label: "6 秒 (0.28元)", value: 6 },
-  { label: "10 秒 (0.28元 - 默认)", value: 10 },
-  { label: "15 秒 (0.56元)", value: 15 }
+  { label: "6 秒 (¥0.30)", value: 6 },
+  { label: "10 秒 (¥0.50 - 默认)", value: 10 },
+  { label: "15 秒 (¥0.75)", value: 15 }
 ];
 
 const grokVideoBaseDurationOptions: Array<{ label: string; value: number }> = [
-  { label: "6 秒 (0.28元)", value: 6 },
-  { label: "10 秒 (0.28元 - 默认)", value: 10 },
-  { label: "15 秒 (0.56元)", value: 15 },
-  { label: "20 秒 (0.56元)", value: 20 },
-  { label: "25 秒 (0.84元)", value: 25 },
-  { label: "30 秒 (0.84元)", value: 30 }
+  { label: "6 秒 (¥0.24)", value: 6 },
+  { label: "10 秒 (¥0.40 - 默认)", value: 10 },
+  { label: "15 秒 (¥0.60)", value: 15 },
+  { label: "20 秒 (¥0.80)", value: 20 },
+  { label: "25 秒 (¥1.00)", value: 25 },
+  { label: "30 秒 (¥1.20)", value: 30 }
 ];
 import { getCustomSizeError, getCustomSizeSuggestion } from "../../lib/customImageSize";
-import { formatKlingPrice, getKlingPrice, type KlingSound } from "../../lib/klingPricing";
+import { type KlingSound } from "../../lib/klingPricing";
+import { formatModelPrice, getModelPrice } from "../../lib/modelPricing";
 import { prefersReducedMotion } from "../../lib/motion";
-import type { ApiProviderId, CreateJobPayload, DrawMode, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
+import type {
+  ApiProviderId,
+  CapabilityCategory,
+  CreateJobPayload,
+  DrawMode,
+  DrawSize,
+  NanoImageSize,
+  PresetDrawSize
+} from "../../types";
 import type { ThinkingValue } from "../../types/ui";
 
 /** 文件上传结果 */
@@ -205,7 +224,43 @@ interface FolderDraft {
   videoDuration?: number;
   sound?: KlingSound;
   inputImages: UploadResult[];
+  creationMode?: "model" | "capability";
+  capabilityCategory?: CapabilityCategory;
+  capabilityId?: string;
+  capabilityValues?: Record<string, unknown>;
 }
+
+const capabilityCategories = Object.keys(DUOMI_CATEGORY_LABELS) as CapabilityCategory[];
+
+const capabilityStatusLabel: Record<DuomiCapability["status"], string> = {
+  released: "可用",
+  developing: "开发中",
+  obsolete: "已废弃",
+  disabled: "已停用"
+};
+
+const capabilityOutputKind = (
+  outputKind: DuomiCapabilityOutputKind
+): NonNullable<CreateJobPayload["outputKind"]> => {
+  if (outputKind === "music") return "audio";
+  if (outputKind === "lyrics") return "text";
+  return outputKind;
+};
+
+const hasCapabilityValue = (value: unknown) => {
+  if (value === undefined || value === null) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+};
+
+const getCapabilityPrompt = (item: DuomiCapability, values: Record<string, unknown>, fallback: string) => {
+  const primaryKeys = ["prompt", "user_prompt", "text", "title", "effect_scene"];
+  const primaryValue = primaryKeys
+    .map((key) => values[key])
+    .find((value) => typeof value === "string" && value.trim());
+  return (typeof primaryValue === "string" ? primaryValue.trim() : "") || fallback.trim() || item.name;
+};
 
 const loadDraft = (folderId: string): FolderDraft | null => {
   try {
@@ -248,6 +303,10 @@ export function CreateJobPanel({
   const [videoDuration, setVideoDuration] = useState<number>(10);
   const [sound, setSound] = useState<KlingSound>("on");
   const [inputImages, setInputImages] = useState<UploadResult[]>([]);
+  const [creationMode, setCreationMode] = useState<"model" | "capability">("model");
+  const [capabilityCategory, setCapabilityCategory] = useState<CapabilityCategory>("image");
+  const [capabilityId, setCapabilityId] = useState("image.gpt-image-2");
+  const [capabilityValues, setCapabilityValues] = useState<Record<string, unknown>>({});
   const [previewImage, setPreviewImage] = useState<UploadResult | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -258,6 +317,9 @@ export function CreateJobPanel({
   const isGrokVideo = isGrokVideoModel(model);
   const isKlingVideo = isKlingVideoModel(model);
   const isVideo = isVideoModel(model);
+  const usesCapability = apiProviderId === "duomi" && creationMode === "capability";
+  const categoryCapabilities = useMemo(() => getDuomiCapabilitiesByCategory(capabilityCategory), [capabilityCategory]);
+  const selectedCapability = getDuomiCapability(capabilityId) ?? categoryCapabilities[0];
   const isDuomiNanoBanana = apiProviderId === "duomi" && isNanoBanana;
   const supportsNanoImageSize = supportsNanoBananaImageSize(model);
   const imageModelGroups = getImageModelGroups(apiProviderId);
@@ -281,10 +343,8 @@ export function CreateJobPanel({
       ? grokVideo15DurationOptions
       : grokVideoBaseDurationOptions;
 
-  /** Kling 预计价格：与提交时的 mode 映射保持一致（thinking=high → pro，其余 → std） */
-  const klingPrice = isKlingVideo
-    ? getKlingPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound)
-    : null;
+  /** 模型预计价格：Kling/GROK 视频按查表或按秒，图片模型按固定单价；无价格时返回 null */
+  const modelPrice = getModelPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound);
 
   const isUpdatingDraftRef = useRef(false);
 
@@ -306,6 +366,10 @@ export function CreateJobPanel({
       setVideoDuration(draft.videoDuration ?? 10);
       setSound(draft.sound ?? "on");
       setInputImages(draft.inputImages ?? []);
+      setCreationMode(draft.creationMode === "capability" && apiProviderId === "duomi" ? "capability" : "model");
+      setCapabilityCategory(draft.capabilityCategory ?? "image");
+      setCapabilityId(draft.capabilityId ?? "image.gpt-image-2");
+      setCapabilityValues(draft.capabilityValues ?? {});
     } else {
       setPrompt("");
       setCount(1);
@@ -318,6 +382,10 @@ export function CreateJobPanel({
       setVideoDuration(10);
       setSound("on");
       setInputImages([]);
+      setCreationMode("model");
+      setCapabilityCategory("image");
+      setCapabilityId("image.gpt-image-2");
+      setCapabilityValues({});
     }
 
     const timer = setTimeout(() => {
@@ -341,7 +409,11 @@ export function CreateJobPanel({
       nanoImageSize,
       videoDuration,
       sound,
-      inputImages
+      inputImages,
+      creationMode,
+      capabilityCategory,
+      capabilityId,
+      capabilityValues
     });
   }, [
     activeFolderId,
@@ -355,8 +427,24 @@ export function CreateJobPanel({
     nanoImageSize,
     videoDuration,
     sound,
-    inputImages
+    inputImages,
+    creationMode,
+    capabilityCategory,
+    capabilityId,
+    capabilityValues
   ]);
+
+  useEffect(() => {
+    if (apiProviderId !== "duomi" && creationMode === "capability") setCreationMode("model");
+  }, [apiProviderId, creationMode]);
+
+  useEffect(() => {
+    if (selectedCapability?.category === capabilityCategory) return;
+    const nextCapability = categoryCapabilities[0];
+    if (!nextCapability) return;
+    setCapabilityId(nextCapability.id);
+    setCapabilityValues(getDuomiCapabilityDefaultValues(nextCapability));
+  }, [capabilityCategory, categoryCapabilities, selectedCapability]);
 
   useEffect(() => {
     if (!currentSizeOptions.some((option) => option.value === sizeMode)) {
@@ -542,7 +630,7 @@ export function CreateJobPanel({
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const nextPrompt = prompt.trim();
-    if (!nextPrompt) {
+    if (!usesCapability && !nextPrompt) {
       Message.error("请先填写提示词");
       return;
     }
@@ -553,6 +641,46 @@ export function CreateJobPanel({
     }
     if (isDuomiNanoBanana && inputImages.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
       Message.error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
+      return;
+    }
+
+    if (usesCapability) {
+      if (!selectedCapability) {
+        Message.error("请选择多米能力");
+        return;
+      }
+      if (!isDuomiCapabilitySubmittable(selectedCapability)) {
+        Message.error(`${selectedCapability.name}当前${capabilityStatusLabel[selectedCapability.status]}，不能提交`);
+        return;
+      }
+      const missingField = selectedCapability.fields.find(
+        (field) => field.required && !hasCapabilityValue(capabilityValues[field.key] ?? field.defaultValue)
+      );
+      if (missingField) {
+        Message.error(`请填写${missingField.label}`);
+        return;
+      }
+
+      const normalizedParams = Object.fromEntries(
+        selectedCapability.fields
+          .map((field) => [field.key, capabilityValues[field.key] ?? field.defaultValue] as const)
+          .filter(([, value]) => value !== undefined && value !== "")
+      );
+      await onSubmit({
+        mode: "text-to-image",
+        prompt: getCapabilityPrompt(selectedCapability, normalizedParams, nextPrompt),
+        width: 1024,
+        height: 1024,
+        size: "auto",
+        count: 1,
+        thinking: "high",
+        model: selectedCapability.name,
+        capabilityId: selectedCapability.id,
+        category: selectedCapability.category,
+        outputKind: capabilityOutputKind(selectedCapability.outputKind),
+        capabilityParams: normalizedParams,
+        estimatedPriceLabel: selectedCapability.priceLabel
+      });
       return;
     }
 
@@ -718,6 +846,98 @@ export function CreateJobPanel({
     </Select>
   );
 
+  const renderCreationMode = () =>
+    apiProviderId === "duomi" ? (
+      <div className="capability-mode-switch" aria-label="创作方式">
+        <Button
+          type="button"
+          variant={creationMode === "model" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setCreationMode("model")}
+        >
+          <Sparkles data-icon="inline-start" />
+          模型
+        </Button>
+        <Button
+          type="button"
+          variant={creationMode === "capability" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setCreationMode("capability")}
+        >
+          <Shapes data-icon="inline-start" />
+          多米能力
+        </Button>
+      </div>
+    ) : null;
+
+  const renderCapabilityPanel = (side: "top" | "bottom" = "bottom") => {
+    if (!usesCapability || !selectedCapability) return null;
+    const providers = Array.from(new Set(categoryCapabilities.map((item) => item.provider)));
+
+    return (
+      <section className="duomi-capability-panel" aria-label="多米能力配置">
+        <div className="duomi-capability-header">
+          <div className="duomi-category-tabs" role="tablist" aria-label="能力分类">
+            {capabilityCategories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                role="tab"
+                aria-selected={capabilityCategory === category}
+                className={capabilityCategory === category ? "selected" : ""}
+                onClick={() => setCapabilityCategory(category)}
+              >
+                {DUOMI_CATEGORY_LABELS[category]}
+              </button>
+            ))}
+          </div>
+          <Select
+            value={selectedCapability.id}
+            onValueChange={(value) => {
+              const nextCapability = getDuomiCapability(value);
+              if (!nextCapability) return;
+              setCapabilityId(value);
+              setCapabilityValues(getDuomiCapabilityDefaultValues(nextCapability));
+            }}
+          >
+            <SelectTrigger aria-label="多米能力" className="duomi-capability-trigger">
+              <SelectValue>{selectedCapability.name}</SelectValue>
+            </SelectTrigger>
+            <SelectContent side={side} sideOffset={6} position="popper" align="start" className="duomi-capability-select-content">
+              {providers.map((provider) => (
+                <SelectGroup key={provider}>
+                  <SelectLabel>{provider}</SelectLabel>
+                  {categoryCapabilities
+                    .filter((item) => item.provider === provider)
+                    .map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        <span className="duomi-capability-option">
+                          <strong>{item.name}</strong>
+                          <small>{item.priceLabel} · {capabilityStatusLabel[item.status]}</small>
+                        </span>
+                      </SelectItem>
+                    ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className={`duomi-capability-summary status-${selectedCapability.status}`}>
+          <span>{selectedCapability.provider}</span>
+          <strong>{selectedCapability.priceLabel}</strong>
+          <em>{capabilityStatusLabel[selectedCapability.status]}</em>
+          {selectedCapability.priceNote ? <small>{selectedCapability.priceNote}</small> : null}
+          {selectedCapability.description ? <small>{selectedCapability.description}</small> : null}
+        </div>
+        <DuomiCapabilityFields
+          capability={selectedCapability}
+          values={capabilityValues}
+          onChange={(key, value) => setCapabilityValues((current) => ({ ...current, [key]: value }))}
+        />
+      </section>
+    );
+  };
+
   if (variant === "composer") {
     if (isCollapsed) {
       return (
@@ -746,8 +966,10 @@ export function CreateJobPanel({
           onDrop={dropImages}
           noValidate
         >
+          {renderCreationMode()}
+          {usesCapability ? renderCapabilityPanel("top") : null}
           <div className="composer-floating-controls">
-            <div className={`composer-fields ${!isNanoBanana && sizeMode === "custom" ? "has-custom-size" : ""}`} data-tour="composer-options">
+            {!usesCapability ? <div className={`composer-fields ${!isNanoBanana && sizeMode === "custom" ? "has-custom-size" : ""}`} data-tour="composer-options">
               <Field orientation="horizontal">
                 <FieldLabel htmlFor="composer-count">数量</FieldLabel>
                 <Input
@@ -810,18 +1032,23 @@ export function CreateJobPanel({
                 {renderModelSelect("composer-model", "top")}
               </Field>
               {isKlingVideo ? (
-                <>
-                  <Field orientation="horizontal" className="kling-sound-field">
-                    <FieldLabel htmlFor="composer-sound">音画同步</FieldLabel>
-                    {renderSoundSwitch("composer-sound")}
-                  </Field>
-                  <div className="kling-price-pill" title={`预计价格：${formatKlingPrice(klingPrice)}`}>
-                    <span>预计</span>
-                    <strong>{formatKlingPrice(klingPrice)}</strong>
-                  </div>
-                </>
+                <Field orientation="horizontal" className="kling-sound-field">
+                  <FieldLabel htmlFor="composer-sound">音画同步</FieldLabel>
+                  {renderSoundSwitch("composer-sound")}
+                </Field>
               ) : null}
-            </div>
+              {modelPrice !== null ? (
+                <div className="kling-price-pill" title={`预计价格：${formatModelPrice(modelPrice)}`}>
+                  <span>预计</span>
+                  <strong>{formatModelPrice(modelPrice)}</strong>
+                </div>
+              ) : null}
+            </div> : (
+              <div className="duomi-capability-active-label">
+                <Shapes size={15} />
+                <span>{selectedCapability?.name}</span>
+              </div>
+            )}
 
             <Button 
               type="button" 
@@ -835,7 +1062,7 @@ export function CreateJobPanel({
             </Button>
           </div>
 
-          <Field className="composer-input-field">
+          {!usesCapability ? <Field className="composer-input-field">
             <FieldLabel htmlFor="composer-prompt" className="sr-only">提示词</FieldLabel>
             <InputGroup className={`composer-input-shell ${inputImages.length > 0 ? "has-attachments" : ""}${isDragActive ? " is-dragging" : ""}`} onPaste={pasteImages} data-tour="composer">
               {imageAttachments}
@@ -865,7 +1092,45 @@ export function CreateJobPanel({
                 </Button>
               </InputGroupAddon>
             </InputGroup>
-          </Field>
+          </Field> : (
+            <div className="duomi-capability-submit-row">
+              <span>{selectedCapability?.priceLabel}</span>
+              <Button
+                className="composer-submit"
+                type="submit"
+                disabled={isSubmitting || !selectedCapability || !isDuomiCapabilitySubmittable(selectedCapability)}
+              >
+                {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <Play data-icon="inline-start" />}
+                <span>{isSubmitting ? "加入中" : "加入队列"}</span>
+              </Button>
+            </div>
+          )}
+        </form>
+        <ReferenceImagePreview image={previewImage} onClose={() => setPreviewImage(null)} />
+      </>
+    );
+  }
+
+  if (usesCapability) {
+    return (
+      <>
+        <form ref={panelRef} className="create-panel" onSubmit={submit} noValidate>
+          {renderCreationMode()}
+          <div className="panel-title">
+            <div>
+              <p className="eyebrow">多米能力</p>
+              <h2>{selectedCapability?.name ?? "选择能力"}</h2>
+            </div>
+            <Shapes size={24} />
+          </div>
+          {renderCapabilityPanel()}
+          <Button
+            type="submit"
+            disabled={isSubmitting || !selectedCapability || !isDuomiCapabilitySubmittable(selectedCapability)}
+          >
+            {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <Play data-icon="inline-start" />}
+            {isSubmitting ? "加入中" : "加入能力任务队列"}
+          </Button>
         </form>
         <ReferenceImagePreview image={previewImage} onClose={() => setPreviewImage(null)} />
       </>
@@ -884,6 +1149,7 @@ export function CreateJobPanel({
       onDrop={dropImages}
       noValidate
     >
+      {renderCreationMode()}
       <div className="panel-title">
         <div>
           <p className="eyebrow">{isVideo ? "视频任务" : "绘图任务"}</p>
@@ -985,9 +1251,14 @@ export function CreateJobPanel({
           </Field>
           <Field>
             <FieldLabel>预计价格</FieldLabel>
-            <div className="kling-price-value">{formatKlingPrice(klingPrice)}</div>
+            <div className="kling-price-value">{formatModelPrice(modelPrice)}</div>
           </Field>
         </div>
+      ) : modelPrice !== null ? (
+        <Field>
+          <FieldLabel>预计价格</FieldLabel>
+          <div className="kling-price-value">{formatModelPrice(modelPrice)}</div>
+        </Field>
       ) : null}
 
 

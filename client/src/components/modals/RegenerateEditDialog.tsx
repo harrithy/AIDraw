@@ -67,21 +67,22 @@ const klingVideoDurationOptions: Array<{ label: string; value: number }> = [
 ];
 
 const grokVideo15DurationOptions: Array<{ label: string; value: number }> = [
-  { label: "6 秒 (0.28元)", value: 6 },
-  { label: "10 秒 (0.28元 - 默认)", value: 10 },
-  { label: "15 秒 (0.56元)", value: 15 }
+  { label: "6 秒 (¥0.30)", value: 6 },
+  { label: "10 秒 (¥0.50 - 默认)", value: 10 },
+  { label: "15 秒 (¥0.75)", value: 15 }
 ];
 
 const grokVideoBaseDurationOptions: Array<{ label: string; value: number }> = [
-  { label: "6 秒 (0.28元)", value: 6 },
-  { label: "10 秒 (0.28元 - 默认)", value: 10 },
-  { label: "15 秒 (0.56元)", value: 15 },
-  { label: "20 秒 (0.56元)", value: 20 },
-  { label: "25 秒 (0.84元)", value: 25 },
-  { label: "30 秒 (0.84元)", value: 30 }
+  { label: "6 秒 (¥0.24)", value: 6 },
+  { label: "10 秒 (¥0.40 - 默认)", value: 10 },
+  { label: "15 秒 (¥0.60)", value: 15 },
+  { label: "20 秒 (¥0.80)", value: 20 },
+  { label: "25 秒 (¥1.00)", value: 25 },
+  { label: "30 秒 (¥1.20)", value: 30 }
 ];
 import { getCustomSizeError, getCustomSizeSuggestion } from "../../lib/customImageSize";
-import { formatKlingPrice, getKlingPrice, type KlingSound } from "../../lib/klingPricing";
+import { type KlingSound } from "../../lib/klingPricing";
+import { formatModelPrice, getModelPrice } from "../../lib/modelPricing";
 import type { ApiProviderId, DrawJob, DrawSize, NanoImageSize, PresetDrawSize } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
 
@@ -266,10 +267,8 @@ export function RegenerateEditDialog({
       ? grokVideo15DurationOptions
       : grokVideoBaseDurationOptions;
 
-  /** Kling 预计价格：与提交时的 mode 映射保持一致（thinking=high → pro，其余 → std） */
-  const klingPrice = isKlingVideo
-    ? getKlingPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound)
-    : null;
+  /** 模型预计价格：Kling/GROK 视频按查表或按秒，图片模型按固定单价；无价格时返回 null */
+  const modelPrice = getModelPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound);
 
   // 打开或切换到另一个任务时，用该任务的当前参数预填表单
   useEffect(() => {
@@ -704,9 +703,14 @@ export function RegenerateEditDialog({
               </Field>
               <Field>
                 <FieldLabel>预计价格</FieldLabel>
-                <div className="kling-price-value">{formatKlingPrice(klingPrice)}</div>
+                <div className="kling-price-value">{formatModelPrice(modelPrice)}</div>
               </Field>
             </div>
+          ) : modelPrice !== null ? (
+            <Field>
+              <FieldLabel>预计价格</FieldLabel>
+              <div className="kling-price-value">{formatModelPrice(modelPrice)}</div>
+            </Field>
           ) : null}
 
           <Field>

@@ -25,9 +25,9 @@ import type { JobCardSize } from "../../lib/canvas";
 import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
 import { isKlingVideoModel, isNanoBananaModel, isVideoModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
-import { getJobOutputImages } from "../../lib/jobImages";
+import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import { statusLabel } from "../../lib/jobLabels";
-import { formatKlingPrice, getKlingPrice } from "../../lib/klingPricing";
+import { formatModelPrice, getModelPrice } from "../../lib/modelPricing";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { DrawJob } from "../../types";
 import { AnimatedModal } from "../ui/AnimatedModal";
@@ -42,6 +42,7 @@ import {
 } from "../ui/dialog";
 import { Message } from "../ui/message";
 import { RetryingImage } from "../ui/RetryingImage";
+import { JobResultContent } from "./JobResultContent";
 
 /** 同一任务多个版本之间的间距像素 */
 const VERSION_GAP = 8;
@@ -106,7 +107,11 @@ export const JobCard = memo(function JobCard({
   const outputImages = getJobOutputImages(job);
   const previousOutputCountRef = useRef(Math.max(1, outputImages.length));
   const currentImageUrl = outputImages[outputImages.length - 1];
-  const mediaLabel = isVideoModel(job.model) ? "视频" : "图片";
+  const hasRichResult = Boolean(job.outputAssets?.length || job.outputText !== undefined || job.outputData !== undefined);
+  const currentAssetKind = getJobVisualKind(job, currentImageUrl);
+  const isCurrentVideo = currentAssetKind === "video";
+  const hasVisualPrimary = currentAssetKind === "image" || currentAssetKind === "video";
+  const mediaLabel = isCurrentVideo ? "视频" : "图片";
   const hasMultipleVersions = outputImages.length > 1;
   const displayedVersions = hasMultipleVersions
     ? renderHistory
@@ -144,11 +149,14 @@ export const JobCard = memo(function JobCard({
           )
         )
       : [];
-  /** Kling 预计价格：无 sound 字段的旧任务按关闭（off）计（与 KlingProvider 默认一致） */
-  const klingJobPrice = isKlingVideoModel(job.model)
-    ? getKlingPrice(job.model, job.thinking === "high" ? "pro" : "std", job.duration ?? 5, job.sound ?? "off")
-    : null;
-  const klingPriceLabel = klingJobPrice === null ? "价格未知" : `约${formatKlingPrice(klingJobPrice)}`;
+  /** 模型预计价格：视频按查表/按秒，图片按固定单价；无 sound 字段的旧 Kling 任务按关闭（off）计 */
+  const jobPrice = getModelPrice(
+    job.model,
+    job.thinking === "high" ? "pro" : "std",
+    job.duration ?? 5,
+    job.sound ?? "off"
+  );
+  const jobPriceLabel = jobPrice === null ? "价格未知" : `约${formatModelPrice(jobPrice)}`;
   const klingSoundLabel = job.sound === "on" ? "有声" : job.sound === "off" ? "无声" : null;
   const cardStyle: CSSProperties &
     Record<
@@ -241,7 +249,7 @@ export const JobCard = memo(function JobCard({
 
     setIsDownloading(true);
     try {
-      await downloadImage(currentImageUrl, job.prompt);
+      await downloadImage(currentImageUrl, job.prompt, isCurrentVideo ? "video" : "image");
     } finally {
       setIsDownloading(false);
     }
@@ -409,19 +417,21 @@ export const JobCard = memo(function JobCard({
                 </button>
                 {retryMenuOpen ? (
                   <div className="job-retry-menu" role="menu">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="job-retry-menu-item"
-                      onClick={() => {
-                        setRetryMenuOpen(false);
-                        setToolsOpen(false);
-                        onEditRetry(job);
-                      }}
-                    >
-                      <PenLine size={14} />
-                      <span>重新编辑</span>
-                    </button>
+                    {!job.capabilityId ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="job-retry-menu-item"
+                        onClick={() => {
+                          setRetryMenuOpen(false);
+                          setToolsOpen(false);
+                          onEditRetry(job);
+                        }}
+                      >
+                        <PenLine size={14} />
+                        <span>重新编辑</span>
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       role="menuitem"
@@ -444,7 +454,7 @@ export const JobCard = memo(function JobCard({
             <button type="button" onClick={() => onMove(job.id, 1)} disabled={index === total - 1} title="下移">
               <ArrowDown size={15} />
             </button>
-            {currentImageUrl ? (
+            {currentImageUrl && hasVisualPrimary ? (
               <>
                 <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title={`下载${mediaLabel}`}>
                   {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
@@ -459,7 +469,7 @@ export const JobCard = memo(function JobCard({
                     {isUploadingLatest ? <Loader2 className="spin" size={15} /> : <CloudUpload size={15} />}
                   </button>
                 ) : null}
-                {onUseImage && !isVideoModel(job.model) && (
+                {onUseImage && currentAssetKind === "image" && (
                   <button type="button" onClick={() => onUseImage(currentImageUrl)} title="作为参考图引用">
                     <ImagePlus size={15} />
                   </button>
@@ -480,13 +490,15 @@ export const JobCard = memo(function JobCard({
         ) : null}
       </div>
 
-      <div className={`job-image ${currentImageUrl ? "has-output" : ""}${hasMultipleVersions ? " has-versions" : ""}`}>
-        {currentImageUrl ? (
+      <div className={`job-image ${currentImageUrl || hasRichResult ? "has-output" : ""}${hasMultipleVersions ? " has-versions" : ""}${hasRichResult ? " has-rich-result" : ""}`}>
+        {hasRichResult ? (
+          <JobResultContent job={job} />
+        ) : currentImageUrl ? (
           hasMultipleVersions ? (
             <div className="job-image-comparison">
               {displayedVersions.map(({ imageUrl, versionNumber }) => {
                 const isLatest = versionNumber === outputImages.length;
-                const isMediaVideo = isVideoModel(job.model) || /\.mp4(?:\?|$)/i.test(imageUrl);
+                const isMediaVideo = getJobVisualKind(job, imageUrl) === "video";
 
                 return (
                   <button
@@ -508,7 +520,7 @@ export const JobCard = memo(function JobCard({
             </div>
           ) : (
             <button type="button" className="job-image-button" onClick={() => onPreview(job)} title="放大预览">
-              {isVideoModel(job.model) || /\.mp4(?:\?|$)/i.test(currentImageUrl) ? (
+              {isCurrentVideo ? (
                 <video src={currentImageUrl} autoPlay loop muted playsInline className="retrying-img is-loaded" />
               ) : (
                 <RetryingImage key={currentImageUrl} src={currentImageUrl} alt={job.prompt} />
@@ -542,6 +554,12 @@ export const JobCard = memo(function JobCard({
       ) : null}
 
       <div className="job-body">
+        {job.capabilityId ? (
+          <div className="job-capability-line">
+            <strong>{job.model}</strong>
+            <span>{job.estimatedPriceLabel ?? "以实际账单为准"}</span>
+          </div>
+        ) : null}
         <div className="job-meta-line" aria-label="任务参数">
           <span className="job-meta-item">
             <em>时间</em>
@@ -555,10 +573,10 @@ export const JobCard = memo(function JobCard({
             <em>尺寸</em>
             <strong>{sizeLabel}</strong>
           </span>
-          {isKlingVideoModel(job.model) ? (
+          {jobPrice !== null ? (
             <span className="job-meta-item">
               <em>{klingSoundLabel ? "声音" : "价格"}</em>
-              <strong>{klingSoundLabel ? `${klingSoundLabel} · ${klingPriceLabel}` : klingPriceLabel}</strong>
+              <strong>{klingSoundLabel ? `${klingSoundLabel} · ${jobPriceLabel}` : jobPriceLabel}</strong>
             </span>
           ) : null}
         </div>

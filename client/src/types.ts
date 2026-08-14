@@ -19,6 +19,22 @@ export type DrawMode = "text-to-image" | "image-to-image";
  */
 export type DrawJobStatus = "pending" | "running" | "completed" | "failed";
 
+/** 多米能力在创作面板中的一级分类。 */
+export type CapabilityCategory = "image" | "video" | "music" | "tool";
+
+/** 生成结果资产类型；文本和结构化数据使用 DrawJob 的独立字段保存。 */
+export type GeneratedAssetKind = "image" | "video" | "audio" | "file";
+
+/** 一个远程任务可以返回多个不同类型的结果资产。 */
+export type GeneratedAsset = {
+  kind: GeneratedAssetKind;
+  url?: string;
+  text?: string;
+  mimeType?: string;
+  name?: string;
+  data?: unknown;
+};
+
 /**
  * 预设的图像尺寸选项
  * 包含固定像素尺寸（如 1024x1024）和宽高比（如 16:9）
@@ -142,6 +158,16 @@ export type DrawJob = {
   thinking: "high" | "medium" | "low" | "standard";
   /** 使用的 AI 模型名称 */
   model: string;
+  /** 注册表能力 ID；旧模型任务没有该字段。 */
+  capabilityId?: string;
+  /** 能力所属的一级分类。 */
+  category?: CapabilityCategory;
+  /** 能力声明的主要输出类型。 */
+  outputKind?: GeneratedAssetKind | "text" | "data" | "mixed";
+  /** 由能力 Schema 生成并提交给多米 API 的参数。 */
+  capabilityParams?: Record<string, unknown>;
+  /** 创建任务时保存的预计价格文案，避免价格表更新后历史任务含义变化。 */
+  estimatedPriceLabel?: string;
   /** NANO-BANANA 输出分辨率 */
   imageSize?: NanoImageSize;
   /** 视频生成时长（秒） */
@@ -162,12 +188,20 @@ export type DrawJob = {
   provider?: ImageProviderId;
   /** 远程任务 ID */
   remoteTaskId?: string;
+  /** 一个请求返回多个远程任务时保存全部 ID。 */
+  remoteTaskIds?: string[];
   /** 远程状态 */
   remoteStatus?: string;
   /** 提交时间 */
   submitTime?: string;
   /** 查询 URL */
   queryUrl?: string;
+  /** 当前任务返回的全部媒体/文件资产。 */
+  outputAssets?: GeneratedAsset[];
+  /** 同步接口或文本类能力返回的文本。 */
+  outputText?: string;
+  /** 无法归一化为媒体或文本时保留的结构化结果。 */
+  outputData?: unknown;
   /** 当前负责执行任务的浏览器标签页 */
   queueOwnerId?: string;
   /** 执行租约到期时间，过期后其他标签页可以接管 */
@@ -264,6 +298,16 @@ export type CreateJobPayload = {
   thinking?: "high" | "medium" | "low";
   /** 模型名称 */
   model?: string;
+  /** 多米能力注册表 ID。 */
+  capabilityId?: string;
+  /** 多米能力分类。 */
+  category?: CapabilityCategory;
+  /** 多米能力主要输出类型。 */
+  outputKind?: GeneratedAssetKind | "text" | "data" | "mixed";
+  /** 动态表单收集的能力参数。 */
+  capabilityParams?: Record<string, unknown>;
+  /** 提交时展示的预计价格文案。 */
+  estimatedPriceLabel?: string;
   /** NANO-BANANA 输出分辨率 */
   imageSize?: NanoImageSize;
   /** 视频生成时长（秒） */

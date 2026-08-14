@@ -1,6 +1,8 @@
-import type { DrawJob } from "../types";
-import { getJobOutputImages } from "./jobImages";
-import { getProvider, getRequiredApiProvider, resolveProviderId } from "./providers/providerRegistry";
+import type { DrawJob, GeneratedAsset } from "../types";
+import { getDuomiCapability } from "./duomiCapabilities";
+import { getJobAssetKind, getJobOutputImages } from "./jobImages";
+import { getProviderForJob, getRequiredApiProvider } from "./providers/providerRegistry";
+import type { ProviderTaskResult } from "./providers/types";
 import { JOB_STORE, openDb } from "./storage/database";
 import { ensureJob, updateOwnedJob } from "./storage/entities";
 import { nowIso, sortJobs } from "./storage/helpers";
@@ -35,8 +37,24 @@ const isTaskTimedOut = (job: DrawJob) => {
 
 const delay = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
+const normalizeSucceededAssets = (
+  result: Extract<ProviderTaskResult, { state: "succeeded" }>,
+  job: DrawJob
+): GeneratedAsset[] => {
+  const assets = (result.assets ?? []).filter(
+    (asset) => Boolean(asset.url?.trim()) || Boolean(asset.text?.trim()) || asset.data !== undefined
+  );
+  if (assets.length > 0) return assets;
+  return result.imageUrl?.trim()
+    ? [{
+        kind: getJobAssetKind(job, result.imageUrl),
+        url: result.imageUrl.trim()
+      }]
+    : [];
+};
+
 /** 提交单个任务并持续轮询远程平台，直到任务结束或超时。 */
-const executeJobBackground = async (job: DrawJob) => {
+export const executeJobBackground = async (job: DrawJob) => {
   try {
     while (true) {
       let freshJob = await ensureJob(job.id);
@@ -55,7 +73,7 @@ const executeJobBackground = async (job: DrawJob) => {
       freshJob = renewedJob;
 
       const settings = await getSettings();
-      const providerId = resolveProviderId(freshJob, settings);
+      const { providerId, provider } = getProviderForJob(freshJob, settings);
       if (providerId !== "mock" && !settings.apiKey) {
         throw new Error("恢复远程任务需要原 API Key，请重新配置后再继续");
       }
@@ -66,9 +84,8 @@ const executeJobBackground = async (job: DrawJob) => {
           `该任务需要 ${requiredApiProvider === "grsai" ? "Grsai" : "多米API"} 的 API Key，请切换后重试`
         );
       }
-      const provider = getProvider(providerId);
-
       let taskId = freshJob.remoteTaskId;
+      let immediateResult: ProviderTaskResult | undefined;
       if (!taskId) {
         const preparedJob = await updateOwnedJob(job.id, queueOwnerId, {
           provider: providerId,
@@ -79,36 +96,137 @@ const executeJobBackground = async (job: DrawJob) => {
         if (!preparedJob) return;
 
         const createdTask = await provider.createTask(preparedJob, settings);
+        const remoteTaskIds = createdTask.taskIds?.length
+          ? createdTask.taskIds
+          : createdTask.taskId
+            ? [createdTask.taskId]
+            : [];
         const submittedJob = await updateOwnedJob(job.id, queueOwnerId, {
           remoteTaskId: createdTask.taskId,
+          remoteTaskIds,
           queryUrl: createdTask.queryUrl,
           provider: providerId,
-          remoteStatus: "pending",
+          remoteStatus: createdTask.result?.state ?? "pending",
           leaseExpiresAt: leaseExpiryIso()
         });
         if (!submittedJob) return;
+
+        // 同步接口在 createTask 内就返回最终结果，立即完成保存，避免刷新页面丢失结果。
+        if (createdTask.result?.state === "succeeded") {
+          const syncAssets = normalizeSucceededAssets(createdTask.result, submittedJob);
+          const syncPrimaryAsset = syncAssets.find(
+            (asset) => asset.kind === "image" || asset.kind === "video"
+          );
+          const syncPrimaryUrl = syncPrimaryAsset?.url?.trim();
+          await updateOwnedJob(job.id, queueOwnerId, {
+            status: "completed",
+            remoteStatus: "succeeded",
+            outputImageUrl: syncPrimaryUrl ?? submittedJob.outputImageUrl,
+            outputImageUrls: syncPrimaryUrl
+              ? [...getJobOutputImages(submittedJob), syncPrimaryUrl]
+              : submittedJob.outputImageUrls,
+            outputAssets: syncAssets,
+            outputText: createdTask.result.text?.trim() || undefined,
+            outputData: createdTask.result.data,
+            errorMessage: undefined,
+            completedAt: nowIso(),
+            queueOwnerId: undefined,
+            leaseExpiresAt: undefined
+          });
+          return;
+        }
+
         freshJob = submittedJob;
         taskId = createdTask.taskId;
+        immediateResult = createdTask.result;
+      } else if (job.capabilityId && getDuomiCapability(job.capabilityId)?.query.strategy === "none") {
+        // 同步能力任务恢复：结果只在 createTask 时返回，无法通过 queryTask 补查。
+        if (
+          freshJob.outputAssets?.length ||
+          freshJob.outputText !== undefined ||
+          freshJob.outputData !== undefined
+        ) {
+          await updateOwnedJob(job.id, queueOwnerId, {
+            status: "completed",
+            remoteStatus: "succeeded",
+            completedAt: nowIso(),
+            queueOwnerId: undefined,
+            leaseExpiresAt: undefined
+          });
+          return;
+        }
+        throw new Error("同步任务的结果未保存成功，为避免重复计费请重新提交该能力任务");
       }
 
-      const result = await provider.queryTask(taskId, freshJob, settings);
-      if (result.state === "pending" || result.state === "running") {
+      const taskIds = freshJob.remoteTaskIds?.length ? freshJob.remoteTaskIds : taskId ? [taskId] : [];
+      let results: ProviderTaskResult[];
+      const partialErrors: string[] = [];
+      if (immediateResult || taskIds.length <= 1) {
+        // 单任务保持原有语义：查询抛异常或返回 error 状态时直接失败。
+        results = immediateResult
+          ? [immediateResult]
+          : await Promise.all(taskIds.map((id) => provider.queryTask(id, freshJob, settings)));
+        const failedResult = results.find((result) => result.state === "error");
+        if (failedResult?.state === "error") throw new Error(failedResult.errorMessage);
+      } else {
+        // 多任务逐个容忍失败：只要仍有成功或进行中的任务就继续正常流程。
+        const settled = await Promise.allSettled(
+          taskIds.map((id) => provider.queryTask(id, freshJob, settings))
+        );
+        results = [];
+        for (const item of settled) {
+          if (item.status === "rejected") {
+            partialErrors.push(item.reason instanceof Error ? item.reason.message : String(item.reason));
+          } else if (item.value.state === "error") {
+            partialErrors.push(item.value.errorMessage);
+          } else {
+            results.push(item.value);
+          }
+        }
+        const hasUsableResult = results.some(
+          (result) =>
+            result.state === "succeeded" || result.state === "pending" || result.state === "running"
+        );
+        if (!hasUsableResult) {
+          throw new Error(
+            partialErrors.length > 0 ? partialErrors.join("；") : "远程任务已结束，但没有可保存的结果"
+          );
+        }
+      }
+      if (results.some((result) => result.state === "pending" || result.state === "running")) {
+        const remoteStatus = results.some((result) => result.state === "running") ? "running" : "pending";
         const waitingJob = await updateOwnedJob(job.id, queueOwnerId, {
-          remoteStatus: result.state,
+          remoteStatus,
           leaseExpiresAt: leaseExpiryIso()
         });
         if (!waitingJob) return;
         await delay(TASK_POLL_INTERVAL_MS);
         continue;
       }
-      if (result.state === "error") throw new Error(result.errorMessage);
+
+      const succeededResults = results.filter(
+        (result): result is Extract<typeof result, { state: "succeeded" }> => result.state === "succeeded"
+      );
+      if (succeededResults.length === 0) throw new Error("远程任务已结束，但没有可保存的结果");
+      const assets = succeededResults.flatMap((result) => normalizeSucceededAssets(result, freshJob));
+      const primaryAsset = assets.find((asset) => asset.kind === "image" || asset.kind === "video");
+      const primaryUrl = primaryAsset?.url?.trim();
+      const text = succeededResults.map((result) => result.text?.trim()).filter(Boolean).join("\n\n") || undefined;
+      const data = succeededResults.length === 1
+        ? succeededResults[0]?.data
+        : succeededResults.map((result) => result.data).filter((value) => value !== undefined);
+      // 部分任务失败时把失败消息一并保存，无失败时保持原数据形态不变。
+      const savedData = partialErrors.length > 0 ? { results: data, partialErrors } : data;
 
       const latestJob = await ensureJob(job.id);
       await updateOwnedJob(job.id, queueOwnerId, {
         status: "completed",
         remoteStatus: "succeeded",
-        outputImageUrl: result.imageUrl,
-        outputImageUrls: [...getJobOutputImages(latestJob), result.imageUrl],
+        outputImageUrl: primaryUrl ?? latestJob.outputImageUrl,
+        outputImageUrls: primaryUrl ? [...getJobOutputImages(latestJob), primaryUrl] : latestJob.outputImageUrls,
+        outputAssets: assets,
+        outputText: text,
+        outputData: savedData,
         errorMessage: undefined,
         completedAt: nowIso(),
         queueOwnerId: undefined,
@@ -172,7 +290,7 @@ const runQueueLocked = async () => {
           continue;
         }
 
-        if (!job.remoteTaskId) {
+        if (!job.remoteTaskId && !job.remoteTaskIds?.length) {
           store.put({
             ...job,
             status: "failed",

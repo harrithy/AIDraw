@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { downloadImage } from "../../lib/download";
 import { formatDate } from "../../lib/format";
 import { isNanoBananaModel, isVideoModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
-import { getJobOutputImages } from "../../lib/jobImages";
+import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import { prefersReducedMotion } from "../../lib/motion";
 import type { DrawJob } from "../../types";
 import { AnimatedModal } from "../ui/AnimatedModal";
@@ -17,8 +17,13 @@ type ComparisonSelection = {
   imageIndex: number;
 };
 
-const renderMediaItem = (imageUrl: string, altText: string, className?: string, ariaHidden?: boolean) => {
-  const isVideo = /\.mp4(?:\?|$)/i.test(imageUrl);
+const renderMediaItem = (
+  imageUrl: string,
+  altText: string,
+  isVideo: boolean,
+  className?: string,
+  ariaHidden?: boolean
+) => {
   if (isVideo) {
     return (
       <video
@@ -57,7 +62,6 @@ export function ImagePreview({
   const [comparisonSelection, setComparisonSelection] = useState<ComparisonSelection | null>(null);
   const imageUrls = job ? getJobOutputImages(job) : [];
   const currentImageUrl = imageUrls[imageUrls.length - 1];
-  const isJobVideo = job ? isVideoModel(job.model) : false;
   const hasComparison = imageUrls.length > 1;
   const latestComparisonIndex = Math.max(0, imageUrls.length - 2);
   const selectedComparisonIndex = comparisonSelection && comparisonSelection.jobId === job?.id
@@ -124,13 +128,13 @@ export function ImagePreview({
 
     setIsDownloading(true);
     try {
-      await downloadImage(currentImageUrl, job.prompt);
+      await downloadImage(currentImageUrl, job.prompt, isCurrentVideo ? "video" : "image");
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const isCurrentVideo = isJobVideo || /\.mp4(?:\?|$)/i.test(currentImageUrl);
+  const isCurrentVideo = getJobVisualKind(job, currentImageUrl) === "video";
 
   return (
     <AnimatedModal
@@ -149,7 +153,7 @@ export function ImagePreview({
         >
           {isDownloading ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
         </button>
-        {onUseImage && (
+        {onUseImage && !isCurrentVideo && (
           <button
             type="button"
             className="image-preview-action"
@@ -181,6 +185,7 @@ export function ImagePreview({
                   renderMediaItem(
                     imageUrl,
                     `${job.prompt}，版本 ${imageIndex + 1}`,
+                    getJobVisualKind(job, imageUrl) === "video",
                     `image-comparison-layer${imageIndex === safeComparisonIndex ? " is-selected" : ""}`,
                     imageIndex !== safeComparisonIndex
                   )
@@ -192,7 +197,7 @@ export function ImagePreview({
                 <span>当前版本</span>
                 <strong>V{imageUrls.length}</strong>
               </figcaption>
-              {renderMediaItem(currentImageUrl, `${job.prompt}，当前版本 ${imageUrls.length}`)}
+              {renderMediaItem(currentImageUrl, `${job.prompt}，当前版本 ${imageUrls.length}`, isCurrentVideo)}
             </figure>
           </div>
           {imageUrls.length > 2 ? (
@@ -208,7 +213,7 @@ export function ImagePreview({
                     aria-pressed={imageIndex === safeComparisonIndex}
                     title={`与当前版本对比 V${imageIndex + 1}`}
                   >
-                    {renderMediaItem(imageUrl, `版本 ${imageIndex + 1}`)}
+                    {renderMediaItem(imageUrl, `版本 ${imageIndex + 1}`, getJobVisualKind(job, imageUrl) === "video")}
                     <span>V{imageIndex + 1}</span>
                   </button>
                 ))}
@@ -217,7 +222,7 @@ export function ImagePreview({
           ) : null}
         </>
       ) : (
-        renderMediaItem(currentImageUrl, job.prompt)
+        renderMediaItem(currentImageUrl, job.prompt, isCurrentVideo)
       )}
       <div className="image-preview-caption">
         <strong>{job.prompt}</strong>

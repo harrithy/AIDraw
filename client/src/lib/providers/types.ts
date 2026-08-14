@@ -1,4 +1,4 @@
-import type { ApiProviderId, DrawJob } from "../../types";
+import type { ApiProviderId, DrawJob, GeneratedAsset } from "../../types";
 
 export type StoredSettings = {
   baseUrl: string;
@@ -11,13 +11,21 @@ export type StoredSettings = {
 
 export type CreatedProviderTask = {
   taskId: string;
+  taskIds?: string[];
   queryUrl?: string;
+  result?: ProviderTaskResult;
 };
 
 export type ProviderTaskResult =
   | { state: "pending" }
   | { state: "running" }
-  | { state: "succeeded"; imageUrl: string }
+  | {
+      state: "succeeded";
+      imageUrl?: string;
+      assets?: GeneratedAsset[];
+      text?: string;
+      data?: unknown;
+    }
   | { state: "error"; errorMessage: string };
 
 export interface ImageModelProvider {
