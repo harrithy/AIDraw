@@ -1,7 +1,8 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { ChevronDown, ImagePlus, ImageUp, Loader2, MousePointer2, PenLine, Play, Shapes, Sparkles, X } from "lucide-react";
+import { BookOpen, ChevronDown, Image as ImageIcon, ImagePlus, ImageUp, Loader2, MousePointer2, Music, PenLine, Play, Shapes, Sparkles, Video, Wrench, X } from "lucide-react";
 import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { DuomiApiDocDialog } from "../modals/DuomiApiDocDialog";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Message } from "@/components/ui/message";
@@ -311,6 +312,7 @@ export function CreateJobPanel({
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDocOpen, setIsDocOpen] = useState(false);
   const dragDepthRef = useRef(0);
   const currentMode: DrawMode = inputImages.length > 0 ? "image-to-image" : "text-to-image";
   const isNanoBanana = isNanoBananaModel(model);
@@ -878,62 +880,89 @@ export function CreateJobPanel({
       <section className="duomi-capability-panel" aria-label="多米能力配置">
         <div className="duomi-capability-header">
           <div className="duomi-category-tabs" role="tablist" aria-label="能力分类">
-            {capabilityCategories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                role="tab"
-                aria-selected={capabilityCategory === category}
-                className={capabilityCategory === category ? "selected" : ""}
-                onClick={() => setCapabilityCategory(category)}
-              >
-                {DUOMI_CATEGORY_LABELS[category]}
-              </button>
-            ))}
+            {capabilityCategories.map((category) => {
+              const Icon = category === "image" ? ImageIcon : category === "video" ? Video : category === "music" ? Music : Wrench;
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  role="tab"
+                  aria-selected={capabilityCategory === category}
+                  className={capabilityCategory === category ? "selected" : ""}
+                  onClick={() => setCapabilityCategory(category)}
+                >
+                  <Icon size={14} />
+                  <span>{DUOMI_CATEGORY_LABELS[category]}</span>
+                </button>
+              );
+            })}
           </div>
-          <Select
-            value={selectedCapability.id}
-            onValueChange={(value) => {
-              const nextCapability = getDuomiCapability(value);
-              if (!nextCapability) return;
-              setCapabilityId(value);
-              setCapabilityValues(getDuomiCapabilityDefaultValues(nextCapability));
-            }}
-          >
-            <SelectTrigger aria-label="多米能力" className="duomi-capability-trigger">
-              <SelectValue>{selectedCapability.name}</SelectValue>
-            </SelectTrigger>
-            <SelectContent side={side} sideOffset={6} position="popper" align="start" className="duomi-capability-select-content">
-              {providers.map((provider) => (
-                <SelectGroup key={provider}>
-                  <SelectLabel>{provider}</SelectLabel>
-                  {categoryCapabilities
-                    .filter((item) => item.provider === provider)
-                    .map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        <span className="duomi-capability-option">
-                          <strong>{item.name}</strong>
-                          <small>{item.priceLabel} · {capabilityStatusLabel[item.status]}</small>
-                        </span>
-                      </SelectItem>
-                    ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+
+          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+            <Select
+              value={selectedCapability.id}
+              onValueChange={(value) => {
+                const nextCapability = getDuomiCapability(value);
+                if (!nextCapability) return;
+                setCapabilityId(value);
+                setCapabilityValues(getDuomiCapabilityDefaultValues(nextCapability));
+              }}
+            >
+              <SelectTrigger aria-label="多米能力" className="duomi-capability-trigger flex-1 max-w-[280px]">
+                <SelectValue>{selectedCapability.name}</SelectValue>
+              </SelectTrigger>
+              <SelectContent side={side} sideOffset={6} position="popper" align="start" className="duomi-capability-select-content">
+                {providers.map((provider) => (
+                  <SelectGroup key={provider}>
+                    <SelectLabel>{provider}</SelectLabel>
+                    {categoryCapabilities
+                      .filter((item) => item.provider === provider)
+                      .map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          <span className="duomi-capability-option">
+                            <strong>{item.name}</strong>
+                            <small>{item.priceLabel} · {capabilityStatusLabel[item.status]}</small>
+                          </span>
+                        </SelectItem>
+                      ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="duomi-doc-btn flex-shrink-0 h-10 px-3 gap-1.5 font-semibold"
+              onClick={() => setIsDocOpen(true)}
+              title="查看多米 API 官方接口使用文档"
+            >
+              <BookOpen size={15} className="text-[var(--green)]" />
+              <span className="hidden sm:inline text-xs">文档</span>
+            </Button>
+          </div>
         </div>
+
         <div className={`duomi-capability-summary status-${selectedCapability.status}`}>
-          <span>{selectedCapability.provider}</span>
-          <strong>{selectedCapability.priceLabel}</strong>
-          <em>{capabilityStatusLabel[selectedCapability.status]}</em>
-          {selectedCapability.priceNote ? <small>{selectedCapability.priceNote}</small> : null}
-          {selectedCapability.description ? <small>{selectedCapability.description}</small> : null}
+          <div className="duomi-summary-header flex items-center justify-between w-full flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="duomi-provider-tag">{selectedCapability.provider}</span>
+              <strong className="duomi-price-highlight">{selectedCapability.priceLabel}</strong>
+              <em className="duomi-status-badge">{capabilityStatusLabel[selectedCapability.status]}</em>
+            </div>
+            {selectedCapability.priceNote ? <span className="duomi-price-note">{selectedCapability.priceNote}</span> : null}
+          </div>
+          {selectedCapability.description ? <p className="duomi-desc">{selectedCapability.description}</p> : null}
         </div>
+
         <DuomiCapabilityFields
           capability={selectedCapability}
           values={capabilityValues}
           onChange={(key, value) => setCapabilityValues((current) => ({ ...current, [key]: value }))}
         />
+
+        <DuomiApiDocDialog open={isDocOpen} onOpenChange={setIsDocOpen} />
       </section>
     );
   };

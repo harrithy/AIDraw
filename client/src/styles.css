@@ -3057,63 +3057,150 @@ button:disabled {
   min-width: 96px;
 }
 
+@keyframes capability-switch-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+    filter: blur(2px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.002);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes summary-pulse-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .duomi-capability-panel {
-  display: grid;
-  gap: 12px;
-  width: min(760px, calc(100vw - 36px));
-  max-height: min(62dvh, 560px);
-  padding: 14px;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(68dvh, 600px);
+  padding: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  box-shadow: 0 18px 48px rgba(16, 21, 19, 0.14);
+  border-radius: 14px;
+  background: var(--panel-strong);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.12);
+  box-sizing: border-box;
+  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.2s ease;
 }
 
 .duomi-capability-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
 }
 
 .duomi-category-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-  padding: 4px;
+  padding: 3.5px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--subtle);
 }
 
 .duomi-category-tabs button {
-  min-height: 34px;
-  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: var(--muted);
   font: inherit;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.duomi-category-tabs button:hover {
+  color: var(--ink);
+  background: var(--hover);
+  transform: translateY(-1px);
+}
+
+.duomi-category-tabs button:active {
+  transform: scale(0.93);
 }
 
 .duomi-category-tabs button.selected {
   background: var(--panel-strong);
-  color: var(--ink);
-  box-shadow: 0 1px 3px rgba(16, 21, 19, 0.1);
+  color: var(--green);
+  font-weight: 700;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--green) 20%, transparent);
+  animation: chip-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .duomi-capability-trigger {
-  height: 44px;
-  font-weight: 800;
+  height: 40px;
+  font-weight: 700;
+  border-radius: 9px;
+  border: 1.5px solid var(--line);
+  background: var(--panel-strong);
+  font-size: 13px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.duomi-capability-trigger:hover {
+  border-color: var(--green);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+}
+
+.duomi-capability-trigger:active {
+  transform: scale(0.98);
+}
+
+.duomi-capability-trigger:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.duomi-doc-btn {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.duomi-doc-btn:hover {
+  transform: translateY(-1.5px);
+  border-color: var(--green) !important;
+  color: var(--green) !important;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--green) 20%, transparent);
+}
+
+.duomi-doc-btn:active {
+  transform: scale(0.92);
 }
 
 .duomi-capability-select-content {
   width: min(390px, calc(100vw - 24px));
   max-height: min(420px, calc(100dvh - 96px));
+  border-radius: 12px;
 }
 
 .duomi-capability-option {
@@ -3136,28 +3223,56 @@ button:disabled {
 
 .duomi-capability-summary {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  min-height: 34px;
-  padding: 7px 10px;
-  border-left: 3px solid var(--green);
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  border-left: 3.5px solid var(--green);
   background: var(--subtle);
-  color: var(--muted);
   font-size: 12px;
+  animation: summary-pulse-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease;
 }
 
-.duomi-capability-summary strong {
-  color: var(--green-dark);
+.duomi-provider-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--hover);
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
 }
 
-.duomi-capability-summary em {
-  padding: 2px 6px;
-  border-radius: 4px;
+.duomi-price-highlight {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.duomi-status-badge {
+  padding: 2px 7px;
+  border-radius: 5px;
   background: color-mix(in srgb, var(--green) 12%, transparent);
-  color: var(--green-dark);
+  color: var(--green);
   font-style: normal;
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.duomi-price-note {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.duomi-desc {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
 }
 
 .duomi-capability-summary.status-developing,
@@ -3166,50 +3281,265 @@ button:disabled {
   border-left-color: #c47a18;
 }
 
-.duomi-capability-summary.status-developing em,
-.duomi-capability-summary.status-obsolete em,
-.duomi-capability-summary.status-disabled em {
+.duomi-capability-summary.status-developing .duomi-status-badge,
+.duomi-capability-summary.status-obsolete .duomi-status-badge,
+.duomi-capability-summary.status-disabled .duomi-status-badge {
   background: color-mix(in srgb, #c47a18 14%, transparent);
   color: #9b5a08;
 }
 
-.duomi-capability-summary small {
-  flex-basis: 100%;
-  line-height: 1.45;
+/* 纵向从上往下流式布局 */
+.duomi-fields-vertical-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  animation: capability-switch-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top center;
 }
 
-.duomi-capability-panel > .grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.duomi-field-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.duomi-capability-panel textarea {
-  min-height: 76px;
-  max-height: 180px;
-  padding-bottom: 10px !important;
-  resize: vertical;
+.duomi-field-row [data-slot="field"] {
+  width: 100%;
+  gap: 5px !important;
+}
+
+.duomi-field-row [data-slot="field-label"] {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 3px !important;
+  width: fit-content !important;
+  min-width: 0 !important;
+  margin-bottom: 2px !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+}
+
+.duomi-field-row [data-slot="field-label"] span {
+  display: inline-block !important;
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+}
+
+.duomi-field-row input,
+.duomi-field-row [data-slot="select-trigger"] {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.duomi-field-row textarea {
+  width: 100%;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.duomi-field-row input:hover,
+.duomi-field-row textarea:hover,
+.duomi-field-row [data-slot="select-trigger"]:hover {
+  border-color: var(--line-strong) !important;
+}
+
+.duomi-field-row input:focus,
+.duomi-field-row textarea:focus,
+.duomi-field-row [data-slot="select-trigger"]:focus {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent) !important;
+  transform: translateY(-0.5px);
+}
+
+.duomi-switch-card {
+  width: fit-content !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 7px 12px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--subtle) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  cursor: pointer;
+}
+
+.duomi-switch-card:hover {
+  background: var(--hover) !important;
+  border-color: var(--line-strong) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.duomi-switch-card:active {
+  transform: scale(0.97);
+}
+
+.duomi-switch-card [data-slot="field-label"] {
+  margin-bottom: 0 !important;
+  cursor: pointer !important;
+}
+
+.duomi-custom-field {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.duomi-custom-field:hover {
+  border-color: var(--line-strong);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.duomi-upload-tile {
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.duomi-upload-tile:hover {
+  transform: translateY(-2px) scale(1.03);
+  border-color: var(--green) !important;
+  color: var(--green) !important;
+  background: color-mix(in srgb, var(--green) 8%, var(--subtle)) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.duomi-upload-tile:active {
+  transform: scale(0.95);
+}
+
+.duomi-image-thumb {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.duomi-image-thumb:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.duomi-image-thumb button {
+  transition: all 0.15s ease !important;
+}
+
+.duomi-image-thumb button:hover {
+  transform: scale(1.18);
+  background: #ef4444 !important;
 }
 
 .duomi-capability-active-label,
 .duomi-capability-submit-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .duomi-capability-submit-row {
   justify-content: space-between;
-  min-height: 58px;
-  padding: 8px 10px;
+  min-height: 56px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
+  border-radius: 10px;
+  background: var(--panel-strong);
+  transition: all 0.2s ease;
 }
 
 .duomi-capability-submit-row > span {
-  color: var(--green-dark);
+  color: var(--green);
+  font-weight: 700;
+}
+
+.duomi-capability-submit-row .composer-submit {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.duomi-capability-submit-row .composer-submit:hover:not(:disabled) {
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--green) 35%, transparent);
+}
+
+.duomi-capability-submit-row .composer-submit:active:not(:disabled) {
+  transform: scale(0.96) translateY(0);
+}
+
+/* ==========================================================================
+   多米 API 使用文档弹窗
+   ========================================================================== */
+.duomi-doc-dialog {
+  width: min(940px, calc(100vw - 32px)) !important;
+  max-width: 940px !important;
+  height: min(85vh, 720px) !important;
+  min-height: 480px !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--line) !important;
+  background: var(--panel-strong) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.24) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.duomi-doc-dialog .duomi-doc-header {
+  padding: 16px 68px 16px 24px !important;
+  flex-shrink: 0;
+}
+
+.duomi-doc-dialog .duomi-doc-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.duomi-doc-dialog .duomi-doc-nav {
+  width: 210px;
+  flex-shrink: 0;
+  padding: 12px;
+  border-right: 1px solid var(--line);
+  background: var(--panel-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+}
+
+.duomi-doc-dialog .duomi-doc-content {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.duomi-doc-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  white-space: nowrap;
+}
+
+.duomi-doc-nav-item:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.duomi-doc-nav-item.active {
+  background: color-mix(in srgb, var(--green) 12%, var(--panel-strong));
+  color: var(--green);
+  font-weight: 700;
 }
 
 .composer-fields [data-slot="field-label"] {
