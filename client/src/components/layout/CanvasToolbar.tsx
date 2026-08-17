@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, CircleHelp, Clock, Copy, Github, LocateFixed, Maximize2, Moon, RefreshCw, Search, Settings, Sun, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, CircleHelp, Clock, Copy, Github, LayoutGrid, LocateFixed, Maximize2, Moon, RefreshCw, Search, Settings, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import type { LayoutDirection } from "../../lib/canvas";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import type { DrawJob } from "../../types";
 
@@ -21,6 +22,12 @@ type CanvasToolbarProps = {
   onOpenGuide: () => void;
   onSortByName: () => void;
   onToggleTheme: () => void;
+  /** 生成失败任务数量 */
+  failedJobsCount?: number;
+  /** 一键清理失败任务回调 */
+  onClearFailedJobs?: () => void;
+  /** 应用排版模板回调 */
+  onApplyLayout?: (direction: LayoutDirection, gridColumns: number) => void;
   /** 搜索关键词 */
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
@@ -61,13 +68,44 @@ export function CanvasToolbar({
   onOpenGuide,
   onSortByName,
   onToggleTheme,
+  failedJobsCount,
+  onClearFailedJobs,
+  onApplyLayout,
   searchQuery,
   onSearchQueryChange,
   jobs
 }: CanvasToolbarProps) {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
+  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>(() => {
+    return (window.localStorage.getItem("aidraw-layout-direction") as LayoutDirection) || "horizontal";
+  });
+  const [gridCols, setGridCols] = useState<number>(() => {
+    const saved = Number(window.localStorage.getItem("aidraw-layout-columns"));
+    return Number.isFinite(saved) && saved >= 1 ? saved : 3;
+  });
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const layoutMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // 点击外部或按 Esc 关闭排版菜单
+  useEffect(() => {
+    if (!layoutMenuOpen) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (layoutMenuRef.current && !layoutMenuRef.current.contains(e.target as Node)) {
+        setLayoutMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLayoutMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [layoutMenuOpen]);
 
   // 当外部传入的 searchQuery 发生改变时，自动将搜索栏展开
   useEffect(() => {
@@ -244,6 +282,136 @@ export function CanvasToolbar({
         <button type="button" onClick={onSortByName} title="按提示词排序">
           <RefreshCw size={17} />
         </button>
+        {onClearFailedJobs && (
+          <button
+            type="button"
+            className={`toolbar-clear-failed-btn ${(failedJobsCount ?? 0) > 0 ? "has-failed" : ""}`}
+            onClick={onClearFailedJobs}
+            disabled={(failedJobsCount ?? 0) === 0}
+            title={(failedJobsCount ?? 0) > 0 ? `一键清理失败盒子 (共 ${failedJobsCount} 个)` : "暂无生成失败的盒子"}
+            aria-label={(failedJobsCount ?? 0) > 0 ? `一键清理失败盒子 (共 ${failedJobsCount} 个)` : "暂无生成失败的盒子"}
+          >
+            <Trash2 size={17} />
+            {(failedJobsCount ?? 0) > 0 && (
+              <span className="toolbar-badge-count">
+                {(failedJobsCount ?? 0) > 99 ? "99+" : failedJobsCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {onApplyLayout && (
+          <div className="layout-menu-wrapper" ref={layoutMenuRef}>
+            <button
+              type="button"
+              className={`toolbar-layout-btn ${layoutMenuOpen ? "is-open" : ""}`}
+              onClick={() => setLayoutMenuOpen((v) => !v)}
+              title="重置排版与布局模板"
+              aria-label="重置排版与布局模板"
+              aria-expanded={layoutMenuOpen}
+            >
+              <LayoutGrid size={17} />
+            </button>
+
+            {layoutMenuOpen && (
+              <div className="layout-popover-menu" role="dialog" aria-label="排版布局设置">
+                <div className="layout-popover-header">
+                  <strong>画布排版与重置</strong>
+                  <small>一键规范所有盒子间距并对齐</small>
+                </div>
+
+                <div className="layout-options-grid">
+                  <button
+                    type="button"
+                    className={`layout-option-card ${layoutDirection === "horizontal" ? "active" : ""}`}
+                    onClick={() => {
+                      setLayoutDirection("horizontal");
+                      window.localStorage.setItem("aidraw-layout-direction", "horizontal");
+                    }}
+                  >
+                    <div className="layout-option-icon">
+                      <ArrowRight size={17} />
+                    </div>
+                    <div className="layout-option-info">
+                      <span>从左往右</span>
+                      <small>单行横向排版（默认）</small>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`layout-option-card ${layoutDirection === "vertical" ? "active" : ""}`}
+                    onClick={() => {
+                      setLayoutDirection("vertical");
+                      window.localStorage.setItem("aidraw-layout-direction", "vertical");
+                    }}
+                  >
+                    <div className="layout-option-icon">
+                      <ArrowDown size={17} />
+                    </div>
+                    <div className="layout-option-info">
+                      <span>从上往下</span>
+                      <small>单列纵向排列</small>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`layout-option-card ${layoutDirection === "grid" ? "active" : ""}`}
+                    onClick={() => {
+                      setLayoutDirection("grid");
+                      window.localStorage.setItem("aidraw-layout-direction", "grid");
+                    }}
+                  >
+                    <div className="layout-option-icon">
+                      <LayoutGrid size={17} />
+                    </div>
+                    <div className="layout-option-info">
+                      <span>蛇形网格</span>
+                      <small>S形走位折行（每行固定数量）</small>
+                    </div>
+                  </button>
+                </div>
+
+                {layoutDirection === "grid" && (
+                  <div className="layout-grid-config">
+                    <div className="layout-grid-config-label">
+                      <span>每行展示数量</span>
+                      <strong>{gridCols} 个 / 行</strong>
+                    </div>
+                    <div className="layout-grid-chips">
+                      {[2, 3, 4, 5, 6].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          className={`layout-chip ${gridCols === num ? "active" : ""}`}
+                          onClick={() => {
+                            setGridCols(num);
+                            window.localStorage.setItem("aidraw-layout-columns", String(num));
+                          }}
+                        >
+                          {num}个
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className="layout-apply-btn"
+                  onClick={() => {
+                    setLayoutMenuOpen(false);
+                    onApplyLayout(layoutDirection, gridCols);
+                  }}
+                >
+                  一键重置排版
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <button type="button" onClick={onToggleTheme} title="切换暗黑模式">
           {darkMode ? <Sun size={17} /> : <Moon size={17} />}
         </button>

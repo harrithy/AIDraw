@@ -151,6 +151,125 @@ export const getPositionedJobs = (jobs: DrawJob[]): PositionedJob[] => {
   });
 };
 
+/** 从左往右单行横向排版标准间距（加长4倍后为 320px，为卡片历史抽屉等交互预留充足空间） */
+export const LAYOUT_GAP_X_HORIZONTAL = 320;
+/** 网格排版标准横向间距（加长4倍后为 320px） */
+export const LAYOUT_GAP_X_GRID = 320;
+/** 纵向与折行排版标准纵向间距（加长4倍后为 240px） */
+export const LAYOUT_GAP_Y = 240;
+
+/** 排版方向模式 */
+export type LayoutDirection = "horizontal" | "vertical" | "grid";
+
+export interface LayoutConfig {
+  direction: LayoutDirection;
+  gridColumns?: number;
+  gapX?: number;
+  gapY?: number;
+  startX?: number;
+  startY?: number;
+}
+
+/**
+ * 根据布局模板和规则，为任务列表重新计算规范整齐的坐标
+ * @param jobs - 待排版的任务数组（按当前 orderIndex 顺序）
+ * @param config - 排版配置
+ * @returns 包含新 posX 和 posY 的坐标数组
+ */
+export const calculateLayoutPositions = (
+  jobs: DrawJob[],
+  config: LayoutConfig
+): Array<{ id: string; posX: number; posY: number }> => {
+  const {
+    direction = "horizontal",
+    gridColumns = 3,
+    gapX = direction === "horizontal" ? LAYOUT_GAP_X_HORIZONTAL : LAYOUT_GAP_X_GRID,
+    gapY = LAYOUT_GAP_Y,
+    startX = DEFAULT_CARD_X,
+    startY = DEFAULT_CARD_Y
+  } = config;
+
+  const positions: Array<{ id: string; posX: number; posY: number }> = [];
+
+  if (direction === "horizontal") {
+    // 从左往右（单行横排，间距 320px）
+    let currentX = startX;
+    for (const job of jobs) {
+      const cardSize = getJobCardSize(job);
+      positions.push({
+        id: job.id,
+        posX: currentX,
+        posY: startY
+      });
+      currentX += cardSize.cardWidth + gapX;
+    }
+  } else if (direction === "vertical") {
+    // 从上往下（单列竖排）
+    let currentY = startY;
+    for (const job of jobs) {
+      const cardSize = getJobCardSize(job);
+      positions.push({
+        id: job.id,
+        posX: startX,
+        posY: currentY
+      });
+      currentY += cardSize.cardHeight + gapY;
+    }
+  } else if (direction === "grid") {
+    // 蛇形网格排版（S形走位）：
+    // 第一行：从左到右 (1 -> 2 -> 3 -> 4)
+    // 第二行：从右到左 (8 <- 7 <- 6 <- 5)
+    // 第三行：从左到右 (9 -> 10 -> 11 -> 12)
+    // 第四行：从右到左 (16 <- 15 <- 14 <- 13)
+    const cols = Math.max(1, Math.floor(gridColumns || 3));
+    const numRows = Math.ceil(jobs.length / cols);
+
+    // 1. 预先计算每张卡片的尺寸与分配的行、列网格位置
+    const jobSizes = jobs.map((job) => getJobCardSize(job));
+    const colMaxWidths = new Array<number>(cols).fill(0);
+    const rowMaxHeights = new Array<number>(numRows).fill(0);
+
+    for (let i = 0; i < jobs.length; i++) {
+      const row = Math.floor(i / cols);
+      const isEvenRow = row % 2 === 0;
+      const col = isEvenRow ? i % cols : cols - 1 - (i % cols);
+      const size = jobSizes[i];
+      colMaxWidths[col] = Math.max(colMaxWidths[col], size.cardWidth);
+      rowMaxHeights[row] = Math.max(rowMaxHeights[row], size.cardHeight);
+    }
+
+    // 2. 计算各列的 X 起始坐标与各行的 Y 起始坐标
+    const colStartX = new Array<number>(cols).fill(0);
+    let curX = startX;
+    for (let c = 0; c < cols; c++) {
+      colStartX[c] = curX;
+      curX += (colMaxWidths[c] || CARD_WIDTH) + gapX;
+    }
+
+    const rowStartY = new Array<number>(numRows).fill(0);
+    let curY = startY;
+    for (let r = 0; r < numRows; r++) {
+      rowStartY[r] = curY;
+      curY += (rowMaxHeights[r] || CARD_HEIGHT) + gapY;
+    }
+
+    // 3. 为每个任务分配蛇形坐标
+    for (let i = 0; i < jobs.length; i++) {
+      const row = Math.floor(i / cols);
+      const isEvenRow = row % 2 === 0;
+      const col = isEvenRow ? i % cols : cols - 1 - (i % cols);
+
+      positions.push({
+        id: jobs[i].id,
+        posX: colStartX[col],
+        posY: rowStartY[row]
+      });
+    }
+  }
+
+  return positions;
+};
+
 /**
  * 计算新卡片的默认画布位置
  * 按列表顺序横向排列，每个卡片间距 CARD_GAP_X

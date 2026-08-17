@@ -11,9 +11,19 @@ import { RegenerateEditDialog, type RegenerateEdits } from "./components/modals/
 import { CreateJobPanel } from "./components/panels/CreateJobPanel";
 import { UploadedImageLibrary } from "./components/panels/UploadedImageLibrary";
 import { Metric } from "./components/ui/Metric";
+import { Button } from "./components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "./components/ui/dialog";
+import { Message } from "./components/ui/message";
 import { useAppAnimations } from "./hooks/useAppAnimations";
 import { useCanvasInteractions } from "./hooks/useCanvasInteractions";
-import { BOARD_PADDING, getPositionedJobs, type PositionedJob } from "./lib/canvas";
+import { BOARD_PADDING, calculateLayoutPositions, getPositionedJobs, type LayoutDirection, type PositionedJob } from "./lib/canvas";
 import { getJobOutputImages } from "./lib/jobImages";
 import type {
   CreateJobPayload,
@@ -106,10 +116,13 @@ function App() {
   const [editingRetryJob, setEditingRetryJob] = useState<DrawJob | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showClearFailedConfirm, setShowClearFailedConfirm] = useState(false);
+  const [isClearingFailed, setIsClearingFailed] = useState(false);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
   const inFlightJobs = jobs.filter((job) => job.status === "pending" || job.status === "running").length;
+  const failedJobsCount = useMemo(() => jobs.filter((job) => job.status === "failed").length, [jobs]);
 
   const {
     canvasDrag,
@@ -503,6 +516,65 @@ function App() {
   };
 
   /**
+   * 一键清理当前文件夹所有生成失败的任务盒子
+   */
+  const clearFailedJobs = async () => {
+    if (!activeFolderId || failedJobsCount === 0) return;
+    try {
+      setIsClearingFailed(true);
+      const count = await api.deleteFailedJobs(activeFolderId);
+      setJobs((current) => current.filter((j) => j.status !== "failed"));
+      setPreviewJob((current) => (current?.status === "failed" ? null : current));
+      setEditingRetryJob((current) => (current?.status === "failed" ? null : current));
+      setShowClearFailedConfirm(false);
+      setNotice(`已清理 ${count} 个生成失败的盒子`);
+      Message.success(`已清理 ${count} 个生成失败的盒子喵！`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "清理失败盒子出错");
+      Message.error(error instanceof Error ? error.message : "清理失败盒子出错");
+    } finally {
+      setIsClearingFailed(false);
+    }
+  };
+
+  /**
+   * 按指定模板重新排列并重置当前文件夹中的所有盒子坐标
+   * @param direction - 排版方向：horizontal | vertical | grid
+   * @param gridColumns - 每行数量（针对 grid 模式）
+   */
+  const applyLayout = async (direction: LayoutDirection, gridColumns: number) => {
+    if (!activeFolderId || jobs.length === 0) return;
+
+    try {
+      const positions = calculateLayoutPositions(jobs, {
+        direction,
+        gridColumns,
+        gapX: 320,
+        gapY: 240,
+        startX: 318,
+        startY: 150
+      });
+
+      const updatedJobs = await api.batchUpdateJobPositions(activeFolderId, positions);
+      setJobs(updatedJobs);
+      resetCanvas();
+
+      const templateNameMap: Record<LayoutDirection, string> = {
+        horizontal: "从左往右",
+        vertical: "从上往下",
+        grid: `蛇形网格（每行 ${gridColumns} 个）`
+      };
+
+      const name = templateNameMap[direction] || "指定模板";
+      setNotice(`已按【${name}】重置画布排版`);
+      Message.success(`已按【${name}】重置画布排版喵！`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "重置排版失败");
+      Message.error(error instanceof Error ? error.message : "重置排版失败");
+    }
+  };
+
+  /**
    * 重试绘图 — 将失败/已完成任务重新加入队列
    * @param jobId - 任务 ID
    */
@@ -620,6 +692,9 @@ function App() {
         onOpenApiSettings={() => setApiSettingsOpen(true)}
         onOpenGuide={() => setOnboardingOpen(true)}
         onToggleTheme={() => setDarkMode((value) => !value)}
+        failedJobsCount={failedJobsCount}
+        onClearFailedJobs={() => setShowClearFailedConfirm(true)}
+        onApplyLayout={applyLayout}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         jobs={jobs}
@@ -686,6 +761,29 @@ function App() {
         onOpenChange={setOnboardingOpen}
         onFinish={finishOnboarding}
       />
+
+      <Dialog open={showClearFailedConfirm} onOpenChange={setShowClearFailedConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>清理失败盒子</DialogTitle>
+            <DialogDescription>
+              确定要清理当前文件夹中所有生成失败的图片盒子吗？共 {failedJobsCount} 个盒子将被删除，此操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowClearFailedConfirm(false)} disabled={isClearingFailed}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void clearFailedJobs()}
+              disabled={isClearingFailed}
+            >
+              {isClearingFailed ? "正在清理..." : "确定清理"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

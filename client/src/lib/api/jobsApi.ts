@@ -334,6 +334,58 @@ export const jobsApi = {
   },
 
   /**
+   * 批量重置并更新任务在画布上的坐标位置
+   * @param folderId - 文件夹 ID
+   * @param positions - 包含 id, posX, posY 的坐标数组
+   * @returns 更新后的任务列表
+   */
+  batchUpdateJobPositions: async (
+    folderId: string,
+    positions: Array<{ id: string; posX: number; posY: number }>
+  ): Promise<DrawJob[]> => {
+    const posMap = new Map(positions.map((p) => [p.id, p]));
+    const db = await openDb();
+    const updatedJobs = await new Promise<DrawJob[]>((resolve, reject) => {
+      const transaction = db.transaction([FOLDER_STORE, JOB_STORE], "readwrite");
+      const folderReq = transaction.objectStore(FOLDER_STORE).get(folderId);
+      const jobStore = transaction.objectStore(JOB_STORE);
+      let folderExists = true;
+      let nextJobs: DrawJob[] = [];
+
+      folderReq.onsuccess = () => {
+        if (!folderReq.result) {
+          folderExists = false;
+          return;
+        }
+        const jobsReq = jobStore.index("folderId").getAll(folderId);
+        jobsReq.onsuccess = () => {
+          nextJobs = ((jobsReq.result || []) as DrawJob[]).map((job) => {
+            const pos = posMap.get(job.id);
+            if (!pos) return job;
+            const updatedJob: DrawJob = {
+              ...job,
+              posX: pos.posX,
+              posY: pos.posY,
+              hasCustomPosition: true,
+              updatedAt: nowIso()
+            };
+            jobStore.put(updatedJob);
+            return updatedJob;
+          });
+        };
+      };
+      folderReq.onerror = () => reject(folderReq.error);
+      transaction.oncomplete = () => {
+        if (folderExists) resolve(sortJobs(nextJobs));
+        else reject(new Error("文件夹不存在"));
+      };
+      transaction.onerror = () => reject(transaction.error);
+    });
+    broadcastStateUpdate(folderId);
+    return updatedJobs;
+  },
+
+  /**
    * 删除指定任务，并广播状态以触发 UI 刷新。
    * @param jobId - 任务 ID
    */
@@ -360,5 +412,35 @@ export const jobsApi = {
     if (folderId) {
       broadcastStateUpdate(folderId);
     }
+  },
+
+  /**
+   * 清理指定文件夹下所有生成失败的任务，并广播状态以触发 UI 刷新。
+   * @param folderId - 文件夹 ID
+   * @returns 删除的任务数量
+   */
+  deleteFailedJobs: async (folderId: string): Promise<number> => {
+    const db = await openDb();
+    let deletedCount = 0;
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(JOB_STORE, "readwrite");
+      const store = transaction.objectStore(JOB_STORE);
+      const req = store.index("folderId").getAll(folderId);
+      req.onsuccess = () => {
+        const jobs = (req.result || []) as DrawJob[];
+        const failedJobs = jobs.filter((job) => job.status === "failed");
+        deletedCount = failedJobs.length;
+        for (const job of failedJobs) {
+          store.delete(job.id);
+        }
+      };
+      req.onerror = () => reject(req.error);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    if (deletedCount > 0) {
+      broadcastStateUpdate(folderId);
+    }
+    return deletedCount;
   }
 };

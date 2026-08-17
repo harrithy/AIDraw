@@ -8,6 +8,7 @@ import {
   ChevronsRight,
   Clock,
   CloudUpload,
+  Copy,
   Download,
   ImagePlus,
   Loader2,
@@ -269,6 +270,29 @@ export const JobCard = memo(function JobCard({
     }
   };
 
+  const handleCopyLink = async () => {
+    if (!currentImageUrl) return;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(currentImageUrl);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = currentImageUrl;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      Message.success(`已复制最新${mediaLabel}链接`);
+    } catch (error) {
+      Message.error(error instanceof Error ? error.message : "复制链接失败");
+    }
+  };
+
   // 重绘菜单打开时，点击卡片外部或按 Esc 关闭菜单
   useEffect(() => {
     if (!retryMenuOpen) return;
@@ -458,6 +482,9 @@ export const JobCard = memo(function JobCard({
               <>
                 <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title={`下载${mediaLabel}`}>
                   {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
+                </button>
+                <button type="button" onClick={() => void handleCopyLink()} title={`复制最新${mediaLabel}链接`}>
+                  <Copy size={15} />
                 </button>
                 {onUploadLatestMedia ? (
                   <button
