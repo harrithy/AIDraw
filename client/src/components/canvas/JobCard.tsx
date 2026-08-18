@@ -109,6 +109,10 @@ export const JobCard = memo(function JobCard({
   const previousOutputCountRef = useRef(Math.max(1, outputImages.length));
   const currentImageUrl = outputImages[outputImages.length - 1];
   const hasRichResult = Boolean(job.outputAssets?.length || job.outputText !== undefined || job.outputData !== undefined);
+  const isRichMediaOnly = Boolean(job.outputAssets?.length) &&
+    job.outputAssets!.every((asset) => asset.kind === "image" || asset.kind === "video") &&
+    job.outputText === undefined &&
+    job.outputData === undefined;
   const currentAssetKind = getJobVisualKind(job, currentImageUrl);
   const isCurrentVideo = currentAssetKind === "video";
   const hasVisualPrimary = currentAssetKind === "image" || currentAssetKind === "video";
@@ -517,7 +521,7 @@ export const JobCard = memo(function JobCard({
         ) : null}
       </div>
 
-      <div className={`job-image ${currentImageUrl || hasRichResult ? "has-output" : ""}${hasMultipleVersions ? " has-versions" : ""}${hasRichResult ? " has-rich-result" : ""}`}>
+      <div className={`job-image ${currentImageUrl || hasRichResult ? "has-output" : ""}${hasMultipleVersions ? " has-versions" : ""}${hasRichResult ? " has-rich-result" : ""}${isRichMediaOnly ? " is-rich-media-only" : ""}`}>
         {hasRichResult ? (
           <JobResultContent job={job} />
         ) : currentImageUrl ? (

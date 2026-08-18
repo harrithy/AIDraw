@@ -73,19 +73,21 @@ const MediaAsset = ({ asset, index, onPreview }: { asset: GeneratedAsset; index:
         {asset.kind === "video" ? (
           <video src={asset.url} controls playsInline preload="metadata" aria-label={name} />
         ) : (
-          <button type="button" className="job-result-image-preview" onClick={() => onPreview(asset)} title={`预览${name}`}>
-            <RetryingImage src={asset.url} alt={name} />
-          </button>
+          <>
+            <button type="button" className="job-result-image-preview" onClick={() => onPreview(asset)} title={`预览${name}`}>
+              <RetryingImage src={asset.url} alt={name} />
+            </button>
+            <button
+              type="button"
+              className="job-result-preview-button job-result-preview-overlay"
+              onClick={() => onPreview(asset)}
+              title={`预览${name}`}
+              aria-label={`预览${name}`}
+            >
+              <Maximize2 size={15} aria-hidden="true" />
+            </button>
+          </>
         )}
-      </div>
-      <div className="job-result-asset-caption">
-        <span>{name}</span>
-        {asset.kind === "image" ? (
-          <button type="button" className="job-result-preview-button" onClick={() => onPreview(asset)} title={`预览${name}`}>
-            <Maximize2 size={15} aria-hidden="true" />
-            <span>预览</span>
-          </button>
-        ) : null}
       </div>
     </article>
   );

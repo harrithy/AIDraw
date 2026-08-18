@@ -8,6 +8,8 @@ import { ApiSettingsDialog } from "./components/modals/ApiSettingsDialog";
 import { ImagePreview } from "./components/modals/ImagePreview";
 import { OnboardingGuide } from "./components/modals/OnboardingGuide";
 import { RegenerateEditDialog, type RegenerateEdits } from "./components/modals/RegenerateEditDialog";
+import { ReleaseNotesDialog } from "./components/modals/ReleaseNotesDialog";
+import { getUnreadReleasesCount } from "./lib/changelog";
 import { CreateJobPanel } from "./components/panels/CreateJobPanel";
 import { UploadedImageLibrary } from "./components/panels/UploadedImageLibrary";
 import { Metric } from "./components/ui/Metric";
@@ -103,6 +105,9 @@ function App() {
   const [apiSettingsOpen, setApiSettingsOpen] = useState(false);
   // 新手引导：检查 localStorage，已完成则跳过
   const [onboardingOpen, setOnboardingOpen] = useState(() => window.localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "done");
+  // 版本更新公告：自动检查未读数量并在部署更新后自动弹窗提醒
+  const [announcementOpen, setAnnouncementOpen] = useState(false);
+  const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(() => getUnreadReleasesCount());
   // 左侧面板：宽屏默认展开，窄屏默认收起
   const [leftOpen, setLeftOpen] = useState(() => window.matchMedia?.("(min-width: 721px)").matches ?? true);
   // 深色模式：优先读 localStorage，默认深色
@@ -118,6 +123,16 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showClearFailedConfirm, setShowClearFailedConfirm] = useState(false);
   const [isClearingFailed, setIsClearingFailed] = useState(false);
+
+  // 页面加载或新手引导结束后，若存在未读版本更新，自动弹出更新公告
+  useEffect(() => {
+    if (!onboardingOpen && unreadAnnouncementsCount > 0) {
+      const timer = window.setTimeout(() => {
+        setAnnouncementOpen(true);
+      }, 400);
+      return () => window.clearTimeout(timer);
+    }
+  }, [onboardingOpen]);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
@@ -689,6 +704,8 @@ function App() {
         onJumpToLatestOutput={jumpToLatestOutput}
         onSortByTime={() => void sortJobs("time")}
         onSortByName={() => void sortJobs("name")}
+        onOpenAnnouncement={() => setAnnouncementOpen(true)}
+        unreadAnnouncementsCount={unreadAnnouncementsCount}
         onOpenApiSettings={() => setApiSettingsOpen(true)}
         onOpenGuide={() => setOnboardingOpen(true)}
         onToggleTheme={() => setDarkMode((value) => !value)}
@@ -760,6 +777,12 @@ function App() {
         open={onboardingOpen}
         onOpenChange={setOnboardingOpen}
         onFinish={finishOnboarding}
+      />
+
+      <ReleaseNotesDialog
+        open={announcementOpen}
+        onOpenChange={setAnnouncementOpen}
+        onAcknowledge={() => setUnreadAnnouncementsCount(getUnreadReleasesCount())}
       />
 
       <Dialog open={showClearFailedConfirm} onOpenChange={setShowClearFailedConfirm}>

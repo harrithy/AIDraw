@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowRight, Check, CircleHelp, Clock, Copy, Github, LayoutGrid, LocateFixed, Maximize2, Moon, RefreshCw, Search, Settings, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, CircleHelp, Clock, Copy, Github, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { LayoutDirection } from "../../lib/canvas";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import type { DrawJob } from "../../types";
@@ -20,6 +20,10 @@ type CanvasToolbarProps = {
   onSortByTime: () => void;
   onOpenApiSettings: () => void;
   onOpenGuide: () => void;
+  /** 打开版本更新公告弹窗 */
+  onOpenAnnouncement?: () => void;
+  /** 未读的版本更新公告数量 */
+  unreadAnnouncementsCount?: number;
   onSortByName: () => void;
   onToggleTheme: () => void;
   /** 生成失败任务数量 */
@@ -66,6 +70,8 @@ export function CanvasToolbar({
   onSortByTime,
   onOpenApiSettings,
   onOpenGuide,
+  onOpenAnnouncement,
+  unreadAnnouncementsCount,
   onSortByName,
   onToggleTheme,
   failedJobsCount,
@@ -415,6 +421,26 @@ export function CanvasToolbar({
         <button type="button" onClick={onToggleTheme} title="切换暗黑模式">
           {darkMode ? <Sun size={17} /> : <Moon size={17} />}
         </button>
+        {onOpenAnnouncement && (
+          <button
+            type="button"
+            onClick={onOpenAnnouncement}
+            title={
+              unreadAnnouncementsCount && unreadAnnouncementsCount > 0
+                ? `更新日志（${unreadAnnouncementsCount} 条未读）`
+                : "更新日志"
+            }
+            className="relative"
+            aria-label="更新日志"
+          >
+            <Megaphone size={17} />
+            {unreadAnnouncementsCount && unreadAnnouncementsCount > 0 ? (
+              <span className="announcement-badge-count">
+                {unreadAnnouncementsCount > 9 ? "9+" : unreadAnnouncementsCount}
+              </span>
+            ) : null}
+          </button>
+        )}
         <button type="button" onClick={onOpenGuide} title="新手指引">
           <CircleHelp size={17} />
         </button>
