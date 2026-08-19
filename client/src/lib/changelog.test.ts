@@ -21,7 +21,7 @@ describe("changelog and release announcement system", () => {
 
   it("should have valid release notes structure", () => {
     expect(INITIAL_RELEASES.length).toBeGreaterThan(0);
-    expect(LATEST_RELEASE.version).toBe("v1.3.0");
+    expect(LATEST_RELEASE.version).toBe("v1.3.1");
     expect(LATEST_RELEASE.title).toBeTruthy();
     expect(LATEST_RELEASE.items.length).toBeGreaterThan(0);
   });

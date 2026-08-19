@@ -12,7 +12,7 @@
 保存后，新建绘图任务会直接使用新的 URL 和 Key，不需要重启服务。具体模型在创建栏的“模型”下拉框中选择：
 
 - ChatGPT：`gpt-image-2`
-- NANO-BANANA：`gemini-3-pro-image-preview`、`gemini-2.5-flash-image`、`gemini-3.1-flash-image-preview`
+- NANO-BANANA：`gemini-3-pro-image-preview`、`gemini-2.5-flash-image`、`gemini-3.1-flash-image-preview`、`gemini-3.1-flash-lite-image-preview`
 
 NANO-BANANA 默认选择 `gemini-3-pro-image-preview`。接口文档右侧显示的 `nano-banana-pro`、`nano-banana`、`nano-banana-2` 是模型说明名称，不作为下拉选项发送。
 

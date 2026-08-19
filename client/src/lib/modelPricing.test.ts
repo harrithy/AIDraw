@@ -11,6 +11,7 @@ describe("getModelPrice", () => {
       expect(getModelPrice("gemini-2.5-flash-image", "std", 0, "off")).toBe(0.05);
       expect(getModelPrice("gemini-3-pro-image-preview", "std", 0, "off")).toBe(0.15);
       expect(getModelPrice("gemini-3.1-flash-image-preview", "std", 0, "off")).toBe(0.1);
+      expect(getModelPrice("gemini-3.1-flash-lite-image-preview", "std", 0, "off")).toBe(0.05);
     });
   });
 

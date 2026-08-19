@@ -27,10 +27,38 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.3.1",
+    title: "Nano Banana 新增 Gemini 3.1 Flash Lite 选项 & 下拉排版优化",
+    date: "2026-08-19",
+    badge: "✨ 最新版本",
+    summary:
+      "Nano Banana 系列新增 gemini-3.1-flash-lite-image-preview 模型支持与计费配置；全面优化下拉选择菜单排版，长模型名称完整单行展示无换行。",
+    highlights: [
+      "✨ Nano Banana 系列新增 gemini-3.1-flash-lite-image-preview 高性价比图像预览模型",
+      "💰 同步接入多米能力注册表与模型计费矩阵，自动计算生成预估费用",
+      "📐 全局优化 Select 下拉框文字换行机制与菜单自适应宽度，确保长模型标识整洁单行显示"
+    ],
+    items: [
+      {
+        category: "feature",
+        title: "新增 gemini-3.1-flash-lite-image-preview 模型支持",
+        description:
+          "在 NANO-BANANA 分组下新增 Gemini 3.1 Flash Lite 生图与编辑模型，适配多米 API 并提供预估价格展示。",
+        tag: "模型扩展"
+      },
+      {
+        category: "improvement",
+        title: "下拉选择菜单自适应宽度与单行展示",
+        description:
+          "优化 SelectItem 与 model-select-content 布局，防止长模型名称在连字符处折行，确保所有选项单行整洁展示。",
+        tag: "排版优化"
+      }
+    ]
+  },
+  {
     version: "v1.3.0",
     title: "版本公告中心上线 & 富媒体结果展示优化",
     date: "2026-08-18",
-    badge: "✨ 最新版本",
     summary:
       "新增可追踪的版本公告中心，支持未读提醒、历史版本查看与一键标记已读；同时优化图片和视频结果卡片，让富媒体内容获得更完整的展示空间与更直接的预览入口。",
     highlights: [

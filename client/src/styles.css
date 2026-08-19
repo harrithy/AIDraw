@@ -4170,7 +4170,9 @@ button:disabled {
 }
 
 .model-select-content {
-  width: min(304px, calc(100vw - 24px));
+  width: max-content;
+  min-width: min(340px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 24px));
   max-height: min(390px, calc(100vh - 96px));
 }
 
@@ -4198,6 +4200,7 @@ button:disabled {
   color: var(--ink);
   font-size: 14px;
   font-weight: 750;
+  white-space: nowrap;
   transition:
     background-color 120ms ease,
     color 120ms ease;
@@ -4364,7 +4367,9 @@ button:disabled {
 }
 
 .model-select-content {
-  width: min(304px, calc(100vw - 24px));
+  width: max-content;
+  min-width: min(340px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 24px));
   max-height: min(390px, calc(100vh - 96px));
 }
 
@@ -4392,6 +4397,7 @@ button:disabled {
   color: var(--ink);
   font-size: 14px;
   font-weight: 750;
+  white-space: nowrap;
   transition:
     background-color 120ms ease,
     color 120ms ease;
@@ -4568,7 +4574,9 @@ button:disabled {
 }
 
 .model-select-content {
-  width: min(304px, calc(100vw - 24px));
+  width: max-content;
+  min-width: min(340px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 24px));
   max-height: min(390px, calc(100vh - 96px));
 }
 
@@ -4596,6 +4604,7 @@ button:disabled {
   color: var(--ink);
   font-size: 14px;
   font-weight: 750;
+  white-space: nowrap;
   transition:
     background-color 120ms ease,
     color 120ms ease;
@@ -4778,7 +4787,9 @@ button:disabled {
 }
 
 .model-select-content {
-  width: min(304px, calc(100vw - 24px));
+  width: max-content;
+  min-width: min(340px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 24px));
   max-height: min(390px, calc(100vh - 96px));
 }
 
@@ -4806,6 +4817,7 @@ button:disabled {
   color: var(--ink);
   font-size: 14px;
   font-weight: 750;
+  white-space: nowrap;
   transition:
     background-color 120ms ease,
     color 120ms ease;

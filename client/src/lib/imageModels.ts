@@ -45,7 +45,8 @@ const grsaiNanoBananaModelOptions = [
 const duomiNanoBananaModelOptions = [
   { label: "gemini-3-pro-image-preview", value: "gemini-3-pro-image-preview" },
   { label: "gemini-2.5-flash-image", value: "gemini-2.5-flash-image" },
-  { label: "gemini-3.1-flash-image-preview", value: "gemini-3.1-flash-image-preview" }
+  { label: "gemini-3.1-flash-image-preview", value: "gemini-3.1-flash-image-preview" },
+  { label: "gemini-3.1-flash-lite-image-preview", value: "gemini-3.1-flash-lite-image-preview" }
 ] as const;
 
 const duomiImageModelGroups = [

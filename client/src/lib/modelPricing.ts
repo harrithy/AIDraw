@@ -17,7 +17,8 @@ const FIXED_IMAGE_PRICES: Record<string, number> = {
   "gpt-image-2": 0.06,
   "gemini-2.5-flash-image": 0.05,
   "gemini-3-pro-image-preview": 0.15,
-  "gemini-3.1-flash-image-preview": 0.1
+  "gemini-3.1-flash-image-preview": 0.1,
+  "gemini-3.1-flash-lite-image-preview": 0.05
 };
 
 /** GROK 视频模型每秒单价（元/秒），仅支持 720p 清晰度 */
