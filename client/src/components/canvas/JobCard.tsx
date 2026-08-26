@@ -101,8 +101,10 @@ export const JobCard = memo(function JobCard({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isUploadingLatest, setIsUploadingLatest] = useState(false);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
-  const [versionsExpanded, setVersionsExpanded] = useState(false);
-  const [renderHistory, setRenderHistory] = useState(false);
+  // 默认展开历史版本：同一任务有多张输出时，直接并排显示「上一版 / 当前」对比。
+  // （如需默认折叠、只显示最新一张，可把下面两个初始值改为 false。）
+  const [versionsExpanded, setVersionsExpanded] = useState(true);
+  const [renderHistory, setRenderHistory] = useState(true);
   const versionAnimationRef = useRef<gsap.core.Tween | null>(null);
   const canRetry = job.status === "completed" || job.status === "failed";
   const outputImages = getJobOutputImages(job);
