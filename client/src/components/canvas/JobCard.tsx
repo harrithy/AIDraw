@@ -524,7 +524,9 @@ export const JobCard = memo(function JobCard({
       </div>
 
       <div className={`job-image ${currentImageUrl || hasRichResult ? "has-output" : ""}${hasMultipleVersions ? " has-versions" : ""}${hasRichResult ? " has-rich-result" : ""}${isRichMediaOnly ? " is-rich-media-only" : ""}`}>
-        {hasRichResult ? (
+        {/* 纯图片/视频任务存在多版本历史时，优先展示版本对比条；
+            outputAssets 只保存最新一次的资产，直接用 JobResultContent 会丢掉旧版对比。 */}
+        {hasRichResult && !(isRichMediaOnly && hasMultipleVersions) ? (
           <JobResultContent job={job} />
         ) : currentImageUrl ? (
           hasMultipleVersions ? (
