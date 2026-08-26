@@ -37,6 +37,8 @@ type CanvasToolbarProps = {
   onSearchQueryChange: (query: string) => void;
   /** 当前画布上的所有任务，用于搜索过滤 */
   jobs: DrawJob[];
+  /** 渲染在工具栏最左端的自定义内容（如文件夹导入/导出按钮） */
+  children?: React.ReactNode;
 };
 
 const fuzzyMatch = (str: string, pattern: string) => {
@@ -79,7 +81,8 @@ export function CanvasToolbar({
   onApplyLayout,
   searchQuery,
   onSearchQueryChange,
-  jobs
+  jobs,
+  children
 }: CanvasToolbarProps) {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -176,6 +179,7 @@ export function CanvasToolbar({
 
   return (
     <div className="canvas-toolbar floating-toolbar">
+      {children ? <div className="tool-group">{children}</div> : null}
       <div className="tool-group">
         <button type="button" onClick={onZoomOut} title="缩小">
           <ZoomOut size={17} />

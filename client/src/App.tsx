@@ -3,6 +3,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { api } from "./api";
 import { WorkflowCanvas } from "./components/canvas/WorkflowCanvas";
 import { CanvasToolbar } from "./components/layout/CanvasToolbar";
+import { FolderTransferControls } from "./components/layout/FolderTransferControls";
 import { LeftSidebar } from "./components/layout/LeftSidebar";
 import { ApiSettingsDialog } from "./components/modals/ApiSettingsDialog";
 import { ImagePreview } from "./components/modals/ImagePreview";
@@ -644,6 +645,20 @@ function App() {
   };
 
   /**
+   * 文件夹备份导入成功后的回调：刷新文件夹列表并切换到新导入的文件夹。
+   * @param folderId - 导入生成的新文件夹 ID
+   */
+  const handleFolderImported = async (folderId: string) => {
+    try {
+      await loadFolders();
+      setActiveFolderId(folderId);
+      setNotice("已导入文件夹备份，可开始查看任务");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "导入后刷新失败");
+    }
+  };
+
+  /**
    * 完成新手引导，记录到 localStorage 不再弹出
    */
   const finishOnboarding = () => {
@@ -715,7 +730,12 @@ function App() {
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         jobs={jobs}
-      />
+      >
+        <FolderTransferControls
+          folder={activeFolder}
+          onImported={(folderId) => void handleFolderImported(folderId)}
+        />
+      </CanvasToolbar>
 
       <button
         type="button"

@@ -1,4 +1,5 @@
 import { foldersApi } from "./lib/api/foldersApi";
+import { folderBackupApi } from "./lib/api/folderBackupApi";
 import { healthApi } from "./lib/api/healthApi";
 import { jobsApi } from "./lib/api/jobsApi";
 import { providerSettingsApi } from "./lib/api/providerSettingsApi";
@@ -11,6 +12,7 @@ import { uploadedImagesApi } from "./lib/api/uploadedImagesApi";
 export const api = {
   ...healthApi,
   ...foldersApi,
+  ...folderBackupApi,
   ...jobsApi,
   ...uploadedImagesApi,
   ...providerSettingsApi

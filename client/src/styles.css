@@ -333,6 +333,18 @@ button:disabled {
   left: 292px;
 }
 
+/* 🗂️ 顶栏最左端 文件夹导入/导出 控件组 */
+.folder-transfer-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.folder-transfer-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .floating-top {
   top: 16px;
   left: 316px;
