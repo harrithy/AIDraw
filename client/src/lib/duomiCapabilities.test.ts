@@ -59,8 +59,11 @@ describe("多米能力注册表", () => {
     const pixAudio = getDuomiCapability("video.pix.generate")?.fields.find(
       (field) => field.key === "audio"
     );
-    const customMode = getDuomiCapability("music.suno.generate")?.fields.find(
-      (field) => field.key === "custom_mode"
+    const sunoGptPrompt = getDuomiCapability("music.suno.generate")?.fields.find(
+      (field) => field.key === "gpt_description_prompt"
+    );
+    const sunoMetadata = getDuomiCapability("music.suno.generate")?.fields.find(
+      (field) => field.key === "metadata"
     );
     const klingSound = getDuomiCapability("video.kling.text")?.fields.find(
       (field) => field.key === "sound"
@@ -68,8 +71,10 @@ describe("多米能力注册表", () => {
 
     expect(pixAudio).toMatchObject({ type: "select", defaultValue: 1 });
     expect(pixAudio?.options?.map((option) => option.value)).toEqual([0, 1]);
-    expect(customMode).toMatchObject({ type: "select", required: true, defaultValue: 0 });
-    expect(customMode?.options?.map((option) => option.value)).toEqual([0, 1]);
+    // 文档已下线 custom_mode，新字段为 gpt_description_prompt 与 metadata
+    expect(getDuomiCapability("music.suno.generate")?.fields.find((field) => field.key === "custom_mode")).toBeUndefined();
+    expect(sunoGptPrompt).toMatchObject({ type: "text" });
+    expect(sunoMetadata).toMatchObject({ type: "json" });
     expect(klingSound?.options?.map((option) => option.value)).toEqual(["on", "off"]);
     expect(
       getDuomiCapability("video.pika.text")?.fields.find((field) => field.key === "model")?.type
@@ -181,7 +186,7 @@ describe("多米能力注册表", () => {
       (field) => field.key === "duration"
     );
     expect(soraDuration?.type).toBe("select");
-    expect(soraDuration?.options?.map((option) => option.value)).toEqual([4, 8, 12]);
+    expect(soraDuration?.options?.map((option) => option.value)).toEqual([4, 8, 10, 12, 15, 25]);
     expect(soraDuration?.defaultValue).toBe(4);
 
     const gptSize = getDuomiCapability("image.gpt-image-2")?.fields.find((field) => field.key === "size");

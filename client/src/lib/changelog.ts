@@ -27,6 +27,41 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.1",
+    title: "多米 API 文档同步更新（SUNO / Sora / PIX）",
+    date: "2026-08-26",
+    badge: "✨ 最新版本",
+    summary:
+      "对照多米 API 最新文档同步三个能力：SUNO 生成音乐接入 GPT 描述提示词与音乐控制滑杆参数、Sora 新增 10/15/25 秒时长、PIX 镜头运动改为官方 20 种枚举选择。",
+    highlights: [
+      "🎵 SUNO 生成音乐新增 gpt_description_prompt（GPT 描述提示词）与 metadata（控制滑杆）参数，并移除已下线的 custom_mode",
+      "🎬 Sora 视频生成时长新增 10 / 15 / 25 秒选项",
+      "🎥 PIX 镜头运动从自由文本升级为官方 20 种镜头枚举选择"
+    ],
+    items: [
+      {
+        category: "improvement",
+        title: "SUNO 生成音乐参数同步",
+        description:
+          "新增 GPT 描述提示词 gpt_description_prompt 与 metadata 音乐控制参数（style_weight / weirdness_constraint / audio_weight 及 can_control_sliders）；移除文档已下线的 custom_mode 字段。",
+        tag: "接口同步"
+      },
+      {
+        category: "improvement",
+        title: "Sora 时长选项扩展",
+        description: "视频生成时长在原有 4/8/12 秒基础上新增 10/15/25 秒，与多米最新文档枚举保持一致。",
+        tag: "参数扩展"
+      },
+      {
+        category: "improvement",
+        title: "PIX 镜头运动枚举化",
+        description:
+          "镜头运动参数改为下拉选择，提供 horizontal_left、hitchcock、whip_pan 等 20 种官方镜头运动，避免手输错误。",
+        tag: "交互优化"
+      }
+    ]
+  },
+  {
     version: "v1.4.0",
     title: "文件夹一键导出导入 & 多版本对比修复",
     date: "2026-08-26",
