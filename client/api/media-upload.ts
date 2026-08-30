@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { transferRemoteMedia, type MediaKind } from "./_mediaTransfer.js";
+import { RemoteUrlPolicyError } from "./_remoteUrl.js";
+import { isCrossSiteRequest, isRateLimited } from "./_requestGuard.js";
 
 const MAX_JSON_BYTES = 32 * 1024;
 
@@ -38,6 +40,15 @@ export default async function handler(req: UploadRequest, res: ServerResponse) {
     sendJson(res, 405, { error: "Method Not Allowed" });
     return;
   }
+  if (isCrossSiteRequest(req)) {
+    sendJson(res, 403, { error: "禁止跨站调用媒体上传" });
+    return;
+  }
+  if (isRateLimited(req, "media-upload", 12)) {
+    res.setHeader("Retry-After", "60");
+    sendJson(res, 429, { error: "上传请求过于频繁，请稍后再试" });
+    return;
+  }
 
   try {
     const payload = (await readJsonBody(req)) as {
@@ -57,6 +68,10 @@ export default async function handler(req: UploadRequest, res: ServerResponse) {
     const result = await transferRemoteMedia(payload.mediaUrl, payload.jobId, payload.expectedKind as MediaKind);
     sendJson(res, 200, result);
   } catch (error) {
-    sendJson(res, 502, { error: error instanceof Error ? error.message : "上传远程媒体失败" });
+    sendJson(
+      res,
+      error instanceof RemoteUrlPolicyError ? 400 : 502,
+      { error: error instanceof Error ? error.message : "上传远程媒体失败" }
+    );
   }
 }

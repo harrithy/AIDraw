@@ -1,15 +1,11 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { WorkflowCanvas } from "./components/canvas/WorkflowCanvas";
 import { CanvasToolbar } from "./components/layout/CanvasToolbar";
 import { FolderTransferControls } from "./components/layout/FolderTransferControls";
 import { LeftSidebar } from "./components/layout/LeftSidebar";
-import { ApiSettingsDialog } from "./components/modals/ApiSettingsDialog";
-import { ImagePreview } from "./components/modals/ImagePreview";
-import { OnboardingGuide } from "./components/modals/OnboardingGuide";
-import { RegenerateEditDialog, type RegenerateEdits } from "./components/modals/RegenerateEditDialog";
-import { ReleaseNotesDialog } from "./components/modals/ReleaseNotesDialog";
+import type { RegenerateEdits } from "./components/modals/RegenerateEditDialog";
 import { getUnreadReleasesCount } from "./lib/changelog";
 import { CreateJobPanel } from "./components/panels/CreateJobPanel";
 import { UploadedImageLibrary } from "./components/panels/UploadedImageLibrary";
@@ -37,6 +33,22 @@ import type {
   UploadedImage,
   UpdateImageProviderSettingsPayload
 } from "./types";
+
+const ApiSettingsDialog = lazy(() =>
+  import("./components/modals/ApiSettingsDialog").then((module) => ({ default: module.ApiSettingsDialog }))
+);
+const ImagePreview = lazy(() =>
+  import("./components/modals/ImagePreview").then((module) => ({ default: module.ImagePreview }))
+);
+const OnboardingGuide = lazy(() =>
+  import("./components/modals/OnboardingGuide").then((module) => ({ default: module.OnboardingGuide }))
+);
+const RegenerateEditDialog = lazy(() =>
+  import("./components/modals/RegenerateEditDialog").then((module) => ({ default: module.RegenerateEditDialog }))
+);
+const ReleaseNotesDialog = lazy(() =>
+  import("./components/modals/ReleaseNotesDialog").then((module) => ({ default: module.ReleaseNotesDialog }))
+);
 
 const emptyQueue: QueueStats = {
   maxConcurrent: 30,
@@ -124,6 +136,18 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showClearFailedConfirm, setShowClearFailedConfirm] = useState(false);
   const [isClearingFailed, setIsClearingFailed] = useState(false);
+  const loadedModalsRef = useRef({
+    apiSettings: false,
+    imagePreview: false,
+    onboarding: false,
+    regenerate: false,
+    releaseNotes: false
+  });
+  if (apiSettingsOpen) loadedModalsRef.current.apiSettings = true;
+  if (previewJob) loadedModalsRef.current.imagePreview = true;
+  if (onboardingOpen) loadedModalsRef.current.onboarding = true;
+  if (editingRetryJob) loadedModalsRef.current.regenerate = true;
+  if (announcementOpen) loadedModalsRef.current.releaseNotes = true;
 
   // 页面加载或新手引导结束后，若存在未读版本更新，自动弹出更新公告
   useEffect(() => {
@@ -252,14 +276,6 @@ function App() {
     });
   }, []);
 
-  /**
-   * 从数据库加载已保存的 API 提供商配置。
-   */
-  const loadProviderSettings = useCallback(async () => {
-    const settings = await api.getImageProviderSettings();
-    setProviderSettings(settings);
-  }, []);
-
   useEffect(() => {
     window.localStorage.setItem("aidraw-theme", darkMode ? "dark" : "light");
     document.documentElement.classList.toggle("dark", darkMode);
@@ -281,14 +297,14 @@ function App() {
     void (async () => {
       try {
         setIsLoading(true);
-        await Promise.all([loadFolders(), loadQueue(), loadProviderSettings()]);
+        await Promise.all([loadFolders(), loadQueue()]);
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "加载失败");
       } finally {
         setIsLoading(false);
       }
     })();
-  }, [loadFolders, loadProviderSettings, loadQueue]);
+  }, [loadFolders, loadQueue]);
 
   useEffect(() => {
     if (!activeFolderId) {
@@ -309,17 +325,26 @@ function App() {
       .finally(() => setIsImageLibraryLoading(false));
   }, [activeFolderId, loadJobs, loadUploadedImages]);
 
-  // 定期轮询：每 2.5 秒同步任务状态和队列信息
+  // 状态事件负责实时刷新；每 10 秒轮询一次作为跨标签页/浏览器休眠后的兜底。
   useEffect(() => {
     if (!activeFolderId) return;
 
-    const timer = window.setInterval(() => {
+    const refresh = () => {
+      if (document.visibilityState === "hidden") return;
       void Promise.all([loadJobs(activeFolderId), loadQueue()]).catch((error) => {
         setNotice(error instanceof Error ? error.message : "状态同步失败");
       });
-    }, 2500);
+    };
+    const timer = window.setInterval(refresh, 10_000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [activeFolderId, loadJobs, loadQueue]);
 
   // 监听跨标签页状态变更，即时刷新本地界面
@@ -328,12 +353,19 @@ function App() {
       const detail = (event as CustomEvent).detail;
       void (async () => {
         try {
-          const nextFolders = await loadFolders();
-          const activeFolderStillExists = Boolean(
-            activeFolderId && nextFolders.some((folder) => folder.id === activeFolderId)
-          );
-          if (activeFolderStillExists && (detail?.folderId === activeFolderId || !detail?.folderId)) {
-            await Promise.all([loadJobs(activeFolderId!), loadUploadedImages(activeFolderId!)]);
+          const changedFolderIds: string[] = Array.isArray(detail?.folderIds)
+            ? detail.folderIds
+            : typeof detail?.folderId === "string"
+              ? [detail.folderId]
+              : [""];
+          const globallyChanged = changedFolderIds.includes("");
+
+          if (globallyChanged) await loadFolders();
+          if (
+            activeFolderId &&
+            (globallyChanged || changedFolderIds.includes(activeFolderId))
+          ) {
+            await Promise.all([loadJobs(activeFolderId), loadUploadedImages(activeFolderId)]);
           }
           await loadQueue();
         } catch (error) {
@@ -774,36 +806,63 @@ function App() {
         <div className="bottom-composer-empty panel-empty" data-tour="composer">先创建文件夹，再开始绘图任务。</div>
       )}
 
-      <ApiSettingsDialog
-        open={apiSettingsOpen}
-        settings={providerSettings}
-        onOpenChange={setApiSettingsOpen}
-        onSave={saveProviderSettings}
-      />
+      {loadedModalsRef.current.apiSettings ? (
+        <Suspense fallback={null}>
+          <ApiSettingsDialog
+            open={apiSettingsOpen}
+            settings={providerSettings}
+            onOpenChange={setApiSettingsOpen}
+            onSave={saveProviderSettings}
+          />
+        </Suspense>
+      ) : null}
 
-      <ImagePreview job={previewJob} onClose={() => setPreviewJob(null)} onUseImage={(url) => { setImageToUse(url); setPreviewJob(null); }} />
+      {loadedModalsRef.current.imagePreview ? (
+        <Suspense fallback={null}>
+          <ImagePreview
+            job={previewJob}
+            onClose={() => setPreviewJob(null)}
+            onUseImage={(url) => {
+              setImageToUse(url);
+              setPreviewJob(null);
+            }}
+          />
+        </Suspense>
+      ) : null}
 
-      <RegenerateEditDialog
-        apiProviderId={providerSettings.providerId}
-        open={Boolean(editingRetryJob)}
-        job={editingRetryJob}
-        isSubmitting={isRegenerating}
-        onClose={() => setEditingRetryJob(null)}
-        onUploadImage={uploadImage}
-        onConfirm={confirmRegenerate}
-      />
+      {loadedModalsRef.current.regenerate ? (
+        <Suspense fallback={null}>
+          <RegenerateEditDialog
+            apiProviderId={providerSettings.providerId}
+            open={Boolean(editingRetryJob)}
+            job={editingRetryJob}
+            isSubmitting={isRegenerating}
+            onClose={() => setEditingRetryJob(null)}
+            onUploadImage={uploadImage}
+            onConfirm={confirmRegenerate}
+          />
+        </Suspense>
+      ) : null}
 
-      <OnboardingGuide
-        open={onboardingOpen}
-        onOpenChange={setOnboardingOpen}
-        onFinish={finishOnboarding}
-      />
+      {loadedModalsRef.current.onboarding ? (
+        <Suspense fallback={null}>
+          <OnboardingGuide
+            open={onboardingOpen}
+            onOpenChange={setOnboardingOpen}
+            onFinish={finishOnboarding}
+          />
+        </Suspense>
+      ) : null}
 
-      <ReleaseNotesDialog
-        open={announcementOpen}
-        onOpenChange={setAnnouncementOpen}
-        onAcknowledge={() => setUnreadAnnouncementsCount(getUnreadReleasesCount())}
-      />
+      {loadedModalsRef.current.releaseNotes ? (
+        <Suspense fallback={null}>
+          <ReleaseNotesDialog
+            open={announcementOpen}
+            onOpenChange={setAnnouncementOpen}
+            onAcknowledge={() => setUnreadAnnouncementsCount(getUnreadReleasesCount())}
+          />
+        </Suspense>
+      ) : null}
 
       <Dialog open={showClearFailedConfirm} onOpenChange={setShowClearFailedConfirm}>
         <DialogContent>

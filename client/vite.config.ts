@@ -22,7 +22,30 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    emptyOutDir: true
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(moduleId) {
+          if (
+            moduleId.includes("/node_modules/react/") ||
+            moduleId.includes("/node_modules/react-dom/") ||
+            moduleId.includes("/node_modules/scheduler/")
+          ) {
+            return "react-vendor";
+          }
+          if (moduleId.includes("/node_modules/gsap/") || moduleId.includes("/node_modules/@gsap/")) {
+            return "motion-vendor";
+          }
+          if (
+            moduleId.includes("/node_modules/radix-ui/") ||
+            moduleId.includes("/node_modules/@radix-ui/") ||
+            moduleId.includes("/node_modules/lucide-react/")
+          ) {
+            return "ui-vendor";
+          }
+        }
+      }
+    }
   },
   server: {
     port: 5173,

@@ -16,6 +16,11 @@ export type FolderBackup = {
   exportedAt: string;
   /** 来源应用名。 */
   appName: string;
+  /** JSON 备份只保存媒体引用，不包含图片/视频二进制原文件。 */
+  media: {
+    binariesIncluded: false;
+    mode: "remote-urls-only";
+  };
   /** 被导出的文件夹（保留原始 id 仅供展示，导入时会重新生成）。 */
   folder: DrawFolder;
   /** 文件夹内的全部任务。 */
@@ -29,6 +34,16 @@ export type ImportedFolderPackage = {
   folder: DrawFolder;
   jobs: DrawJob[];
   uploadedImages: UploadedImage[];
+};
+
+const stripCredentialFields = (job: DrawJob): DrawJob => {
+  const {
+    credentialId: _credentialId,
+    credentialProviderId: _credentialProviderId,
+    providerBaseUrl: _providerBaseUrl,
+    ...rest
+  } = job;
+  return rest;
 };
 
 /**
@@ -46,8 +61,12 @@ export const buildFolderBackup = (
   version: FOLDER_BACKUP_VERSION,
   exportedAt: nowIso(),
   appName: "AIDraw",
+  media: {
+    binariesIncluded: false,
+    mode: "remote-urls-only"
+  },
   folder,
-  jobs,
+  jobs: jobs.map(stripCredentialFields),
   uploadedImages
 });
 
@@ -86,6 +105,10 @@ export const parseFolderBackup = (raw: unknown): FolderBackup => {
     version: FOLDER_BACKUP_VERSION,
     exportedAt: typeof raw.exportedAt === "string" ? raw.exportedAt : nowIso(),
     appName: typeof raw.appName === "string" ? raw.appName : "AIDraw",
+    media: {
+      binariesIncluded: false,
+      mode: "remote-urls-only"
+    },
     folder: folderRaw as unknown as DrawFolder,
     jobs,
     uploadedImages
@@ -106,6 +129,9 @@ const uniqueFolderName = (name: string, existingNames: Set<string>) => {
 const stripImportFields = <T extends Record<string, unknown>>(job: T): Partial<T> => {
   const {
     provider: _provider,
+    credentialId: _credentialId,
+    credentialProviderId: _credentialProviderId,
+    providerBaseUrl: _providerBaseUrl,
     remoteTaskId: _remoteTaskId,
     remoteTaskIds: _remoteTaskIds,
     remoteStatus: _remoteStatus,

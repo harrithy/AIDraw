@@ -186,6 +186,12 @@ export type DrawJob = {
   errorMessage?: string;
   /** 任务提供者 */
   provider?: ImageProviderId;
+  /** 创建任务时绑定的凭据标识；不保存 API Key 明文 */
+  credentialId?: string;
+  /** 绑定凭据所属的 API 平台 */
+  credentialProviderId?: ApiProviderId;
+  /** 创建任务时使用的 API Base URL 快照 */
+  providerBaseUrl?: string;
   /** 远程任务 ID */
   remoteTaskId?: string;
   /** 一个请求返回多个远程任务时保存全部 ID。 */

@@ -1,8 +1,7 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { BookOpen, ChevronDown, Image as ImageIcon, ImagePlus, ImageUp, Loader2, MousePointer2, Music, PenLine, Play, Shapes, Sparkles, Video, Wrench, X } from "lucide-react";
-import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { DuomiApiDocDialog } from "../modals/DuomiApiDocDialog";
+import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Message } from "@/components/ui/message";
@@ -86,6 +85,10 @@ import type {
   PresetDrawSize
 } from "../../types";
 import type { ThinkingValue } from "../../types/ui";
+
+const DuomiApiDocDialog = lazy(() =>
+  import("../modals/DuomiApiDocDialog").then((module) => ({ default: module.DuomiApiDocDialog }))
+);
 
 /** 文件上传结果 */
 type UploadResult = {
@@ -313,6 +316,8 @@ export function CreateJobPanel({
   const [isDragActive, setIsDragActive] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDocOpen, setIsDocOpen] = useState(false);
+  const hasOpenedDocRef = useRef(false);
+  if (isDocOpen) hasOpenedDocRef.current = true;
   const dragDepthRef = useRef(0);
   const currentMode: DrawMode = inputImages.length > 0 ? "image-to-image" : "text-to-image";
   const isNanoBanana = isNanoBananaModel(model);
@@ -962,7 +967,11 @@ export function CreateJobPanel({
           onChange={(key, value) => setCapabilityValues((current) => ({ ...current, [key]: value }))}
         />
 
-        <DuomiApiDocDialog open={isDocOpen} onOpenChange={setIsDocOpen} />
+        {hasOpenedDocRef.current ? (
+          <Suspense fallback={null}>
+            <DuomiApiDocDialog open={isDocOpen} onOpenChange={setIsDocOpen} />
+          </Suspense>
+        ) : null}
       </section>
     );
   };

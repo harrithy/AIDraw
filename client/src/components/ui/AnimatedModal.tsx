@@ -3,6 +3,15 @@ import { createPortal } from "react-dom";
 import { useModalTransition } from "../../hooks/useModalTransition";
 import { cn } from "../../lib/utils";
 
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])"
+].join(",");
+
 /** AnimatedModal 组件的 Props 类型 */
 type AnimatedModalProps = {
   /** 是否显示模态框 */
@@ -43,6 +52,8 @@ export function AnimatedModal({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const restoreFocusFrameRef = useRef<number | null>(null);
   const preservedContentRef = useRef<PreservedModalContent>({
     ariaLabel,
     children,
@@ -53,6 +64,7 @@ export function AnimatedModal({
   if (open) {
     preservedContentRef.current = { ariaLabel, children, rootClassName, panelClassName };
   }
+  onCloseRef.current = onClose;
 
   const isPresent = useModalTransition({
     open,
@@ -63,16 +75,73 @@ export function AnimatedModal({
 
   useEffect(() => {
     if (!open) return;
+    if (restoreFocusFrameRef.current !== null) {
+      window.cancelAnimationFrame(restoreFocusFrameRef.current);
+      restoreFocusFrameRef.current = null;
+    }
 
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      onClose();
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const getFocusableElements = () => {
+      const panel = panelRef.current;
+      if (!panel) return [];
+      return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+        (element) => {
+          const style = window.getComputedStyle(element);
+          return element.getAttribute("aria-hidden") !== "true" && style.display !== "none" && style.visibility !== "hidden";
+        }
+      );
+    };
+    const focusFrame = window.requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const preferred = panel.querySelector<HTMLElement>("[data-autofocus]");
+      const firstFocusable = getFocusableElements()[0];
+      (preferred || firstFocusable || panel).focus({ preventScroll: true });
+    });
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusable = getFocusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        panel.focus({ preventScroll: true });
+        return;
+      }
+
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      const activeElement = document.activeElement;
+      if (event.shiftKey && (activeElement === first || !panel.contains(activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose, open]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+      if (previouslyFocused?.isConnected) {
+        restoreFocusFrameRef.current = window.requestAnimationFrame(() => {
+          restoreFocusFrameRef.current = null;
+          previouslyFocused.focus({ preventScroll: true });
+        });
+      }
+    };
+  }, [open]);
 
   if (!isPresent) return null;
 
@@ -96,6 +165,7 @@ export function AnimatedModal({
       <div
         ref={panelRef}
         className={cn("image-preview-panel animated-modal-panel", content.panelClassName)}
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
         {content.children}

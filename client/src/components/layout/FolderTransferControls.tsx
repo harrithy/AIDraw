@@ -12,6 +12,8 @@ type FolderTransferControlsProps = {
   onImported: (folderId: string) => void;
 };
 
+const MAX_BACKUP_FILE_BYTES = 25 * 1024 * 1024;
+
 /** 清理文件名中的非法字符。 */
 const sanitizeFileName = (value: string) => {
   const cleaned = value
@@ -55,7 +57,7 @@ export function FolderTransferControls({ folder, onImported }: FolderTransferCon
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 
       Message.success(
-        `已导出「${folder.name}」：${backup.jobs.length} 个任务 · ${backup.uploadedImages.length} 个素材`
+        `已导出「${folder.name}」：${backup.jobs.length} 个任务 · ${backup.uploadedImages.length} 个素材（媒体原文件未打包）`
       );
     } catch (error) {
       Message.error(error instanceof Error ? error.message : "导出失败");
@@ -68,6 +70,10 @@ export function FolderTransferControls({ folder, onImported }: FolderTransferCon
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || isImporting) return;
+    if (file.size > MAX_BACKUP_FILE_BYTES) {
+      Message.error("导入失败：JSON 备份不能超过 25 MB");
+      return;
+    }
 
     setIsImporting(true);
     try {
@@ -94,7 +100,7 @@ export function FolderTransferControls({ folder, onImported }: FolderTransferCon
         type="button"
         onClick={() => void handleExport()}
         disabled={!folder || isExporting}
-        title={folder ? `导出当前文件夹「${folder.name}」（任务 / 素材 / 画布状态）` : "请先选择文件夹再导出"}
+        title={folder ? `导出当前文件夹「${folder.name}」（保存记录和媒体链接，不包含媒体原文件）` : "请先选择文件夹再导出"}
         aria-label="导出当前文件夹"
       >
         {isExporting ? <Loader2 className="spin" size={17} /> : <Download size={17} />}

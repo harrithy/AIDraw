@@ -27,10 +27,61 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.2",
+    title: "任务续查安全、媒体代理加固与性能升级",
+    date: "2026-08-31",
+    badge: "✨ 最新版本",
+    summary:
+      "本次更新重点提升付费异步任务的可靠性与本地项目的安全边界：任务会绑定创建时使用的 API Key，断线或查询失败后优先恢复原远程任务；同时加固媒体代理、减少无效轮询，并优化首屏包体与弹窗无障碍体验。",
+    highlights: [
+      "💳 已取得远程任务 ID 的失败任务只恢复查询，不会再次提交，降低重复扣费风险",
+      "🔑 每个任务绑定创建时使用的 API Key；切换当前 Key 后，运行中的任务仍可使用原凭据继续追踪",
+      "🔄 远程状态查询遇到网络抖动会自动退避重试，视频、音频和文件任务最长追踪时间延长至 120 分钟",
+      "🛡️ 媒体代理新增私网地址拦截、逐跳重定向校验、超时、流式大小限制与轻量限流",
+      "⚡ 状态同步改为批量刷新，轮询降频；弹窗与 API 文档按需加载，主入口包体显著缩小"
+    ],
+    items: [
+      {
+        category: "fix",
+        title: "付费异步任务安全续查",
+        description:
+          "任务会保存不含 Key 明文的凭据标识。查询中断、页面恢复或达到追踪时限后，只要已有远程任务 ID，点击重试就会继续查询原任务，不再重新发起生成请求。若提交结果未知且没有任务 ID，则阻止一键重提并提示先到远程平台确认。",
+        tag: "计费安全"
+      },
+      {
+        category: "fix",
+        title: "远程查询容错与长任务追踪",
+        description:
+          "查询请求异常时最多进行 5 次指数退避重试，网络抖动不再立即把任务判为失败；普通图片保持 30 分钟追踪窗口，视频、音频、文件和混合输出任务延长至 120 分钟。",
+        tag: "队列可靠性"
+      },
+      {
+        category: "fix",
+        title: "媒体代理与远程转存安全加固",
+        description:
+          "阻止访问 localhost、私网、链路本地和保留地址，并对每次重定向重新校验；新增跨站限制、请求超时、轻量限流和边读边计数的 200 MB 上限，避免无长度响应占满内存。",
+        tag: "安全加固"
+      },
+      {
+        category: "improvement",
+        title: "状态同步与加载性能优化",
+        description:
+          "合并短时间内重复的跨标签页状态通知，把全量兜底轮询从 2.5 秒调整为 10 秒并在页面隐藏时暂停；图片预览、设置、重绘、新手引导、公告和 API 文档改为首次使用时加载。",
+        tag: "性能优化"
+      },
+      {
+        category: "improvement",
+        title: "备份边界、无障碍与工程质量",
+        description:
+          "文件夹 JSON 备份现在明确提示仅保存媒体链接、不包含媒体原文件，并剥离任务凭据标识、限制导入体积；自定义弹窗增加焦点锁定和关闭后焦点恢复，同时补齐自动测试、CI、许可证与项目文档。",
+        tag: "体验完善"
+      }
+    ]
+  },
+  {
     version: "v1.4.1",
     title: "多米 API 文档同步更新（SUNO / Sora / PIX）",
     date: "2026-08-26",
-    badge: "✨ 最新版本",
     summary:
       "对照多米 API 最新文档同步三个能力：SUNO 生成音乐接入 GPT 描述提示词与音乐控制滑杆参数、Sora 新增 10/15/25 秒时长、PIX 镜头运动改为官方 20 种枚举选择。",
     highlights: [
@@ -65,7 +116,6 @@ export const INITIAL_RELEASES: ReleaseNote[] = [
     version: "v1.4.0",
     title: "文件夹一键导出导入 & 多版本对比修复",
     date: "2026-08-26",
-    badge: "✨ 最新版本",
     summary:
       "新增当前文件夹一键导出与备份导入能力，任务、素材库与多版本历史可跨浏览器安全迁移；同时修复同一任务多次重绘后新旧版本对比不可见的问题，并支持版本历史默认折叠、一键展开对比。",
     highlights: [
@@ -110,7 +160,6 @@ export const INITIAL_RELEASES: ReleaseNote[] = [
     version: "v1.3.1",
     title: "Nano Banana 新增 Gemini 3.1 Flash Lite 选项 & 下拉排版优化",
     date: "2026-08-19",
-    badge: "✨ 最新版本",
     summary:
       "Nano Banana 系列新增 gemini-3.1-flash-lite-image-preview 模型支持与计费配置；全面优化下拉选择菜单排版，长模型名称完整单行展示无换行。",
     highlights: [
@@ -190,7 +239,6 @@ export const INITIAL_RELEASES: ReleaseNote[] = [
     version: "v1.2.0",
     title: "多米全能能力重构 & 蛇形网格智能排版全新上线！",
     date: "2026-08-17",
-    badge: "✨ 最新版本",
     summary:
       "本次更新对多米全系模型能力界面进行了从上往下的纯净流式重构，引入了智能蛇形网格排版系统、多米 API 官方开发文档弹窗，以及全域丝滑微动效体系！",
     highlights: [

@@ -42,6 +42,14 @@ export const providerSettingsApi = {
   ): Promise<ImageProviderSettings> => {
     const settings = await getSettings();
 
+    if (
+      payload.providerId &&
+      payload.providerId !== settings.providerId &&
+      payload.baseUrl === undefined
+    ) {
+      settings.baseUrl = getDefaultBaseUrl(payload.providerId);
+    }
+
     if (payload.baseUrl !== undefined) {
       const baseUrl = payload.baseUrl.trim() || getDefaultBaseUrl(payload.providerId || settings.providerId);
       try {
@@ -56,13 +64,27 @@ export const providerSettingsApi = {
     if (payload.model !== undefined) settings.model = payload.model.trim() || DEFAULT_MODEL;
 
     if (payload.clearApiKey) settings.apiKey = "";
-    else if (payload.apiKey?.trim()) settings.apiKey = payload.apiKey.trim();
+    else if (payload.apiKey?.trim()) {
+      settings.apiKey = payload.apiKey.trim();
+      if (payload.providerId) settings.providerId = payload.providerId;
+    }
 
     const savedApiKeys = settings.savedApiKeys ?? (settings.savedApiKeys = settings.apiKey ? [settings.apiKey] : []);
     const savedProviderIds =
       settings.savedApiKeyProviderIds && settings.savedApiKeyProviderIds.length === savedApiKeys.length
         ? settings.savedApiKeyProviderIds
         : (settings.savedApiKeyProviderIds = savedApiKeys.map(() => "duomi"));
+
+    // 直接保存的 Key 也进入凭据列表，确保已经排队或运行中的任务可继续找到它。
+    if (settings.apiKey) {
+      const existingIndex = savedApiKeys.findIndex(
+        (key, index) => key === settings.apiKey && savedProviderIds[index] === settings.providerId
+      );
+      if (existingIndex < 0) {
+        savedApiKeys.push(settings.apiKey);
+        savedProviderIds.push(settings.providerId);
+      }
+    }
 
     if (payload.importApiKey?.trim()) {
       const newKey = payload.importApiKey.trim();

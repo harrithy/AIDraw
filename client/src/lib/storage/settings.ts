@@ -38,14 +38,16 @@ export const getSettings = async (): Promise<StoredSettings> => {
         return;
       }
 
+      if (!result.providerId) result.providerId = "duomi";
       if (!result.savedApiKeys) result.savedApiKeys = result.apiKey ? [result.apiKey] : [];
       if (
         !result.savedApiKeyProviderIds ||
         result.savedApiKeyProviderIds.length !== result.savedApiKeys.length
       ) {
-        result.savedApiKeyProviderIds = result.savedApiKeys.map(() => "duomi");
+        result.savedApiKeyProviderIds = result.savedApiKeys.map((key) =>
+          key === result.apiKey ? result.providerId : "duomi"
+        );
       }
-      if (!result.providerId) result.providerId = "duomi";
       resolve(result);
     };
     req.onerror = () => reject(req.error);

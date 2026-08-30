@@ -9,8 +9,11 @@ import {
   supportsNanoBananaImageSize
 } from "../imageModels";
 import { dimensionsFromSize } from "../imageDimensions";
+import { createJobCredentialSnapshot } from "../jobCredentials";
+import { getJobRetryMode } from "../jobRetry";
 import { getDuomiCapability, isDuomiCapabilitySubmittable } from "../duomiCapabilities";
 import { processQueue } from "../jobQueue";
+import { resolveProviderId } from "../providers/providerRegistry";
 import { FOLDER_STORE, JOB_STORE, openDb } from "../storage/database";
 import { ensureFolder, ensureJob, updateJob } from "../storage/entities";
 import { createId, nowIso, sortJobs } from "../storage/helpers";
@@ -143,9 +146,11 @@ export const jobsApi = {
               posX: 0,
               posY: 0,
               hasCustomPosition: false,
+              ...createJobCredentialSnapshot(settings),
               createdAt: now,
               updatedAt: now
             };
+            job.provider = capability ? "duomi" : resolveProviderId(job, settings);
             created.push(job);
             jobStore.add(job);
           }
@@ -175,10 +180,38 @@ export const jobsApi = {
       throw new Error("Only completed or failed jobs can be redrawn");
     }
 
+    const retryMode = getJobRetryMode(job);
+    if (retryMode === "resume_remote") {
+      const resumed = await updateJob(jobId, {
+        status: "pending",
+        errorMessage: undefined,
+        remoteStatus: "resuming",
+        submitTime: undefined,
+        queueOwnerId: undefined,
+        leaseExpiresAt: undefined,
+        startedAt: undefined,
+        completedAt: undefined
+      });
+      void processQueue();
+      return resumed;
+    }
+
+    if (retryMode === "blocked_unknown_submission") {
+      throw new Error("上次提交结果未知，直接重试可能重复扣费；请先在远程平台确认任务状态");
+    }
+
+    const settings = await getSettings();
+    const nextJob = {
+      ...job,
+      provider: undefined,
+      remoteTaskId: undefined,
+      remoteTaskIds: undefined
+    };
     const updated = await updateJob(jobId, {
       status: "pending",
       errorMessage: undefined,
-      provider: undefined,
+      provider: job.capabilityId ? "duomi" : resolveProviderId(nextJob, settings),
+      ...createJobCredentialSnapshot(settings),
       remoteTaskId: undefined,
       remoteTaskIds: undefined,
       remoteStatus: undefined,
@@ -239,6 +272,13 @@ export const jobsApi = {
     const maxAspectRatio = settings.providerId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
     const size = normalizeSize(edits.size, maxAspectRatio);
     const { width, height } = dimensionsFromSize(size);
+    const nextJob = {
+      ...job,
+      model,
+      provider: undefined,
+      remoteTaskId: undefined,
+      remoteTaskIds: undefined
+    };
 
     const updated = await updateJob(jobId, {
       mode,
@@ -262,7 +302,8 @@ export const jobsApi = {
       sound: isKlingVideoModel(model) ? (edits.sound ?? "off") : undefined,
       status: "pending",
       errorMessage: undefined,
-      provider: undefined,
+      provider: job.capabilityId ? "duomi" : resolveProviderId(nextJob, settings),
+      ...createJobCredentialSnapshot(settings),
       remoteTaskId: undefined,
       remoteTaskIds: undefined,
       remoteStatus: undefined,

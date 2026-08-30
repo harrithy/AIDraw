@@ -55,8 +55,20 @@ describe("文件夹备份构建与解析", () => {
     const backup = buildFolderBackup(makeFolder(), [makeJob()], [makeImage()]);
     expect(backup.format).toBe(FOLDER_BACKUP_FORMAT);
     expect(backup.version).toBe(FOLDER_BACKUP_VERSION);
+    expect(backup.media).toEqual({ binariesIncluded: false, mode: "remote-urls-only" });
     expect(backup.jobs).toHaveLength(1);
     expect(backup.uploadedImages).toHaveLength(1);
+  });
+
+  it("导出时不携带任务凭据标识", () => {
+    const backup = buildFolderBackup(
+      makeFolder(),
+      [makeJob({ credentialId: "cred-secret", credentialProviderId: "duomi", providerBaseUrl: "https://api.example.com" })],
+      []
+    );
+    expect(backup.jobs[0]?.credentialId).toBeUndefined();
+    expect(backup.jobs[0]?.credentialProviderId).toBeUndefined();
+    expect(backup.jobs[0]?.providerBaseUrl).toBeUndefined();
   });
 
   it("非备份对象会被拒绝", () => {

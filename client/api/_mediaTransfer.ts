@@ -1,6 +1,10 @@
+import { fetchPublicRemote } from "./_remoteUrl.js";
+
 const IMAGE_UPLOAD_BASE_URL = "https://image.harrio.xyz";
 const IMAGE_UPLOAD_ENDPOINT = `${IMAGE_UPLOAD_BASE_URL}/upload`;
 const MAX_MEDIA_BYTES = 200 * 1024 * 1024;
+const REMOTE_FETCH_TIMEOUT_MS = 60 * 1000;
+const UPLOAD_TIMEOUT_MS = 60 * 1000;
 
 export type MediaKind = "image" | "video";
 
@@ -9,14 +13,6 @@ export type TransferredMedia = {
   originalName: string;
   mimeType: string;
   byteSize: number;
-};
-
-const parseTargetUrl = (rawUrl: string) => {
-  const url = new URL(rawUrl);
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("媒体地址仅支持 http/https");
-  }
-  return url;
 };
 
 const getPathExtension = (mediaUrl: URL) =>
@@ -85,34 +81,65 @@ export const transferRemoteMedia = async (
   jobId: string,
   expectedKind: MediaKind
 ): Promise<TransferredMedia> => {
-  const targetUrl = parseTargetUrl(mediaUrl);
-  const extension = getPathExtension(targetUrl);
-  const response = await fetch(targetUrl, {
-    headers: { "user-agent": "aidraw-media-transfer/1.0" }
-  });
-  if (!response.ok) throw new Error(`读取远程媒体失败：HTTP ${response.status}`);
+  const remoteController = new AbortController();
+  const remoteTimeout = setTimeout(() => remoteController.abort(), REMOTE_FETCH_TIMEOUT_MS);
+  let extension = "";
+  let sourceMimeType = "application/octet-stream";
+  let mediaKind: MediaKind | null = null;
+  let byteSize = 0;
+  const chunks: ArrayBuffer[] = [];
 
-  const declaredLength = Number(response.headers.get("content-length") || 0);
-  if (declaredLength > MAX_MEDIA_BYTES) throw new Error("媒体文件过大，无法上传");
+  try {
+    const { response, finalUrl } = await fetchPublicRemote(mediaUrl, {
+      headers: { "user-agent": "aidraw-media-transfer/1.0" },
+      signal: remoteController.signal
+    });
+    extension = getPathExtension(finalUrl);
+    if (!response.ok) throw new Error(`读取远程媒体失败：HTTP ${response.status}`);
 
-  const sourceMimeType = (response.headers.get("content-type") || "application/octet-stream")
-    .split(";", 1)[0]
-    .trim()
-    .toLowerCase();
-  const mediaKind = getMediaKind(sourceMimeType, extension, expectedKind);
-  if (!mediaKind) throw new Error("远程服务器返回的不是图片或视频");
+    const declaredLength = Number(response.headers.get("content-length") || 0);
+    if (declaredLength > MAX_MEDIA_BYTES) throw new Error("媒体文件过大，无法上传");
 
-  const buffer = await response.arrayBuffer();
-  if (buffer.byteLength > MAX_MEDIA_BYTES) throw new Error("媒体文件过大，无法上传");
+    sourceMimeType = (response.headers.get("content-type") || "application/octet-stream")
+      .split(";", 1)[0]
+      .trim()
+      .toLowerCase();
+    mediaKind = getMediaKind(sourceMimeType, extension, expectedKind);
+    if (!mediaKind) throw new Error("远程服务器返回的不是图片或视频");
+    if (!response.body) throw new Error("远程服务器未返回媒体内容");
+
+    const reader = response.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      byteSize += value.byteLength;
+      if (byteSize > MAX_MEDIA_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error("媒体文件过大，无法上传");
+      }
+      chunks.push(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength) as ArrayBuffer);
+    }
+  } catch (error) {
+    if (remoteController.signal.aborted) throw new Error("读取远程媒体超时");
+    throw error;
+  } finally {
+    clearTimeout(remoteTimeout);
+  }
 
   const mimeType = getMimeType(sourceMimeType, extension, mediaKind);
   const fileExtension = getExtension(mimeType, extension, mediaKind);
   const safeJobId = jobId.replace(/[^a-z0-9_-]/gi, "-") || "media";
   const originalName = `aidraw-${safeJobId}.${fileExtension}`;
   const body = new FormData();
-  body.append("file", new Blob([buffer], { type: mimeType }), originalName);
+  body.append("file", new Blob(chunks, { type: mimeType }), originalName);
 
-  const uploadResponse = await fetch(IMAGE_UPLOAD_ENDPOINT, { method: "POST", body });
+  const uploadController = new AbortController();
+  const uploadTimeout = setTimeout(() => uploadController.abort(), UPLOAD_TIMEOUT_MS);
+  const uploadResponse = await fetch(IMAGE_UPLOAD_ENDPOINT, {
+    method: "POST",
+    body,
+    signal: uploadController.signal
+  }).finally(() => clearTimeout(uploadTimeout));
   const payload = await uploadResponse.json().catch(() => null);
   if (!uploadResponse.ok) {
     throw new Error(`图床上传失败：${getUploadError(payload, uploadResponse.status)}`);
@@ -120,5 +147,5 @@ export const transferRemoteMedia = async (
 
   const uploadedUrl = extractUploadedUrl(payload);
   if (!uploadedUrl) throw new Error("图床上传成功，但未返回媒体地址");
-  return { url: uploadedUrl, originalName, mimeType, byteSize: buffer.byteLength };
+  return { url: uploadedUrl, originalName, mimeType, byteSize };
 };

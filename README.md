@@ -3,7 +3,7 @@
 [![中文文档](https://img.shields.io/badge/文档-中文-orange?style=flat-square)](./README_zh-CN.md)
 [![日本語](https://img.shields.io/badge/ドキュメント-日本語-red?style=flat-square)](./README_ja.md)
 
-A browser-based AI drawing workflow manager supporting Text-to-Image and Image-to-Image generation modes. Organize tasks by folders and visualize results on a zoomable, pannable canvas.
+A local-first, browser-based multimodal AI workflow manager for image, video, audio, text, and file generation. Organize tasks by folders and visualize results on a zoomable, pannable canvas.
 
 > **Try it out**: Access directly in your browser after deployment — no client installation needed.
 
@@ -12,14 +12,14 @@ A browser-based AI drawing workflow manager supporting Text-to-Image and Image-t
 ## ✨ Features
 
 - **📁 Folder Workspaces** — Create folders by theme (character designs, backgrounds, stickers, etc.), each with its own independent canvas
-- **🖼️ Dual Generation Modes** — Supports Text-to-Image and Image-to-Image. Drag-and-drop or paste local images as references
+- **🧰 Multimodal Capability Registry** — Supports image, video, audio, text, and file workflows in addition to Text-to-Image and Image-to-Image
 - **📋 Task Queue Management** — Up to 30 concurrent jobs with automatic async status polling and retry for failed tasks
 - **🗺️ Infinite Canvas** — Zoomable and pannable canvas with drag-to-reorder task cards; canvas state is auto-saved
 - **🌓 Dark Mode** — Toggle between light and dark themes with persistent preference
 - **🔌 Flexible API Configuration** — Visual API settings panel compatible with any OpenAI Images-compatible service (defaults to Duomi API `gpt-image-2`)
 - **📱 Responsive Layout** — Adapts to desktop and mobile; collapsible left sidebar
 - **✨ Smooth Animations** — GSAP-powered page transitions and interaction effects
-- **💾 Local Persistence** — IndexedDB-based offline storage; all tasks and folder data live in the browser
+- **💾 Local-first Persistence** — Folders, jobs, settings, and media references live in IndexedDB; media binaries remain on their remote hosts
 - **🚀 One-Click Deploy** — Pre-configured for Vercel with SPA route rewrites
 
 ---
@@ -105,7 +105,7 @@ AIDraw/
 
 ### Prerequisites
 
-- **Node.js** >= 18
+- **Node.js** `^20.19.0` or `>=22.12.0`
 - **npm** >= 9 (project uses npm workspaces)
 
 ### Local Development
@@ -136,6 +136,12 @@ Output is generated in `client/dist/`.
 
 ```bash
 npm run check
+```
+
+### Tests
+
+```bash
+npm test
 ```
 
 ---
@@ -191,7 +197,7 @@ Key configuration:
 
 ### Other Platforms
 
-Since this is a pure frontend SPA, it can be deployed to any static hosting platform (Netlify, Cloudflare Pages, GitHub Pages, etc.). Make sure to configure SPA fallback routing (all paths → `index.html`) and the `/image-upload/` proxy forwarding.
+The core app is a browser-side SPA, while cross-origin media downloads and remote media transfers use the lightweight `/api/media-proxy` and `/api/media-upload` functions. Other platforms need SPA fallback routing plus equivalent hardened proxy handlers; static-only hosting will not provide those helper features.
 
 ---
 
@@ -221,14 +227,19 @@ Select a folder, then click the **New Drawing** button on the canvas:
 - **Drag empty space**: Pan the canvas
 - Canvas state (zoom, position) is automatically saved
 
+### 5. Folder Backups
+
+The toolbar can export and import a folder as JSON. Backups include task parameters, canvas state, result history, and media records, but only store media URLs—not image or video binaries. Save important media separately for long-term archival.
+
 ---
 
 ## 🤝 Contributing
 
-Issues and Pull Requests are welcome! Please ensure the type check passes before submitting:
+Issues and Pull Requests are welcome! Please ensure the type check and tests pass before submitting:
 
 ```bash
 npm run check
+npm test
 ```
 
 ---

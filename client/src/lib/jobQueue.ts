@@ -1,6 +1,8 @@
 import type { DrawJob, GeneratedAsset } from "../types";
 import { getDuomiCapability } from "./duomiCapabilities";
+import { resolveJobSettings } from "./jobCredentials";
 import { getJobAssetKind, getJobOutputImages } from "./jobImages";
+import { getTaskTimeoutMinutes } from "./jobQueuePolicy";
 import { getProviderForJob, getRequiredApiProvider } from "./providers/providerRegistry";
 import type { ProviderTaskResult } from "./providers/types";
 import { JOB_STORE, openDb } from "./storage/database";
@@ -10,10 +12,11 @@ import { getSettings } from "./storage/settings";
 import { broadcastStateUpdate } from "./storage/stateSync";
 
 export const MAX_CONCURRENT_JOBS = 30;
-const TASK_TIMEOUT_MINUTES = 30;
-const TASK_TIMEOUT_MS = TASK_TIMEOUT_MINUTES * 60 * 1000;
 const TASK_POLL_INTERVAL_MS = 10 * 1000;
 const JOB_LEASE_MS = 90 * 1000;
+const MAX_CONSECUTIVE_QUERY_FAILURES = 5;
+const QUERY_RETRY_BASE_MS = 2 * 1000;
+const QUERY_RETRY_MAX_MS = 30 * 1000;
 
 const activeJobs = new Set<string>();
 const queueOwnerId =
@@ -32,10 +35,26 @@ const isTaskTimedOut = (job: DrawJob) => {
   const startedAt = job.submitTime || job.startedAt;
   if (!startedAt) return false;
   const startedAtMs = new Date(startedAt).getTime();
-  return Number.isFinite(startedAtMs) && Date.now() - startedAtMs > TASK_TIMEOUT_MS;
+  return (
+    Number.isFinite(startedAtMs) &&
+    Date.now() - startedAtMs > getTaskTimeoutMinutes(job) * 60 * 1000
+  );
 };
 
 const delay = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+const errorMessageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error || "远程任务查询失败");
+
+const queryRetryDelay = (attempt: number) =>
+  Math.min(QUERY_RETRY_BASE_MS * 2 ** Math.max(0, attempt - 1), QUERY_RETRY_MAX_MS);
+
+const isAmbiguousSubmissionError = (error: unknown) => {
+  const message = errorMessageOf(error).toLowerCase();
+  return ["超时", "网络", "cors", "failed to fetch", "network", "timeout", "aborted"].some(
+    (keyword) => message.includes(keyword)
+  );
+};
 
 const normalizeSucceededAssets = (
   result: Extract<ProviderTaskResult, { state: "succeeded" }>,
@@ -55,12 +74,13 @@ const normalizeSucceededAssets = (
 
 /** 提交单个任务并持续轮询远程平台，直到任务结束或超时。 */
 export const executeJobBackground = async (job: DrawJob) => {
+  let consecutiveQueryFailures = 0;
   try {
     while (true) {
       let freshJob = await ensureJob(job.id);
       if (freshJob.status !== "running" || freshJob.queueOwnerId !== queueOwnerId) return;
       if (isTaskTimedOut(freshJob)) {
-        throw new Error(`任务轮询超时，已等待 ${TASK_TIMEOUT_MINUTES} 分钟`);
+        throw new Error(`任务轮询超时，已等待 ${getTaskTimeoutMinutes(freshJob)} 分钟`);
       }
 
       const renewedJob = await updateOwnedJob(
@@ -72,18 +92,10 @@ export const executeJobBackground = async (job: DrawJob) => {
       if (!renewedJob) return;
       freshJob = renewedJob;
 
-      const settings = await getSettings();
-      const { providerId, provider } = getProviderForJob(freshJob, settings);
-      if (providerId !== "mock" && !settings.apiKey) {
-        throw new Error("恢复远程任务需要原 API Key，请重新配置后再继续");
-      }
-
+      const currentSettings = await getSettings();
+      const { providerId, provider } = getProviderForJob(freshJob, currentSettings);
       const requiredApiProvider = getRequiredApiProvider(providerId);
-      if (requiredApiProvider && settings.providerId !== requiredApiProvider) {
-        throw new Error(
-          `该任务需要 ${requiredApiProvider === "grsai" ? "Grsai" : "多米API"} 的 API Key，请切换后重试`
-        );
-      }
+      const settings = resolveJobSettings(freshJob, currentSettings, requiredApiProvider);
       let taskId = freshJob.remoteTaskId;
       let immediateResult: ProviderTaskResult | undefined;
       if (!taskId) {
@@ -159,44 +171,74 @@ export const executeJobBackground = async (job: DrawJob) => {
       }
 
       const taskIds = freshJob.remoteTaskIds?.length ? freshJob.remoteTaskIds : taskId ? [taskId] : [];
-      let results: ProviderTaskResult[];
+      let results: ProviderTaskResult[] = [];
+      let hasTerminalRemoteResult = false;
       const partialErrors: string[] = [];
-      if (immediateResult || taskIds.length <= 1) {
-        // 单任务保持原有语义：查询抛异常或返回 error 状态时直接失败。
-        results = immediateResult
-          ? [immediateResult]
-          : await Promise.all(taskIds.map((id) => provider.queryTask(id, freshJob, settings)));
-        const failedResult = results.find((result) => result.state === "error");
-        if (failedResult?.state === "error") throw new Error(failedResult.errorMessage);
-      } else {
-        // 多任务逐个容忍失败：只要仍有成功或进行中的任务就继续正常流程。
-        const settled = await Promise.allSettled(
-          taskIds.map((id) => provider.queryTask(id, freshJob, settings))
-        );
-        results = [];
-        for (const item of settled) {
-          if (item.status === "rejected") {
-            partialErrors.push(item.reason instanceof Error ? item.reason.message : String(item.reason));
-          } else if (item.value.state === "error") {
-            partialErrors.push(item.value.errorMessage);
-          } else {
-            results.push(item.value);
+      try {
+        if (immediateResult || taskIds.length <= 1) {
+          results = immediateResult
+            ? [immediateResult]
+            : await Promise.all(taskIds.map((id) => provider.queryTask(id, freshJob, settings)));
+          consecutiveQueryFailures = 0;
+          const failedResult = results.find((result) => result.state === "error");
+          if (failedResult?.state === "error") {
+            hasTerminalRemoteResult = true;
+            throw new Error(failedResult.errorMessage);
+          }
+        } else {
+          // 多任务逐个容忍失败：只要仍有成功或进行中的任务就继续正常流程。
+          const settled = await Promise.allSettled(
+            taskIds.map((id) => provider.queryTask(id, freshJob, settings))
+          );
+          results = [];
+          const requestErrors: string[] = [];
+          for (const item of settled) {
+            if (item.status === "rejected") {
+              requestErrors.push(errorMessageOf(item.reason));
+            } else if (item.value.state === "error") {
+              partialErrors.push(item.value.errorMessage);
+            } else {
+              results.push(item.value);
+            }
+          }
+          const hasUsableResult = results.some(
+            (result) =>
+              result.state === "succeeded" || result.state === "pending" || result.state === "running"
+          );
+          // 请求异常不等于远程任务失败；即使其他子任务已成功，也要继续查询以免丢失结果。
+          if (requestErrors.length > 0) {
+            throw new Error(requestErrors.join("；"));
+          }
+          consecutiveQueryFailures = 0;
+          if (!hasUsableResult) {
+            hasTerminalRemoteResult = partialErrors.length > 0;
+            throw new Error(
+              partialErrors.length > 0 ? partialErrors.join("；") : "远程任务已结束，但没有可保存的结果"
+            );
           }
         }
-        const hasUsableResult = results.some(
-          (result) =>
-            result.state === "succeeded" || result.state === "pending" || result.state === "running"
-        );
-        if (!hasUsableResult) {
-          throw new Error(
-            partialErrors.length > 0 ? partialErrors.join("；") : "远程任务已结束，但没有可保存的结果"
-          );
-        }
+      } catch (queryError) {
+        // Provider 明确返回 error 状态属于任务终态，不应继续查询。
+        if (hasTerminalRemoteResult) throw queryError;
+
+        consecutiveQueryFailures += 1;
+        if (consecutiveQueryFailures >= MAX_CONSECUTIVE_QUERY_FAILURES) throw queryError;
+
+        const retryDelay = queryRetryDelay(consecutiveQueryFailures);
+        const retryingJob = await updateOwnedJob(job.id, queueOwnerId, {
+          remoteStatus: "tracking_retry",
+          errorMessage: `远程状态查询暂时失败，正在第 ${consecutiveQueryFailures} 次重试：${errorMessageOf(queryError)}`,
+          leaseExpiresAt: leaseExpiryIso()
+        });
+        if (!retryingJob) return;
+        await delay(retryDelay);
+        continue;
       }
       if (results.some((result) => result.state === "pending" || result.state === "running")) {
         const remoteStatus = results.some((result) => result.state === "running") ? "running" : "pending";
         const waitingJob = await updateOwnedJob(job.id, queueOwnerId, {
           remoteStatus,
+          errorMessage: undefined,
           leaseExpiresAt: leaseExpiryIso()
         });
         if (!waitingJob) return;
@@ -235,14 +277,25 @@ export const executeJobBackground = async (job: DrawJob) => {
       return;
     }
   } catch (error) {
+    const latestJob = await ensureJob(job.id).catch(() => undefined);
+    const hasRemoteTask = Boolean(latestJob?.remoteTaskId || latestJob?.remoteTaskIds?.length);
+    const submissionUnknown =
+      !hasRemoteTask && latestJob?.remoteStatus === "submitting" && isAmbiguousSubmissionError(error);
+    const originalMessage = errorMessageOf(error);
+    const errorMessage = hasRemoteTask
+      ? `${originalMessage}。远程任务可能仍在运行，可点击重试恢复追踪，不会重新提交`
+      : submissionUnknown
+        ? `${originalMessage}。提交结果未知，为避免重复扣费已停止自动重试，请先到远程平台确认`
+        : originalMessage;
+
     await updateOwnedJob(job.id, queueOwnerId, {
       status: "failed",
-      remoteStatus: "error",
-      errorMessage: error instanceof Error ? error.message : "绘图任务失败",
+      remoteStatus: hasRemoteTask ? "tracking_interrupted" : submissionUnknown ? "submission_unknown" : "error",
+      errorMessage,
       completedAt: nowIso(),
       queueOwnerId: undefined,
       leaseExpiresAt: undefined
-    });
+    }).catch(() => undefined);
   } finally {
     activeJobs.delete(job.id);
     void processQueue();
@@ -270,11 +323,14 @@ const runQueueLocked = async () => {
         if (job.status !== "running") continue;
 
         if (isTaskTimedOut(job)) {
+          const hasRemoteTask = Boolean(job.remoteTaskId || job.remoteTaskIds?.length);
           store.put({
             ...job,
             status: "failed",
-            remoteStatus: "error",
-            errorMessage: `任务轮询超时，已等待 ${TASK_TIMEOUT_MINUTES} 分钟`,
+            remoteStatus: hasRemoteTask ? "tracking_interrupted" : "submission_unknown",
+            errorMessage: hasRemoteTask
+              ? `任务轮询超时，已等待 ${getTaskTimeoutMinutes(job)} 分钟；远程任务可能仍在运行，可点击重试恢复追踪`
+              : `任务提交状态未知，为避免重复计费未自动重试`,
             completedAt: timestamp,
             queueOwnerId: undefined,
             leaseExpiresAt: undefined,
