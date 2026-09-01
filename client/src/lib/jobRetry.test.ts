@@ -30,13 +30,24 @@ describe("getJobRetryMode", () => {
     );
   });
 
+  it("远程任务明确失败后即使保留旧 ID 也重新提交", () => {
+    expect(
+      getJobRetryMode(makeJob({ remoteStatus: "error", remoteTaskId: "failed-remote-1" }))
+    ).toBe("resubmit");
+    expect(
+      getJobRetryMode(
+        makeJob({ remoteStatus: "error", remoteTaskIds: ["failed-remote-1", "failed-remote-2"] })
+      )
+    ).toBe("resubmit");
+  });
+
   it("提交结果未知且没有远程 ID 时阻止自动重提", () => {
     expect(getJobRetryMode(makeJob({ remoteStatus: "submission_unknown" }))).toBe(
       "blocked_unknown_submission"
     );
   });
 
-  it("明确失败且没有远程任务时允许重新提交", () => {
+  it("没有可恢复远程任务时允许重新提交", () => {
     expect(getJobRetryMode(makeJob({ remoteStatus: "error" }))).toBe("resubmit");
     expect(getJobRetryMode(makeJob({ status: "completed" }))).toBe("resubmit");
   });

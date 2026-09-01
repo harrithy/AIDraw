@@ -2,7 +2,7 @@ import type { DrawJob, GeneratedAsset } from "../types";
 import { getDuomiCapability } from "./duomiCapabilities";
 import { resolveJobSettings } from "./jobCredentials";
 import { getJobAssetKind, getJobOutputImages } from "./jobImages";
-import { getTaskTimeoutMinutes } from "./jobQueuePolicy";
+import { getJobFailureDisposition, getTaskTimeoutMinutes } from "./jobQueuePolicy";
 import { getProviderForJob, getRequiredApiProvider } from "./providers/providerRegistry";
 import type { ProviderTaskResult } from "./providers/types";
 import { JOB_STORE, openDb } from "./storage/database";
@@ -75,6 +75,7 @@ const normalizeSucceededAssets = (
 /** 提交单个任务并持续轮询远程平台，直到任务结束或超时。 */
 export const executeJobBackground = async (job: DrawJob) => {
   let consecutiveQueryFailures = 0;
+  let terminalRemoteError = false;
   try {
     while (true) {
       let freshJob = await ensureJob(job.id);
@@ -172,7 +173,6 @@ export const executeJobBackground = async (job: DrawJob) => {
 
       const taskIds = freshJob.remoteTaskIds?.length ? freshJob.remoteTaskIds : taskId ? [taskId] : [];
       let results: ProviderTaskResult[] = [];
-      let hasTerminalRemoteResult = false;
       const partialErrors: string[] = [];
       try {
         if (immediateResult || taskIds.length <= 1) {
@@ -182,7 +182,7 @@ export const executeJobBackground = async (job: DrawJob) => {
           consecutiveQueryFailures = 0;
           const failedResult = results.find((result) => result.state === "error");
           if (failedResult?.state === "error") {
-            hasTerminalRemoteResult = true;
+            terminalRemoteError = true;
             throw new Error(failedResult.errorMessage);
           }
         } else {
@@ -211,7 +211,7 @@ export const executeJobBackground = async (job: DrawJob) => {
           }
           consecutiveQueryFailures = 0;
           if (!hasUsableResult) {
-            hasTerminalRemoteResult = partialErrors.length > 0;
+            terminalRemoteError = partialErrors.length > 0;
             throw new Error(
               partialErrors.length > 0 ? partialErrors.join("；") : "远程任务已结束，但没有可保存的结果"
             );
@@ -219,7 +219,7 @@ export const executeJobBackground = async (job: DrawJob) => {
         }
       } catch (queryError) {
         // Provider 明确返回 error 状态属于任务终态，不应继续查询。
-        if (hasTerminalRemoteResult) throw queryError;
+        if (terminalRemoteError) throw queryError;
 
         consecutiveQueryFailures += 1;
         if (consecutiveQueryFailures >= MAX_CONSECUTIVE_QUERY_FAILURES) throw queryError;
@@ -281,8 +281,13 @@ export const executeJobBackground = async (job: DrawJob) => {
     const hasRemoteTask = Boolean(latestJob?.remoteTaskId || latestJob?.remoteTaskIds?.length);
     const submissionUnknown =
       !hasRemoteTask && latestJob?.remoteStatus === "submitting" && isAmbiguousSubmissionError(error);
+    const failureDisposition = getJobFailureDisposition({
+      hasRemoteTask,
+      terminalRemoteError,
+      submissionUnknown
+    });
     const originalMessage = errorMessageOf(error);
-    const errorMessage = hasRemoteTask
+    const errorMessage = failureDisposition.canResumeRemote
       ? `${originalMessage}。远程任务可能仍在运行，可点击重试恢复追踪，不会重新提交`
       : submissionUnknown
         ? `${originalMessage}。提交结果未知，为避免重复扣费已停止自动重试，请先到远程平台确认`
@@ -290,7 +295,7 @@ export const executeJobBackground = async (job: DrawJob) => {
 
     await updateOwnedJob(job.id, queueOwnerId, {
       status: "failed",
-      remoteStatus: hasRemoteTask ? "tracking_interrupted" : submissionUnknown ? "submission_unknown" : "error",
+      remoteStatus: failureDisposition.remoteStatus,
       errorMessage,
       completedAt: nowIso(),
       queueOwnerId: undefined,

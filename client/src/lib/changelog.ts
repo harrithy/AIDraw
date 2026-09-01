@@ -27,10 +27,38 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.3",
+    title: "远程失败任务重试修复",
+    date: "2026-09-01",
+    badge: "✨ 最新版本",
+    summary:
+      "修复异步生成任务已被远端明确判定失败后，点击继续仍反复查询旧任务 ID、无法重新发起绘制的问题；同时保留查询中断时恢复原任务的计费安全策略。",
+    highlights: [
+      "🔁 远端返回 error 后，再次点击继续会清除旧任务 ID 并重新发起生成请求",
+      "🛑 终态失败不再被误判为查询中断，避免对无效任务 ID 持续轮询",
+      "💳 网络异常、超时等非终态问题仍只恢复原任务，不会贸然重复提交"
+    ],
+    items: [
+      {
+        category: "fix",
+        title: "失败任务不再轮询旧 ID",
+        description:
+          "当远程接口明确返回 error 状态时，任务现在会保存为终态失败。再次点击继续会清理 remoteTaskId、remoteTaskIds 与旧查询地址，使用原绘制参数重新提交任务。",
+        tag: "任务重试"
+      },
+      {
+        category: "improvement",
+        title: "区分终态失败与查询中断",
+        description:
+          "远端明确失败时允许重新生成；只有网络抖动、查询超时等状态不确定的情况才继续追踪原任务，从而兼顾可恢复性与重复扣费防护。",
+        tag: "计费安全"
+      }
+    ]
+  },
+  {
     version: "v1.4.2",
     title: "任务续查安全、媒体代理加固与性能升级",
     date: "2026-08-31",
-    badge: "✨ 最新版本",
     summary:
       "本次更新重点提升付费异步任务的可靠性与本地项目的安全边界：任务会绑定创建时使用的 API Key，断线或查询失败后优先恢复原远程任务；同时加固媒体代理、减少无效轮询，并优化首屏包体与弹窗无障碍体验。",
     highlights: [

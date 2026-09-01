@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DrawJob } from "../types";
 import {
   DEFAULT_TASK_TIMEOUT_MINUTES,
+  getJobFailureDisposition,
   getTaskTimeoutMinutes,
   LONG_TASK_TIMEOUT_MINUTES
 } from "./jobQueuePolicy";
@@ -35,5 +36,37 @@ describe("getTaskTimeoutMinutes", () => {
     expect(getTaskTimeoutMinutes(makeJob({ model: "kling-v3" }))).toBe(LONG_TASK_TIMEOUT_MINUTES);
     expect(getTaskTimeoutMinutes(makeJob({ outputKind: "audio" }))).toBe(LONG_TASK_TIMEOUT_MINUTES);
     expect(getTaskTimeoutMinutes(makeJob({ outputKind: "file" }))).toBe(LONG_TASK_TIMEOUT_MINUTES);
+  });
+});
+
+describe("getJobFailureDisposition", () => {
+  it("远端明确返回错误时记录为终态，不允许继续轮询旧 ID", () => {
+    expect(
+      getJobFailureDisposition({
+        hasRemoteTask: true,
+        terminalRemoteError: true,
+        submissionUnknown: false
+      })
+    ).toEqual({ remoteStatus: "error", canResumeRemote: false });
+  });
+
+  it("只有查询中断时才允许恢复远程任务", () => {
+    expect(
+      getJobFailureDisposition({
+        hasRemoteTask: true,
+        terminalRemoteError: false,
+        submissionUnknown: false
+      })
+    ).toEqual({ remoteStatus: "tracking_interrupted", canResumeRemote: true });
+  });
+
+  it("没有远程 ID 且提交结果未知时保持防重复提交保护", () => {
+    expect(
+      getJobFailureDisposition({
+        hasRemoteTask: false,
+        terminalRemoteError: false,
+        submissionUnknown: true
+      })
+    ).toEqual({ remoteStatus: "submission_unknown", canResumeRemote: false });
   });
 });
