@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowRight, Check, CircleHelp, Clock, Copy, Github, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowDown, ArrowRight, Cat, Check, CircleHelp, Clock, Copy, Github, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { LayoutDirection } from "../../lib/canvas";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import type { DrawJob } from "../../types";
@@ -26,6 +26,10 @@ type CanvasToolbarProps = {
   unreadAnnouncementsCount?: number;
   onSortByName: () => void;
   onToggleTheme: () => void;
+  /** Mugi 桌宠是否开启 */
+  petEnabled: boolean;
+  /** 切换桌宠开关 */
+  onTogglePet: () => void;
   /** 生成失败任务数量 */
   failedJobsCount?: number;
   /** 一键清理失败任务回调 */
@@ -76,6 +80,8 @@ export function CanvasToolbar({
   unreadAnnouncementsCount,
   onSortByName,
   onToggleTheme,
+  petEnabled,
+  onTogglePet,
   failedJobsCount,
   onClearFailedJobs,
   onApplyLayout,
@@ -422,6 +428,9 @@ export function CanvasToolbar({
           </div>
         )}
 
+        <button type="button" onClick={onTogglePet} title={petEnabled ? "关闭 Mugi 桌宠" : "开启 Mugi 桌宠"} aria-label="Mugi 桌宠">
+          <Cat size={17} className={petEnabled ? "text-[var(--green)]" : ""} />
+        </button>
         <button type="button" onClick={onToggleTheme} title="切换暗黑模式">
           {darkMode ? <Sun size={17} /> : <Moon size={17} />}
         </button>

@@ -27,6 +27,30 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.5",
+    title: "Mugi 桌宠入驻画布！",
+    date: "2026-09-02",
+    badge: "✨ 最新版本",
+    summary:
+      "Mugi（琴吹紬猫娘）桌宠正式入驻 AIDraw：她会自己在你项目窗口里踱步巡游，可以拖动到任意角落，轻点互动还有随机动作和小气泡台词。",
+    highlights: [
+      "🐱 Mugi 桌宠默认开启，在窗口内自动左右巡游移动，碰到边缘自动转身",
+      "🧭 可拖到窗口任意位置；松开后继续巡游，不会被重置",
+      "👆 轻点触发随机动作：挥手 / 跳跃 / 比心 / 敲代码 / 喝茶 / 睡觉… 并弹出可爱台词",
+      "⚙️ 工具栏新增 Mugi 开关按钮，关闭后不再打扰，状态会记住",
+      "🎞️ 13 个动作 GIF 全部本地化，无外部依赖"
+    ],
+    items: [
+      {
+        category: "feature",
+        title: "Mugi 桌宠",
+        description:
+          "把 Mugi（琴吹紬猫娘）桌宠嵌入画布：自动巡游移动、碰到窗口边缘转身、可拖拽定位、点击互动播放随机动作并弹出气泡台词；工具栏猫猫按钮一键开关，偏好持久化保存。",
+        tag: "桌宠"
+      }
+    ]
+  },
+  {
     version: "v1.4.4",
     title: "生图提示词 AI 润写（DeepSeek 官方 API）",
     date: "2026-09-02",

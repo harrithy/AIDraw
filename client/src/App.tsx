@@ -10,6 +10,7 @@ import { getUnreadReleasesCount } from "./lib/changelog";
 import { CreateJobPanel } from "./components/panels/CreateJobPanel";
 import { UploadedImageLibrary } from "./components/panels/UploadedImageLibrary";
 import { Metric } from "./components/ui/Metric";
+import { MugiPet } from "./components/ui/MugiPet";
 import { Button } from "./components/ui/button";
 import {
   Dialog,
@@ -131,6 +132,16 @@ function App() {
     return prefersDark;
   });
   const [imageToUse, setImageToUse] = useState<string | null>(null);
+  // Mugi 桌宠：默认开启，工具切换后持久化
+  const [petEnabled, setPetEnabled] = useState(
+    () => window.localStorage.getItem("aidraw-pet-enabled") !== "off"
+  );
+  const togglePet = useCallback(() => {
+    setPetEnabled((enabled) => {
+      window.localStorage.setItem("aidraw-pet-enabled", enabled ? "off" : "on");
+      return !enabled;
+    });
+  }, []);
   const [editingRetryJob, setEditingRetryJob] = useState<DrawJob | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -756,6 +767,8 @@ function App() {
         onOpenApiSettings={() => setApiSettingsOpen(true)}
         onOpenGuide={() => setOnboardingOpen(true)}
         onToggleTheme={() => setDarkMode((value) => !value)}
+        petEnabled={petEnabled}
+        onTogglePet={togglePet}
         failedJobsCount={failedJobsCount}
         onClearFailedJobs={() => setShowClearFailedConfirm(true)}
         onApplyLayout={applyLayout}
@@ -768,6 +781,8 @@ function App() {
           onImported={(folderId) => void handleFolderImported(folderId)}
         />
       </CanvasToolbar>
+
+      {petEnabled ? <MugiPet /> : null}
 
       <button
         type="button"
