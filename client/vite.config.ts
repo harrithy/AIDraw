@@ -2,6 +2,7 @@ import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import deepseekChatHandler from "./api/deepseek-chat";
 import mediaProxyHandler from "./api/media-proxy";
 import mediaUploadHandler from "./api/media-upload";
 
@@ -10,6 +11,7 @@ const mediaProxyPlugin = (): Plugin => ({
   configureServer(server) {
     server.middlewares.use("/api/media-proxy", mediaProxyHandler);
     server.middlewares.use("/api/media-upload", mediaUploadHandler);
+    server.middlewares.use("/api/deepseek-chat", deepseekChatHandler);
   }
 });
 

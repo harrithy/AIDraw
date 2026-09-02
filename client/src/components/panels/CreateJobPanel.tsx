@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { AnimatedModal } from "@/components/ui/AnimatedModal";
+import { PromptPolish } from "@/components/ui/prompt-polish";
 import { DuomiCapabilityFields } from "./DuomiCapabilityFields";
 import {
   DUOMI_CATEGORY_LABELS,
@@ -319,6 +320,7 @@ export function CreateJobPanel({
   const hasOpenedDocRef = useRef(false);
   if (isDocOpen) hasOpenedDocRef.current = true;
   const dragDepthRef = useRef(0);
+  const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const currentMode: DrawMode = inputImages.length > 0 ? "image-to-image" : "text-to-image";
   const isNanoBanana = isNanoBananaModel(model);
   const isGrokVideo = isGrokVideoModel(model);
@@ -374,7 +376,10 @@ export function CreateJobPanel({
       setSound(draft.sound ?? "on");
       setInputImages(draft.inputImages ?? []);
       setCreationMode(draft.creationMode === "capability" && apiProviderId === "duomi" ? "capability" : "model");
-      setCapabilityCategory(draft.capabilityCategory ?? "image");
+      const restoredCategory = (draft.capabilityCategory ?? "image") as CapabilityCategory;
+      setCapabilityCategory(
+        getDuomiCapabilitiesByCategory(restoredCategory).length > 0 ? restoredCategory : "image"
+      );
       setCapabilityId(draft.capabilityId ?? "image.gpt-image-2");
       setCapabilityValues(draft.capabilityValues ?? {});
     } else {
@@ -448,10 +453,19 @@ export function CreateJobPanel({
   useEffect(() => {
     if (selectedCapability?.category === capabilityCategory) return;
     const nextCapability = categoryCapabilities[0];
-    if (!nextCapability) return;
+    if (!nextCapability) {
+      // 草稿可能引用了已下线的分类/能力（分类下已无可用能力），回退到首个仍有能力的分类。
+      const fallbackCategory = capabilityCategories.find(
+        (category) => getDuomiCapabilitiesByCategory(category).length > 0
+      );
+      if (fallbackCategory && fallbackCategory !== capabilityCategory) {
+        setCapabilityCategory(fallbackCategory);
+      }
+      return;
+    }
     setCapabilityId(nextCapability.id);
     setCapabilityValues(getDuomiCapabilityDefaultValues(nextCapability));
-  }, [capabilityCategory, categoryCapabilities, selectedCapability]);
+  }, [capabilityCategory, categoryCapabilities, capabilityCategories, selectedCapability]);
 
   useEffect(() => {
     if (!currentSizeOptions.some((option) => option.value === sizeMode)) {
@@ -634,6 +648,15 @@ export function CreateJobPanel({
     );
   };
 
+  /** 流式润写回填提示词：每次增量更新后把输入框滚动到底部，保证最新内容可见。 */
+  const handlePolishedPrompt = (value: string) => {
+    setPrompt(value);
+    requestAnimationFrame(() => {
+      const el = promptTextareaRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const nextPrompt = prompt.trim();
@@ -653,7 +676,7 @@ export function CreateJobPanel({
 
     if (usesCapability) {
       if (!selectedCapability) {
-        Message.error("请选择多米能力");
+        Message.error("请选择能力");
         return;
       }
       if (!isDuomiCapabilitySubmittable(selectedCapability)) {
@@ -1106,6 +1129,7 @@ export function CreateJobPanel({
               {imageAttachments}
               <InputGroupTextarea
                 id="composer-prompt"
+                ref={promptTextareaRef}
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 onPaste={pasteImages}
@@ -1118,6 +1142,7 @@ export function CreateJobPanel({
                     <span>{inputImages.length > 0 ? "检测到图片，将自动使用图生图" : notice}</span>
                   </div>
                 ) : null}
+                <PromptPolish text={prompt} onPolished={handlePolishedPrompt} />
                 <Button type="button" variant="outline" size="icon" asChild title="上传参考图片">
                   <label>
                     <input className="sr-only" type="file" accept="image/*" multiple onChange={uploadImage} />
@@ -1207,8 +1232,12 @@ export function CreateJobPanel({
       </div>
 
       <Field>
-        <FieldLabel>提示词</FieldLabel>
+        <div className="flex items-center justify-between gap-2">
+          <FieldLabel>提示词</FieldLabel>
+          <PromptPolish text={prompt} onPolished={handlePolishedPrompt} />
+        </div>
         <Textarea
+          ref={promptTextareaRef}
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           onPaste={pasteImages}

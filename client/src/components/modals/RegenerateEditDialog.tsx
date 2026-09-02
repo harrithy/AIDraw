@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Message } from "@/components/ui/message";
+import { PromptPolish } from "@/components/ui/prompt-polish";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -239,6 +240,7 @@ export function RegenerateEditDialog({
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
   const dragDepthRef = useRef(0);
+  const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const isNanoBanana = isNanoBananaModel(model);
   const isGrokVideo = isGrokVideoModel(model);
@@ -431,6 +433,15 @@ export function RegenerateEditDialog({
     setInputImages((current) => current.filter((image) => image.url !== url));
   };
 
+  /** 流式润写回填提示词：每次增量更新后把输入框滚动到底部，保证最新内容可见。 */
+  const handlePolished = (value: string) => {
+    setPrompt(value);
+    requestAnimationFrame(() => {
+      const el = promptTextareaRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!job) return;
@@ -611,8 +622,12 @@ export function RegenerateEditDialog({
           noValidate
         >
           <Field>
-            <FieldLabel>提示词</FieldLabel>
+            <div className="flex items-center justify-between gap-2">
+              <FieldLabel>提示词</FieldLabel>
+              <PromptPolish text={prompt} onPolished={handlePolished} />
+            </div>
             <Textarea
+              ref={promptTextareaRef}
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               onPaste={pasteImages}

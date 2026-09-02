@@ -27,6 +27,46 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.4",
+    title: "生图提示词 AI 润写（DeepSeek 官方 API）",
+    date: "2026-09-02",
+    badge: "✨ 最新版本",
+    summary:
+      "提示词输入框旁新增「AI 润写」按钮：接入 DeepSeek 官方 Chat Completions API，一键把生图提示词润写为细节增强、更简洁或英文版本，流式逐字回填输入框，支持一键回退原文与模型/思考强度调节。",
+    highlights: [
+      "✨ 提示词输入框旁新增「AI 润写」按钮，支持细节增强 / 更简洁 / 翻译成英文三种风格",
+      "⚡ DeepSeek 润写采用流式输出，结果逐字回填输入框，输入框自动滚动到底部，最新内容始终可见",
+      "🤖 下拉内可选 deepseek-v4-pro（质量优先）或 deepseek-v4-flash（更快更省）",
+      "🧠 思考强度可切换：关闭 / 低 / 高（官方默认）/ 最高，按官方 thinking.enabled + reasoning_effort 接入",
+      "↩️ 润写完成后出现「回退」按钮，可一键还原为润写前的原文",
+      "🔑 API 设置新增 DeepSeek（AI 润写）Key 配置，与绘图平台 Key 独立管理、互不干扰",
+      "🛡️ 官方接口不支持浏览器跨域，请求统一经同源代理转发，Key 不离开浏览器"
+    ],
+    items: [
+      {
+        category: "feature",
+        title: "生图提示词 AI 润写（流式 + 回退 + 模型/思考可调）",
+        description:
+          "创作面板与重绘编辑弹窗的提示词输入框旁新增「AI 润写」按钮，调用 DeepSeek 官方 POST /chat/completions 接口（流式 SSE），提供细节增强、更简洁、翻译成英文三种润写风格；下拉可切换 deepseek-v4-pro / deepseek-v4-flash 模型与思考强度（关闭/低/高/最高），结果逐字回填输入框并自动滚动跟随，支持一键回退到润写前原文。",
+        tag: "提示词润写"
+      },
+      {
+        category: "improvement",
+        title: "DeepSeek Key 独立配置",
+        description:
+          "API 设置新增 DeepSeek（AI 润写）平台（https://api.deepseek.com），Key 仅作为润写服务凭据保存，不会切换绘图供应商，不影响现有生成流程。",
+        tag: "接口接入"
+      },
+      {
+        category: "fix",
+        title: "修复「多米能力」面板空白",
+        description:
+          "旧草稿如果引用了已下线的能力分类或能力，切换到「多米能力」时面板会空白。现在恢复草稿时会自动回退到首个有效的分类与能力，面板恢复可用。",
+        tag: "体验修复"
+      }
+    ]
+  },
+  {
     version: "v1.4.3",
     title: "远程失败任务重试修复",
     date: "2026-09-01",

@@ -45,6 +45,7 @@ export const providerSettingsApi = {
     if (
       payload.providerId &&
       payload.providerId !== settings.providerId &&
+      payload.providerId !== "deepseek" &&
       payload.baseUrl === undefined
     ) {
       settings.baseUrl = getDefaultBaseUrl(payload.providerId);
@@ -96,6 +97,11 @@ export const providerSettingsApi = {
         savedApiKeys.push(newKey);
         savedProviderIds.push(providerId);
       }
+      // DeepSeek Key 仅用于 AI 润写，保存到凭据列表即可，不作为绘图平台激活。
+      if (providerId === "deepseek") {
+        await saveSettings(settings);
+        return toPublicSettings(settings);
+      }
       settings.apiKey = newKey;
       settings.providerId = providerId;
       settings.baseUrl = getDefaultBaseUrl(providerId);
@@ -106,9 +112,13 @@ export const providerSettingsApi = {
       payload.setActiveApiKeyIndex >= 0 &&
       payload.setActiveApiKeyIndex < savedApiKeys.length
     ) {
+      const nextProviderId = savedProviderIds[payload.setActiveApiKeyIndex] || "duomi";
+      if (nextProviderId === "deepseek") {
+        throw new Error("DeepSeek Key 仅用于 AI 润写，不能作为绘图供应商使用");
+      }
       settings.apiKey = savedApiKeys[payload.setActiveApiKeyIndex];
-      settings.providerId = savedProviderIds[payload.setActiveApiKeyIndex] || "duomi";
-      settings.baseUrl = getDefaultBaseUrl(settings.providerId);
+      settings.providerId = nextProviderId;
+      settings.baseUrl = getDefaultBaseUrl(nextProviderId);
     }
 
     await saveSettings(settings);

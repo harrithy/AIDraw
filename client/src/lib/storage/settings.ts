@@ -7,16 +7,22 @@ import { broadcastStateUpdate } from "./stateSync";
 export const DUOMI_BASE_URL = "https://duomiapi.com";
 /** Grsai API 的默认 Base URL */
 export const GRSAI_BASE_URL = "https://grsaiapi.com";
+/** DeepSeek 官方 API 的默认 Base URL */
+export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 /** 新建任务时的默认模型 */
 export const DEFAULT_MODEL = GPT_IMAGE_MODEL;
 
 /**
  * 根据提供者 ID 返回对应的默认 Base URL。
- * Grsai 和 Duomi 使用不同的 API 域名。
- * @param providerId - 提供者标识（duomi / grsai）
+ * Grsai、Duomi 和 DeepSeek 使用不同的 API 域名。
+ * @param providerId - 提供者标识（duomi / grsai / deepseek）
  */
 export const getDefaultBaseUrl = (providerId: StoredSettings["providerId"]) =>
-  providerId === "grsai" ? GRSAI_BASE_URL : DUOMI_BASE_URL;
+  providerId === "grsai"
+    ? GRSAI_BASE_URL
+    : providerId === "deepseek"
+      ? DEEPSEEK_BASE_URL
+      : DUOMI_BASE_URL;
 
 /** 读取并补齐旧版本可能缺失的多 Key 与平台字段。 */
 export const getSettings = async (): Promise<StoredSettings> => {
@@ -39,6 +45,7 @@ export const getSettings = async (): Promise<StoredSettings> => {
       }
 
       if (!result.providerId) result.providerId = "duomi";
+      const legacyDeepSeekActiveKey = result.providerId === "deepseek" ? result.apiKey : "";
       if (!result.savedApiKeys) result.savedApiKeys = result.apiKey ? [result.apiKey] : [];
       if (
         !result.savedApiKeyProviderIds ||
@@ -47,6 +54,16 @@ export const getSettings = async (): Promise<StoredSettings> => {
         result.savedApiKeyProviderIds = result.savedApiKeys.map((key) =>
           key === result.apiKey ? result.providerId : "duomi"
         );
+      }
+      // DeepSeek 仅作为 AI 润写辅助服务，不参与绘图平台激活；兼容旧版本误设为当前平台的情况。
+      if (result.providerId === "deepseek") {
+        if (legacyDeepSeekActiveKey && !result.savedApiKeys.includes(legacyDeepSeekActiveKey)) {
+          result.savedApiKeys.push(legacyDeepSeekActiveKey);
+          result.savedApiKeyProviderIds.push("deepseek");
+        }
+        result.apiKey = "";
+        result.providerId = "duomi";
+        result.baseUrl = DUOMI_BASE_URL;
       }
       resolve(result);
     };

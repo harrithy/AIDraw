@@ -29,7 +29,8 @@ type ApiSettingsPanelProps = {
 
 const apiProviderOptions = [
   { label: "多米API", description: "https://duomiapi.com", value: "duomi" },
-  { label: "Grsai", description: "https://grsaiapi.com", value: "grsai" }
+  { label: "Grsai", description: "https://grsaiapi.com", value: "grsai" },
+  { label: "DeepSeek（AI 润写）", description: "https://api.deepseek.com · 提示词润写助手", value: "deepseek" }
 ] as const;
 
 const getApiProviderLabel = (providerId: ApiProviderId) =>
@@ -158,13 +159,21 @@ export function ApiSettingsPanel({
           >
             <SelectGroup>
               {settings.savedApiKeysMasked.map((maskedKey, index) => {
-                const providerLabel = getApiProviderLabel(settings.savedApiKeyProviderIds[index] || "duomi");
+                const keyProviderId = settings.savedApiKeyProviderIds[index] || "duomi";
+                const providerLabel = getApiProviderLabel(keyProviderId);
+                const isDeepSeekKey = keyProviderId === "deepseek";
                 return (
-                  <SelectItem key={`${maskedKey}-${index}`} value={String(index)} className="composer-select-item api-provider-select-item">
+                  <SelectItem
+                    key={`${maskedKey}-${index}`}
+                    value={String(index)}
+                    disabled={isDeepSeekKey}
+                    className="composer-select-item api-provider-select-item"
+                  >
                     <span className="api-provider-option-copy">
                       <strong>{providerLabel}</strong>
                       <span className="api-provider-option-separator">-</span>
                       <small>{maskedKey}</small>
+                      {isDeepSeekKey ? <em className="api-provider-option-note">AI 润写</em> : null}
                     </span>
                   </SelectItem>
                 );

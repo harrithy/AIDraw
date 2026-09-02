@@ -75,8 +75,8 @@ export type NanoImageSize = "1K" | "2K" | "4K";
 /** 绘图任务实际使用的接口提供者 */
 export type ImageProviderId = "duomi" | "nano-banana" | "grsai" | "mock" | "kling";
 
-/** API Key 所属的平台供应商 */
-export type ApiProviderId = "duomi" | "grsai";
+/** API Key 所属的平台供应商（deepseek 仅用于 AI 润写，不作为绘图平台激活） */
+export type ApiProviderId = "duomi" | "grsai" | "deepseek";
 
 /**
  * 文件夹（工作区）
