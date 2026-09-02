@@ -1142,7 +1142,11 @@ export function CreateJobPanel({
                     <span>{inputImages.length > 0 ? "检测到图片，将自动使用图生图" : notice}</span>
                   </div>
                 ) : null}
-                <PromptPolish text={prompt} onPolished={handlePolishedPrompt} />
+                <PromptPolish
+                  text={prompt}
+                  onPolished={handlePolishedPrompt}
+                  images={inputImages.map((image) => image.url)}
+                />
                 <Button type="button" variant="outline" size="icon" asChild title="上传参考图片">
                   <label>
                     <input className="sr-only" type="file" accept="image/*" multiple onChange={uploadImage} />
@@ -1234,7 +1238,11 @@ export function CreateJobPanel({
       <Field>
         <div className="flex items-center justify-between gap-2">
           <FieldLabel>提示词</FieldLabel>
-          <PromptPolish text={prompt} onPolished={handlePolishedPrompt} />
+          <PromptPolish
+            text={prompt}
+            onPolished={handlePolishedPrompt}
+            images={inputImages.map((image) => image.url)}
+          />
         </div>
         <Textarea
           ref={promptTextareaRef}

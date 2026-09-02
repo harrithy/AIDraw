@@ -1,6 +1,6 @@
 import { DropdownMenu } from "radix-ui";
 import { Check, Loader2, Sparkles, Undo2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Message } from "@/components/ui/message";
 import {
@@ -8,6 +8,7 @@ import {
   DEEPSEEK_THINKING_LABELS,
   PROMPT_POLISH_STYLE_LABELS,
   getDeepSeekApiKey,
+  isDeepSeekVisionModel,
   polishWithDeepSeek,
   type DeepSeekModel,
   type DeepSeekThinkingLevel,
@@ -22,6 +23,8 @@ type PromptPolishProps = {
   onPolished: (text: string) => void;
   /** 触发按钮尺寸，默认 sm。 */
   size?: "sm" | "icon-sm";
+  /** 参考图片 URL（图生图场景）；提供时自动切换到看图润写模型并结合图片内容润写。 */
+  images?: string[];
 };
 
 const POLISH_STYLES = Object.keys(PROMPT_POLISH_STYLE_LABELS) as PromptPolishStyle[];
@@ -69,13 +72,21 @@ function renderSelectItem<T extends string>({
  * 下拉可切换 DeepSeek 模型与思考强度，选风格后调用流式润写并逐字回填输入框；
  * 润写完成后展示「回退」按钮，可一键还原润写前的原文。
  */
-export function PromptPolish({ text, onPolished, size = "sm" }: PromptPolishProps) {
+export function PromptPolish({ text, onPolished, size = "sm", images = [] }: PromptPolishProps) {
   const [isPolishing, setIsPolishing] = useState(false);
   const [model, setModel] = useState<DeepSeekModel>("deepseek-v4-pro");
   const [thinking, setThinking] = useState<DeepSeekThinkingLevel>("high");
   const [lastResult, setLastResult] = useState<{ original: string; polished: string } | null>(null);
+  const modelTouchedByUserRef = useRef(false);
 
   const hasUndo = !isPolishing && lastResult !== null && text === lastResult.polished;
+
+  // 加入参考图时自动切到看图润写模型；用户手动选过模型则不覆盖。
+  useEffect(() => {
+    if (images.length > 0 && !modelTouchedByUserRef.current && !isDeepSeekVisionModel(model)) {
+      setModel("deepseek-v4-flash-vision-exp");
+    }
+  }, [images.length, model]);
 
   const polish = async (style: PromptPolishStyle) => {
     const nextText = text.trim();
@@ -99,6 +110,7 @@ export function PromptPolish({ text, onPolished, size = "sm" }: PromptPolishProp
         style,
         model,
         thinking,
+        images,
         onDelta: (delta) => {
           streamed += delta;
           onPolished(streamed);
@@ -155,7 +167,10 @@ export function PromptPolish({ text, onPolished, size = "sm" }: PromptPolishProp
                 value,
                 label: DEEPSEEK_MODEL_LABELS[value],
                 current: model,
-                onSelect: setModel
+                onSelect: (nextModel) => {
+                  modelTouchedByUserRef.current = true;
+                  setModel(nextModel);
+                }
               })
             )}
 

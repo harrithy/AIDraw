@@ -1,14 +1,19 @@
 import type { StoredSettings } from "./providers/types";
 
 /** DeepSeek 官方 Chat Completions API 的润写模型。 */
-export type DeepSeekModel = "deepseek-v4-pro" | "deepseek-v4-flash";
+export type DeepSeekModel = "deepseek-v4-pro" | "deepseek-v4-flash" | "deepseek-v4-flash-vision-exp";
 
 export const DEEPSEEK_DEFAULT_MODEL: DeepSeekModel = "deepseek-v4-pro";
 
+export const DEEPSEEK_VISION_MODEL: DeepSeekModel = "deepseek-v4-flash-vision-exp";
+
 export const DEEPSEEK_MODEL_LABELS: Record<DeepSeekModel, string> = {
   "deepseek-v4-pro": "deepseek-v4-pro（质量优先）",
-  "deepseek-v4-flash": "deepseek-v4-flash（更快更省）"
+  "deepseek-v4-flash": "deepseek-v4-flash（更快更省）",
+  "deepseek-v4-flash-vision-exp": "deepseek-v4-flash-vision-exp（看图润写）"
 };
+
+export const isDeepSeekVisionModel = (model: string) => model === DEEPSEEK_VISION_MODEL;
 
 /** 思考强度：off=关闭思考模式，其余为思考模式下的推理强度。 */
 export type DeepSeekThinkingLevel = "off" | "low" | "high" | "max";
@@ -115,6 +120,21 @@ export const parseSseDelta = (data: string): string => {
   }
 };
 
+/** 结合参考图润写时追加的 system 说明。 */
+const IMAGE_POLISH_SUPPLEMENT =
+  "注意：用户还提供了参考图片。请仔细观察图片中的主体、风格、色调、构图、材质与人物/场景特征，并把图片内容融合进润写后的提示词，使提示词与图片保持一致。";
+
+const MAX_POLISH_IMAGES = 5;
+
+/** 过滤出可发给 DeepSeek 的公网 http(s) 参考图 URL（过长或非法地址直接丢弃，最多 5 张）。 */
+const normalizePolishImages = (images: string[] | undefined): string[] => {
+  if (!images?.length) return [];
+  return images
+    .map((value) => value.trim())
+    .filter((value) => /^https?:\/\//i.test(value) && value.length <= 8192)
+    .slice(0, MAX_POLISH_IMAGES);
+};
+
 /**
  * 调用 DeepSeek 官方 API 流式润写文本。
  * 浏览器不直连 api.deepseek.com（官方接口未开放浏览器 CORS），
@@ -128,6 +148,7 @@ export const polishWithDeepSeek = async ({
   model = DEEPSEEK_DEFAULT_MODEL,
   thinking = "high",
   temperature = 1,
+  images,
   onDelta
 }: {
   text: string;
@@ -137,8 +158,25 @@ export const polishWithDeepSeek = async ({
   /** 思考强度；off 表示关闭思考模式。思考模式下官方不支持 temperature，将自动忽略。 */
   thinking?: DeepSeekThinkingLevel;
   temperature?: number;
+  /** 参考图片（公网 http(s) URL）；提供时使用视觉模型结合图片内容润写。 */
+  images?: string[];
   onDelta?: (delta: string) => void;
 }): Promise<string> => {
+  const normalizedImages = normalizePolishImages(images);
+  if (normalizedImages.length > 0 && !isDeepSeekVisionModel(model)) {
+    throw new Error("看图润写需要选择 deepseek-v4-flash-vision-exp 模型");
+  }
+  const systemPrompt =
+    (PROMPT_POLISH_STYLE_PROMPTS[style] ?? PROMPT_POLISH_STYLE_PROMPTS.enhance) +
+    (normalizedImages.length > 0 ? `\n\n${IMAGE_POLISH_SUPPLEMENT}` : "");
+  const userContent: unknown =
+    normalizedImages.length > 0
+      ? [
+          { type: "text", text },
+          ...normalizedImages.map((url) => ({ type: "image_url", image_url: { url, detail: "high" } }))
+        ]
+      : text;
+
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const thinkingEnabled = thinking !== "off";
@@ -151,8 +189,8 @@ export const polishWithDeepSeek = async ({
         apiKey,
         model,
         messages: [
-          { role: "system", content: PROMPT_POLISH_STYLE_PROMPTS[style] ?? PROMPT_POLISH_STYLE_PROMPTS.enhance },
-          { role: "user", content: text }
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent }
         ],
         max_tokens: 4096,
         stream: true,

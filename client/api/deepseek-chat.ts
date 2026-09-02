@@ -48,13 +48,49 @@ const readJsonBody = async (req: IncomingMessage): Promise<unknown> => {
   return raw ? JSON.parse(raw) : null;
 };
 
-const isChatMessage = (value: unknown): value is { role: string; content: string } => {
+const isImageBlock = (value: unknown) => {
+  if (!value || typeof value !== "object") return false;
+  const block = value as { type?: unknown; image_url?: unknown };
+  if (block.type !== "image_url") return false;
+  const imageUrl = (block.image_url ?? {}) as { url?: unknown };
+  return typeof imageUrl.url === "string" && /^https?:\/\//i.test(imageUrl.url) && imageUrl.url.length <= 8192;
+};
+
+const isTextBlock = (value: unknown) => {
+  if (!value || typeof value !== "object") return false;
+  const block = value as { type?: unknown; text?: unknown };
+  return block.type === "text" && typeof block.text === "string";
+};
+
+const isChatMessage = (value: unknown): value is { role: string; content: string | unknown[] } => {
   if (!value || typeof value !== "object") return false;
   const message = value as { role?: unknown; content?: unknown };
+  if (
+    message.role !== "system" &&
+    message.role !== "user" &&
+    message.role !== "assistant"
+  ) {
+    return false;
+  }
+  if (typeof message.content === "string") return true;
   return (
-    (message.role === "system" || message.role === "user" || message.role === "assistant") &&
-    typeof message.content === "string"
+    Array.isArray(message.content) &&
+    message.content.length > 0 &&
+    message.content.length <= 20 &&
+    message.content.every((block) => isTextBlock(block) || isImageBlock(block))
   );
+};
+
+/** 提取消息的文本内容（图片按 URL 长度计入），用于总量校验。 */
+const getMessageTextLength = (content: string | unknown[]) => {
+  if (typeof content === "string") return content.length;
+  return content.reduce((total, block) => {
+    if (isTextBlock(block)) return total + (block as { text: string }).text.length;
+    if (isImageBlock(block)) {
+      return total + ((block as { image_url: { url: string } }).image_url.url.length);
+    }
+    return total;
+  }, 0);
 };
 
 const parseUpstreamBody = (raw: string) => {
@@ -106,8 +142,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     sendJson(res, 400, { error: "messages 格式不正确，需为 1-16 条 role/content 消息" });
     return;
   }
-  const contentChars = (messages as Array<{ content: string }>).reduce(
-    (total, message) => total + message.content.length,
+  const contentChars = messages.reduce(
+    (total, message) => total + getMessageTextLength(message.content),
     0
   );
   if (contentChars > MAX_CONTENT_CHARS) {

@@ -117,6 +117,52 @@ describe("polishWithDeepSeek（流式）", () => {
     expect(body.temperature).toBe(1);
   });
 
+  it("提供参考图时使用视觉模型，user 内容转为 image_url 块并补充看图说明", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(streamResponse(["data: [DONE]\n\n"]));
+
+    await expect(
+      polishWithDeepSeek({
+        text: "一只猫",
+        apiKey: "sk-deepseek-test",
+        style: "enhance",
+        model: "deepseek-v4-flash-vision-exp",
+        images: ["https://example.com/ref.jpg", "not-a-url", "https://x.example/" + "a".repeat(9000)]
+      })
+    ).rejects.toThrow("未返回润写结果");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    const body = JSON.parse(String(init?.body)) as {
+      model: string;
+      messages: Array<{
+        role: string;
+        content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+      }>;
+    };
+    expect(url).toBe("/api/deepseek-chat");
+    expect(body.model).toBe("deepseek-v4-flash-vision-exp");
+    expect(body.messages[0].content).toContain("参考图片");
+    expect(Array.isArray(body.messages[1].content)).toBe(true);
+    const blocks = body.messages[1].content as Array<{ type: string; text?: string; image_url?: { url: string } }>;
+    expect(blocks[0]).toEqual({ type: "text", text: "一只猫" });
+    expect(blocks[1]).toEqual({ type: "image_url", image_url: { url: "https://example.com/ref.jpg", detail: "high" } });
+    // 非法（非 http / 超长）图片被过滤。
+    expect(blocks).toHaveLength(2);
+  });
+
+  it("提供参考图但未选视觉模型时给出友好错误", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      polishWithDeepSeek({
+        text: "一只猫",
+        apiKey: "sk-deepseek-test",
+        images: ["https://example.com/ref.jpg"]
+      })
+    ).rejects.toThrow("看图润写需要选择 deepseek-v4-flash-vision-exp 模型");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("上游错误时透出 DeepSeek 错误信息", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(

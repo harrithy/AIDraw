@@ -624,7 +624,11 @@ export function RegenerateEditDialog({
           <Field>
             <div className="flex items-center justify-between gap-2">
               <FieldLabel>提示词</FieldLabel>
-              <PromptPolish text={prompt} onPolished={handlePolished} />
+              <PromptPolish
+                text={prompt}
+                onPolished={handlePolished}
+                images={inputImages.map((image) => image.url)}
+              />
             </div>
             <Textarea
               ref={promptTextareaRef}

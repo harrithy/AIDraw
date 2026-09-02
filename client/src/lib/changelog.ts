@@ -27,6 +27,29 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.6",
+    title: "AI 润写支持看图（参考图结合）",
+    date: "2026-09-02",
+    badge: "✨ 最新版本",
+    summary:
+      "AI 润写接入 DeepSeek 视觉模型：上传参考图后自动切换看图润写模型，AI 会观察图片里的主体、风格与构图，让润写出的提示词与你的参考图保持一致。",
+    highlights: [
+      "🖼️ 润写新增 deepseek-v4-flash-vision-exp（看图润写）模型，支持参考图识别",
+      "📸 添加参考图后自动切换到看图润写模型，无需手动选择",
+      "🧠 润写时结合图片的主体、风格、色调、构图与材质，提示词与图片内容一致",
+      "🔗 参考图按公网 URL 传入，最多 5 张；非法地址自动过滤"
+    ],
+    items: [
+      {
+        category: "feature",
+        title: "看图润写",
+        description:
+          "AI 润写支持传入参考图片：调用 DeepSeek 官方图像理解格式（image_url 内容块），润写前模型会先观察图片元素，再结合图片内容优化提示词；有参考图时自动选用视觉模型。",
+        tag: "看图润写"
+      }
+    ]
+  },
+  {
     version: "v1.4.5",
     title: "Mugi 桌宠入驻画布！",
     date: "2026-09-02",
