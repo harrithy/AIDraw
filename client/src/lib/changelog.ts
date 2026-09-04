@@ -27,6 +27,28 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.7",
+    title: "任务标题一键复制",
+    date: "2026-09-04",
+    badge: "✨ 最新版本",
+    summary:
+      "画布任务卡片的标题现在可以直接点击复制：无需手动拖选文字，即可获取完整提示词，同时避免误触卡片拖拽。",
+    highlights: [
+      "📋 点击任务卡片标题即可复制完整提示词",
+      "🖱️ 标题复制与卡片拖拽互不干扰，操作更准确",
+      "⌨️ 标题支持键盘聚焦，并保留旧浏览器复制回退能力"
+    ],
+    items: [
+      {
+        category: "improvement",
+        title: "任务标题支持点击复制",
+        description:
+          "将画布任务标题改为可交互的复制入口：点击后复制完整提示词并显示结果反馈；标题按下事件不会再启动卡片拖拽，同时补充键盘焦点样式和剪贴板兼容回退。",
+        tag: "画布交互"
+      }
+    ]
+  },
+  {
     version: "v1.4.6",
     title: "AI 润写支持看图（参考图结合）",
     date: "2026-09-02",

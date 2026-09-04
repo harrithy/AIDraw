@@ -1680,16 +1680,31 @@ button:disabled {
 }
 
 .job-card-header h3 {
-  display: -webkit-box;
-  overflow: hidden;
-  min-height: 22px;
   margin: 0;
-  padding-right: 2px;
+}
+
+.job-card-title-button {
+  display: -webkit-box;
+  width: 100%;
+  min-height: 22px;
+  overflow: hidden;
+  padding: 0 2px 0 0;
+  border: 0;
+  background: transparent;
   color: var(--ink);
+  cursor: copy;
+  font: inherit;
   font-size: 17px;
   line-height: 1.22;
+  pointer-events: auto;
+  text-align: left;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
+}
+
+.job-card-title-button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
 }
 
 .job-image {

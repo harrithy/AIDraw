@@ -299,6 +299,27 @@ export const JobCard = memo(function JobCard({
     }
   };
 
+  const handleCopyPrompt = async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(job.prompt);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = job.prompt;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      Message.success("已复制标题");
+    } catch (error) {
+      Message.error(error instanceof Error ? error.message : "复制标题失败");
+    }
+  };
+
   // 重绘菜单打开时，点击卡片外部或按 Esc 关闭菜单
   useEffect(() => {
     if (!retryMenuOpen) return;
@@ -411,7 +432,17 @@ export const JobCard = memo(function JobCard({
       ) : null}
 
       <div className="job-card-header">
-        <h3>{job.prompt}</h3>
+        <h3>
+          <button
+            type="button"
+            className="job-card-title-button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => void handleCopyPrompt()}
+            title="点击复制标题"
+          >
+            {job.prompt}
+          </button>
+        </h3>
       </div>
 
       <div
