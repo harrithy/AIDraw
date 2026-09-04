@@ -1,0 +1,1039 @@
+/* ==========================================================================
+   底部创作输入栏与提示词区域 (Composer & Create Job Panel)
+   ========================================================================== */
+
+.floating-panel,
+.floating-top,
+.floating-toolbar,
+.dock-toggle,
+.composer-panel,
+.bottom-composer-empty {
+  position: absolute;
+  z-index: 5;
+}
+
+.folder-form input,
+.create-panel input,
+.create-panel textarea,
+.create-panel select,
+.settings-panel input,
+.settings-panel select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--input-bg);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.folder-form input,
+.create-panel input,
+.create-panel select,
+.settings-panel input,
+.settings-panel select {
+  height: 42px;
+  padding: 0 11px;
+}
+
+.folder-form input:focus,
+.create-panel input:focus,
+.create-panel textarea:focus,
+.create-panel select:focus,
+.settings-panel input:focus,
+.settings-panel select:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(47, 118, 96, 0.1);
+}
+
+.create-panel,
+.settings-panel,
+.panel-empty,
+.notice-line {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.create-panel,
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.composer-panel {
+  left: 50%;
+  bottom: 18px;
+  z-index: 12;
+  width: min(760px, calc(100vw - 36px));
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translateX(-50%);
+  animation: composer-pop-in-center 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 8px;
+  box-shadow: none;
+}
+
+.bottom-composer-empty {
+  left: 50%;
+  bottom: 18px;
+  z-index: 12;
+  width: min(520px, calc(100vw - 36px));
+  min-height: auto;
+  padding: 16px 18px;
+  transform: translateX(-50%);
+  box-shadow: 0 18px 48px rgba(16, 21, 19, 0.12);
+}
+
+.reference-upload-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+.reference-upload-group .upload-box {
+  width: 72px !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  flex: 0 0 auto !important;
+  padding: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+
+.reference-upload-group .upload-box span {
+  font-size: 10px !important;
+  color: var(--muted) !important;
+  white-space: nowrap !important;
+}
+
+.reference-upload-group .composer-attachments {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0;
+}
+
+.reference-upload-group .composer-attachment {
+  width: 72px !important;
+  height: 72px !important;
+  flex: 0 0 auto !important;
+}
+
+.upload-box.is-dragging,
+.composer-input-shell.is-dragging {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 9%, var(--panel-strong));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--green) 16%, transparent),
+    0 18px 48px rgba(16, 21, 19, 0.12);
+}
+
+.composer-upload {
+  min-height: 46px;
+  grid-auto-flow: column;
+  grid-template-columns: auto minmax(0, auto);
+  justify-content: center;
+}
+
+@keyframes composer-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes composer-pop-in-center {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.composer-floating-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  width: 100%;
+}
+
+.composer-collapsed {
+  min-height: 48px;
+  padding: 0 16px !important;
+  justify-content: center;
+  border-radius: 24px !important;
+  background: var(--panel) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: 0 4px 12px rgba(16, 21, 19, 0.05) !important;
+  transition: all 200ms ease;
+  backdrop-filter: blur(8px);
+}
+
+.composer-collapsed:hover {
+  background: var(--subtle) !important;
+  border-color: var(--line-strong) !important;
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.create-panel label,
+.settings-panel label {
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.create-panel textarea {
+  min-height: 116px;
+  resize: vertical;
+  padding: 11px;
+  line-height: 1.45;
+}
+
+.composer-panel textarea {
+  min-height: 120px;
+  max-height: 240px;
+  resize: none;
+  padding-bottom: 44px !important;
+}
+
+.composer-fields {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.composer-fields::-webkit-scrollbar {
+  display: none;
+}
+
+.composer-fields [data-slot="field"] {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 1 1 0 !important;
+  justify-content: flex-start !important;
+}
+
+.composer-fields [data-slot="field-label"] {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.composer-fields [data-slot="input"],
+.composer-fields [data-slot="select-trigger"],
+.composer-fields select {
+  height: 34px;
+  border-radius: 7px;
+  padding: 0 9px;
+  min-width: 0;
+  flex: 1 1 auto !important;
+}
+
+.composer-fields #composer-count {
+  width: 58px;
+}
+
+.create-panel [data-slot="select-trigger"],
+.settings-panel [data-slot="select-trigger"] {
+  width: 100%;
+  min-width: 0;
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--panel-strong) 18%, transparent);
+}
+
+.create-panel [data-slot="select-trigger"]:hover,
+.settings-panel [data-slot="select-trigger"]:hover {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--hover) 84%, transparent);
+}
+
+.create-panel [data-slot="select-trigger"][data-state="open"],
+.settings-panel [data-slot="select-trigger"][data-state="open"],
+.create-panel [data-slot="select-trigger"]:focus-visible,
+.settings-panel [data-slot="select-trigger"]:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.composer-select-trigger {
+  overflow: hidden;
+  font-weight: 800;
+}
+
+.composer-fields .custom-size-field [data-slot="input"] {
+  min-width: 0;
+  width: 72px;
+}
+
+.kling-options-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.kling-options-line [data-slot="field"] {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.kling-options-line [data-slot="field-label"] {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.kling-options-line [data-slot="select-trigger"] {
+  height: 30px;
+  min-width: 118px;
+  border-radius: 7px;
+  padding: 0 9px;
+}
+
+.composer-floating-controls:has(.composer-fields.has-custom-size) {
+  /* no grid needed since we use flex */
+}
+
+.create-panel select {
+  width: 100%;
+  height: 34px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--panel-strong) 78%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.create-panel select:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.composer-select-content {
+  max-height: min(300px, calc(100vh - 96px));
+  border: 1px solid color-mix(in srgb, var(--green) 28%, var(--line));
+  background: color-mix(in srgb, var(--panel-strong) 94%, transparent);
+  color: var(--ink);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.composer-select-content[data-state="open"] {
+  animation: select-panel-in 150ms var(--ease-drawer);
+}
+
+.composer-select-content [data-slot="select-group"] {
+  padding: 5px;
+}
+
+.composer-select-content [data-slot="select-scroll-up-button"],
+.composer-select-content [data-slot="select-scroll-down-button"] {
+  background: transparent;
+  color: var(--muted);
+}
+
+.composer-select-item {
+  min-height: 30px;
+  border-radius: 6px;
+  padding: 0 30px 0 10px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 750;
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.composer-select-item[data-highlighted],
+.composer-select-item:focus {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--ink);
+}
+
+.composer-select-item[data-state="checked"] {
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+  color: var(--green-dark);
+}
+
+.composer-select-item[data-state="checked"] svg {
+  color: var(--green-dark);
+}
+
+.composer-input-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  height: auto;
+  padding: 0;
+  box-shadow: 0 18px 48px rgba(16, 21, 19, 0.12);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.composer-input-shell.has-attachments {
+  flex-direction: column;
+}
+
+.composer-attachments {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.composer-select-trigger {
+  overflow: hidden;
+  font-weight: 800;
+}
+
+.composer-fields .custom-size-field [data-slot="input"] {
+  min-width: 0;
+  width: 72px;
+}
+
+.kling-options-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.kling-options-line [data-slot="field"] {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.kling-options-line [data-slot="field-label"] {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.kling-options-line [data-slot="select-trigger"] {
+  height: 30px;
+  min-width: 118px;
+  border-radius: 7px;
+  padding: 0 9px;
+}
+
+.composer-floating-controls:has(.composer-fields.has-custom-size) {
+  /* no grid needed since we use flex */
+}
+
+.create-panel select {
+  width: 100%;
+  height: 34px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--panel-strong) 78%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.create-panel select:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.composer-select-content {
+  max-height: min(300px, calc(100vh - 96px));
+  border: 1px solid color-mix(in srgb, var(--green) 28%, var(--line));
+  background: color-mix(in srgb, var(--panel-strong) 94%, transparent);
+  color: var(--ink);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.composer-select-content[data-state="open"] {
+  animation: select-panel-in 150ms var(--ease-drawer);
+}
+
+.composer-select-content [data-slot="select-group"] {
+  padding: 5px;
+}
+
+.composer-select-content [data-slot="select-scroll-up-button"],
+.composer-select-content [data-slot="select-scroll-down-button"] {
+  background: transparent;
+  color: var(--muted);
+}
+
+.composer-select-item {
+  min-height: 30px;
+  border-radius: 6px;
+  padding: 0 30px 0 10px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 750;
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.composer-select-item[data-highlighted],
+.composer-select-item:focus {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--ink);
+}
+
+.composer-select-item[data-state="checked"] {
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+  color: var(--green-dark);
+}
+
+.composer-select-item[data-state="checked"] svg {
+  color: var(--green-dark);
+}
+
+.composer-input-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  height: auto;
+  padding: 0;
+  box-shadow: 0 18px 48px rgba(16, 21, 19, 0.12);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.composer-input-shell.has-attachments {
+  flex-direction: column;
+}
+
+.composer-attachments {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.composer-attachment {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--subtle);
+}
+
+.composer-attachment img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kling-options-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.kling-options-line [data-slot="field"] {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.kling-options-line [data-slot="field-label"] {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.kling-options-line [data-slot="select-trigger"] {
+  height: 30px;
+  min-width: 118px;
+  border-radius: 7px;
+  padding: 0 9px;
+}
+
+.composer-floating-controls:has(.composer-fields.has-custom-size) {
+  /* no grid needed since we use flex */
+}
+
+.create-panel select {
+  width: 100%;
+  height: 34px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--panel-strong) 78%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.create-panel select:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.composer-select-content {
+  max-height: min(300px, calc(100vh - 96px));
+  border: 1px solid color-mix(in srgb, var(--green) 28%, var(--line));
+  background: color-mix(in srgb, var(--panel-strong) 94%, transparent);
+  color: var(--ink);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.composer-select-content[data-state="open"] {
+  animation: select-panel-in 150ms var(--ease-drawer);
+}
+
+.composer-select-content [data-slot="select-group"] {
+  padding: 5px;
+}
+
+.composer-select-content [data-slot="select-scroll-up-button"],
+.composer-select-content [data-slot="select-scroll-down-button"] {
+  background: transparent;
+  color: var(--muted);
+}
+
+.composer-select-item {
+  min-height: 30px;
+  border-radius: 6px;
+  padding: 0 30px 0 10px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 750;
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.composer-select-item[data-highlighted],
+.composer-select-item:focus {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--ink);
+}
+
+.composer-select-item[data-state="checked"] {
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+  color: var(--green-dark);
+}
+
+.composer-select-item[data-state="checked"] svg {
+  color: var(--green-dark);
+}
+
+.composer-input-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  height: auto;
+  padding: 0;
+  box-shadow: 0 18px 48px rgba(16, 21, 19, 0.12);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.composer-input-shell.has-attachments {
+  flex-direction: column;
+}
+
+.composer-attachments {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.composer-attachment {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--subtle);
+}
+
+.composer-fields [data-slot="field"] {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 1 1 0 !important;
+  justify-content: flex-start !important;
+}
+
+.composer-fields [data-slot="field-label"] {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.composer-fields [data-slot="input"],
+.composer-fields [data-slot="select-trigger"],
+.composer-fields select {
+  height: 34px;
+  border-radius: 7px;
+  padding: 0 9px;
+  width: auto !important;
+  min-width: 0;
+  flex: 1 1 auto !important;
+}
+
+.composer-fields #composer-count {
+  width: 54px !important;
+}
+
+.kling-options-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.kling-options-line [data-slot="field-label"] {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.kling-options-line [data-slot="select-trigger"] {
+  height: 30px;
+  min-width: 118px;
+  border-radius: 7px;
+  padding: 0 9px;
+}
+
+.composer-floating-controls:has(.composer-fields.has-custom-size) {
+  /* no grid needed since we use flex */
+}
+
+.create-panel select {
+  width: 100%;
+  height: 34px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--panel-strong) 78%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.create-panel select:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.composer-select-content {
+  max-height: min(300px, calc(100vh - 96px));
+  border: 1px solid color-mix(in srgb, var(--green) 28%, var(--line));
+  background: color-mix(in srgb, var(--panel-strong) 94%, transparent);
+  color: var(--ink);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.composer-select-content[data-state="open"] {
+  animation: select-panel-in 150ms var(--ease-drawer);
+}
+
+.composer-select-content [data-slot="select-group"] {
+  padding: 5px;
+}
+
+.composer-select-content [data-slot="select-scroll-up-button"],
+.composer-select-content [data-slot="select-scroll-down-button"] {
+  background: transparent;
+  color: var(--muted);
+}
+
+.composer-select-item {
+  min-height: 30px;
+  border-radius: 6px;
+  padding: 0 30px 0 10px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 750;
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.composer-select-item[data-highlighted],
+.composer-select-item:focus {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--ink);
+}
+
+.composer-select-item[data-state="checked"] {
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+  color: var(--green-dark);
+}
+
+.composer-select-item[data-state="checked"] svg {
+  color: var(--green-dark);
+}
+
+.composer-input-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  height: auto;
+  padding: 0;
+  box-shadow: 0 18px 48px rgba(16, 21, 19, 0.12);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.composer-input-shell.has-attachments {
+  flex-direction: column;
+}
+
+.composer-attachments {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.composer-attachment {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--subtle);
+}
+
+.composer-attachment img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.composer-attachment-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: zoom-in;
+}
+
+.composer-attachments {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.composer-attachment {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--subtle);
+}
+
+.composer-attachment img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.composer-attachment-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: zoom-in;
+}
+
+.composer-attachment-preview:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--green) 28%, transparent);
+  outline-offset: -3px;
+}
+
+.composer-attachment [data-slot="button"] {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: color-mix(in srgb, var(--panel-strong) 88%, transparent);
+}
+
+.composer-actions {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  width: auto;
+  padding: 0;
+}
+
+.composer-submit {
+  width: auto;
+  min-width: 112px;
+  min-height: 34px;
+  padding: 0 14px;
+  white-space: nowrap;
+  background: var(--green) !important;
+  color: var(--page-bg) !important;
+  border: none !important;
+  font-weight: 700;
+  transition: all 180ms ease;
+}
+
+.composer-submit:not(:disabled):hover {
+  background: var(--green-dark) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--green) 30%, transparent);
+}
+
+.composer-notice {
+  width: 100%;
+  min-width: 0;
+  justify-self: end;
+  border-radius: 7px;
+  padding: 10px 12px;
+  box-shadow: none;
+}
+
+.composer-notice span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-notice-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 36px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel-strong) 85%, transparent);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.composer-notice-inline span {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .composer-panel {
+  width: min(var(--ui-composer-width, 760px), calc(100vw - 36px));
+}
+
+.app-shell.sidebar-closed.ui-composer-bottom-left .composer-panel,
+.app-shell.sidebar-closed.ui-composer-bottom-left .bottom-composer-empty {
+  left: 24px;
+}

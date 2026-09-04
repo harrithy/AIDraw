@@ -1,0 +1,529 @@
+/* ==========================================================================
+   响应式媒体查询适配 (Responsive Breakpoints - Placed at Bottom)
+   ========================================================================== */
+
+@media (hover: none) {
+  .uploaded-image-overlay {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: none !important;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.85) 0%,
+      rgba(0, 0, 0, 0.4) 50%,
+      transparent 100%
+    ) !important;
+    justify-content: flex-end !important;
+  }
+
+  .uploaded-image-overlay-bottom {
+    margin-top: 4px;
+  }
+
+  .uploaded-image-overlay-name {
+    display: inline-block !important;
+    font-size: 9px;
+  }
+
+  .uploaded-image-overlay .delete-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+  }
+
+  .uploaded-image-action-btn {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-panel,
+  .composer-panel,
+  .dock-toggle,
+  .canvas-board,
+  .job-card,
+  .workflow-link,
+  .job-image img,
+  .job-image-button img,
+  .job-reference-thumb,
+  .empty-canvas-icon,
+  .folder-item,
+  .onboarding-tour-popover,
+  .onboarding-tour-spotlight,
+  .onboarding-tour-dot,
+  .mode-switch button,
+  .submit-button,
+  .secondary-submit {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+
+  .uploaded-image-preview-button img {
+    transition-duration: 1ms !important;
+  }
+
+  .uploaded-image-item,
+  .uploaded-image-skeleton-heading,
+  .uploaded-image-skeleton-tile,
+  .image-skeleton-spinner {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 1440px) {
+  .floating-top {
+    right: 24px;
+  }
+
+  .canvas-board {
+    padding-right: 24px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .floating-top {
+    top: 12px;
+    left: 64px;
+    right: 12px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .floating-toolbar {
+    top: 12px;
+    left: 64px;
+    bottom: auto;
+  }
+
+  .left-panel {
+    top: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: min(280px, calc(100vw - 64px));
+  }
+
+  .left-panel.closed {
+    display: flex;
+  }
+
+  .dock-toggle.left.open {
+    left: min(292px, calc(100vw - 52px));
+  }
+
+  .canvas-board {
+    column-width: 230px;
+    width: min(960px, calc(100vw - 24px));
+    padding: 174px 12px 230px 64px;
+  }
+
+  .composer-floating-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .composer-fields {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .composer-fields.has-custom-size {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .composer-submit {
+    width: 100%;
+  }
+
+}
+
+@media (max-width: 720px) {
+  .duomi-capability-panel {
+    width: calc(100vw - 20px);
+    max-height: min(68dvh, 620px);
+    padding: 10px;
+  }
+
+  .duomi-capability-header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .duomi-category-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .duomi-capability-panel > .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .capability-mode-switch {
+    width: 100%;
+  }
+
+  .capability-mode-switch button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .job-result-media-grid.has-multiple-assets {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .image-preview-backdrop {
+    padding: 10px;
+  }
+
+  .comparison-preview-panel {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .image-comparison-grid {
+    gap: 6px;
+  }
+
+  .image-comparison-pane > img,
+  .image-comparison-stage {
+    height: min(56vh, 520px);
+    min-height: 140px;
+  }
+
+  .image-version-picker {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .image-preview-caption {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .image-preview-caption strong,
+  .image-preview-caption span {
+    max-width: 100%;
+  }
+
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .uploaded-image-library-controls {
+    flex-wrap: wrap;
+  }
+
+  .uploaded-image-date-filter {
+    flex: 1 1 150px;
+  }
+
+  .uploaded-image-size-control {
+    flex: 1 1 110px;
+  }
+
+  .uploaded-image-size-control input {
+    flex: 1;
+    width: auto;
+  }
+
+  .uploaded-image-library-body {
+    max-height: min(42dvh, 360px);
+  }
+
+  .uploaded-image-preview-panel {
+    width: calc(100vw - 20px);
+  }
+
+  .floating-toolbar {
+    right: 12px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .tool-group {
+    justify-content: space-between;
+  }
+
+  .canvas-board {
+    column-width: 100%;
+    width: calc(100vw - 24px);
+    padding: 210px 12px 360px 12px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .composer-panel,
+  .bottom-composer-empty {
+    bottom: 10px;
+    width: calc(100vw - 20px);
+  }
+
+  .composer-panel textarea {
+    min-height: 58px;
+  }
+
+  .composer-input-shell {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .composer-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .composer-fields.has-custom-size {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .composer-fields [data-slot="field"] {
+    grid-template-columns: 1fr;
+  }
+
+  .composer-notice {
+    display: none;
+  }
+
+  .composer-actions {
+    justify-content: space-between;
+    width: 100%;
+    min-width: 0;
+    padding-right: 0;
+  }
+
+  .composer-actions .composer-submit {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .onboarding-tour-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .onboarding-tour-nav {
+    width: 100%;
+  }
+
+  .onboarding-tour-popover .secondary-submit,
+  .onboarding-tour-popover .submit-button {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 440px) {
+  .personalization-preset-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1121px) and (max-width: 1500px) {
+  /* 工具按钮较多时把右侧信息区下移一行，避免两块悬浮面板相互覆盖。 */
+  .app-shell.ui-toolbar-top-left .floating-top {
+    top: 72px;
+  }
+}
+
+@media (max-width: 1120px) {
+  /* 中等宽度沿用原有安全停靠点，保留显隐和折叠偏好。 */
+  .app-shell .floating-top,
+  .app-shell.ui-toolbar-top-center .floating-top,
+  .app-shell.ui-toolbar-top-right .floating-top {
+    top: 70px;
+    right: 12px;
+    left: calc(min(var(--ui-sidebar-width, 292px), calc(100vw - 64px)) + 24px);
+  }
+
+  .app-shell.sidebar-closed .floating-top,
+  .app-shell.sidebar-closed.ui-toolbar-top-center .floating-top,
+  .app-shell.sidebar-closed.ui-toolbar-top-right .floating-top {
+    left: 64px;
+  }
+
+  .app-shell .floating-toolbar,
+  .app-shell.ui-toolbar-top-center .floating-toolbar,
+  .app-shell.ui-toolbar-top-right .floating-toolbar {
+    top: 12px;
+    right: 12px;
+    left: calc(min(var(--ui-sidebar-width, 292px), calc(100vw - 64px)) + 24px);
+    width: auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+    transform: none;
+  }
+
+  .app-shell .floating-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-shell.sidebar-closed .floating-toolbar,
+  .app-shell.sidebar-closed.ui-toolbar-top-center .floating-toolbar,
+  .app-shell.sidebar-closed.ui-toolbar-top-right .floating-toolbar {
+    right: 12px;
+    left: 64px;
+  }
+
+  .app-shell .left-panel {
+    width: min(var(--ui-sidebar-width, 292px), calc(100vw - 64px));
+  }
+
+  .app-shell .dock-toggle.left.open {
+    left: min(var(--ui-sidebar-width, 292px), calc(100vw - 52px));
+  }
+
+  .app-shell .composer-panel,
+  .app-shell.ui-composer-bottom-left .composer-panel,
+  .app-shell.ui-composer-bottom-right .composer-panel,
+  .app-shell .bottom-composer-empty,
+  .app-shell.ui-composer-bottom-left .bottom-composer-empty,
+  .app-shell.ui-composer-bottom-right .bottom-composer-empty {
+    right: auto;
+    left: calc((100vw + min(var(--ui-sidebar-width, 292px), calc(100vw - 64px))) / 2);
+    width: min(
+      var(--ui-composer-width, 760px),
+      calc(100vw - min(var(--ui-sidebar-width, 292px), calc(100vw - 64px)) - 36px)
+    );
+    transform: translateX(-50%);
+  }
+
+  .app-shell.sidebar-closed .composer-panel,
+  .app-shell.sidebar-closed.ui-composer-bottom-left .composer-panel,
+  .app-shell.sidebar-closed.ui-composer-bottom-right .composer-panel,
+  .app-shell.sidebar-closed .bottom-composer-empty,
+  .app-shell.sidebar-closed.ui-composer-bottom-left .bottom-composer-empty,
+  .app-shell.sidebar-closed.ui-composer-bottom-right .bottom-composer-empty {
+    left: 50%;
+    width: min(var(--ui-composer-width, 760px), calc(100vw - 36px));
+  }
+
+  .app-shell.ui-composer-bottom-left .composer-panel,
+  .app-shell.ui-composer-bottom-right .composer-panel {
+    animation-name: composer-pop-in-center;
+  }
+
+  .app-shell.ui-composer-bottom-left .composer-collapsed:hover,
+  .app-shell.ui-composer-bottom-right .composer-collapsed:hover {
+    transform: translateX(-50%) translateY(-2px);
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell .floating-toolbar,
+  .app-shell.sidebar-closed .floating-toolbar,
+  .app-shell.ui-toolbar-top-center .floating-toolbar,
+  .app-shell.sidebar-closed.ui-toolbar-top-center .floating-toolbar,
+  .app-shell.ui-toolbar-top-right .floating-toolbar {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    overflow-x: auto;
+    transform: none;
+  }
+
+  .app-shell .floating-top,
+  .app-shell.sidebar-closed .floating-top,
+  .app-shell.ui-toolbar-top-center .floating-top,
+  .app-shell.ui-toolbar-top-right .floating-top {
+    top: 70px;
+    right: 10px;
+    left: 10px;
+  }
+
+  .app-shell .composer-panel,
+  .app-shell.ui-composer-bottom-left .composer-panel,
+  .app-shell.ui-composer-bottom-right .composer-panel,
+  .app-shell .bottom-composer-empty,
+  .app-shell.ui-composer-bottom-left .bottom-composer-empty,
+  .app-shell.ui-composer-bottom-right .bottom-composer-empty {
+    right: auto !important;
+    bottom: 10px;
+    left: 10px !important;
+    width: calc(100vw - 20px) !important;
+    transform: none !important;
+    animation-name: composer-pop-in !important;
+  }
+
+  .app-shell .composer-collapsed:hover,
+  .app-shell.ui-composer-bottom-left .composer-collapsed:hover,
+  .app-shell.ui-composer-bottom-right .composer-collapsed:hover {
+    transform: translateY(-2px) !important;
+  }
+
+  /* 窄屏强制使用底部附件与右侧点击展开，桌面偏好本身不被改写。 */
+  .job-card .job-actions,
+  .job-card.toolbar-side-left .job-actions,
+  .job-card.toolbar-side-right .job-actions {
+    right: -56px;
+    left: auto;
+  }
+
+  .job-card.toolbar-side-left .job-retry-menu {
+    right: auto !important;
+    left: calc(100% + 12px) !important;
+  }
+
+  .job-card .job-reference-strip,
+  .job-card.attachment-side-left .job-reference-strip,
+  .job-card.attachment-side-right .job-reference-strip,
+  .job-card.attachment-side-bottom .job-reference-strip,
+  .job-card.attachments-expanded .job-reference-strip {
+    top: calc(100% + 12px);
+    right: auto;
+    left: 0;
+    display: flex;
+    width: var(--job-card-base-width, 316px);
+    max-width: var(--job-card-base-width, 316px);
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-thumb,
+  .job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-count {
+    margin-top: 0;
+    margin-left: calc(var(--job-reference-thumb-size, 58px) * -0.42);
+  }
+
+  .job-card.toolbar-behavior-always:not(.tools-manually-open) .job-actions > :not(.job-tools-toggle) {
+    display: none;
+  }
+
+  .personalization-drawer {
+    width: min(460px, 100vw);
+    border-left: 0;
+  }
+
+  .personalization-header {
+    padding: 14px 12px 12px 16px;
+  }
+
+  .personalization-nav {
+    padding: 8px;
+  }
+
+  .personalization-content {
+    padding: 14px 16px 20px;
+  }
+
+  .personalization-preset-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .personalization-footer {
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .error-boundary-card {
+    padding: 20px 16px;
+  }
+
+  .error-boundary-actions {
+    grid-template-columns: 1fr;
+  }
+}

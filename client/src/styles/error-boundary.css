@@ -1,0 +1,277 @@
+/* ==========================================================================
+   全局错误边界与自救界面 (ErrorBoundary Rescue UI)
+   ========================================================================== */
+
+/* ==========================================================================
+   全局错误边界与自救界面 (ErrorBoundary Rescue UI)
+   ========================================================================== */
+.error-boundary-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at center, rgba(47, 118, 96, 0.08) 0%, rgba(16, 21, 19, 0.94) 100%), #0c100e;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow-y: auto;
+  font-family: inherit;
+  color: #eaf3ee;
+}
+
+.error-boundary-card {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  background: rgba(18, 24, 21, 0.88);
+  border: 1px solid rgba(47, 118, 96, 0.35);
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 32px rgba(47, 118, 96, 0.15);
+  padding: 28px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  animation: modal-enter 0.36s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.error-boundary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.error-boundary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #f59e0b;
+  letter-spacing: 0.5px;
+}
+
+.error-badge-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: badge-pulse 1.4s infinite;
+}
+
+.error-boundary-subtag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #34d399;
+}
+
+.error-boundary-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.error-boundary-icon-box {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #f87171;
+  flex-shrink: 0;
+}
+
+.error-boundary-title {
+  margin: 0 0 6px;
+  font-size: 19px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.3;
+}
+
+.error-boundary-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #a4b3ab;
+}
+
+.error-boundary-message-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  font-size: 12.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.error-boundary-notice-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  font-size: 12.5px;
+  color: #6ee7b7;
+  font-weight: 600;
+}
+
+.error-boundary-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.error-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 180ms ease;
+  border: 1px solid transparent;
+}
+
+.error-action-btn.primary {
+  background: var(--green, #2f7660);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(47, 118, 96, 0.36);
+}
+
+.error-action-btn.primary:hover {
+  background: var(--green-dark, #1f5d49);
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 18px rgba(47, 118, 96, 0.48);
+}
+
+.error-action-btn.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #eaf3ee;
+}
+
+.error-action-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1.5px);
+}
+
+.error-action-btn.warning {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.36);
+  color: #fbbf24;
+}
+
+.error-action-btn.warning:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.22);
+  transform: translateY(-1.5px);
+}
+
+.error-action-btn.subtle {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a39b;
+}
+
+.error-action-btn.subtle:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #eaf3ee;
+}
+
+.error-action-btn:active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+.error-boundary-details-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 16px;
+}
+
+.error-boundary-details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.error-details-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a39b;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.error-details-toggle:hover {
+  color: #eaf3ee;
+}
+
+.error-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #cbd5d0;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.error-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.error-boundary-stack-container {
+  margin-top: 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  border-radius: 8px;
+  background: #090c0a;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 12px;
+}
+
+.error-stack-code {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #94a39b;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
