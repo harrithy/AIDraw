@@ -1,6 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { Loader2, Save, Settings } from "lucide-react";
+import { Key, Loader2, Save, Settings, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   Select,
@@ -123,6 +123,41 @@ export function ApiSettingsPanel({
     }
   };
 
+  const handleClearActiveKey = async () => {
+    try {
+      setIsSaving(true);
+      setError("");
+      await onSave({ clearApiKey: true });
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "取消激活失败");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteKey = async (index: number) => {
+    const keyProviderId = settings.savedApiKeyProviderIds[index] || "duomi";
+    const providerLabel = getApiProviderLabel(keyProviderId);
+    const maskedKey = settings.savedApiKeysMasked[index];
+    const isCurrentlyActive = index === settings.activeApiKeyIndex;
+
+    const warningText = isCurrentlyActive
+      ? `确定要删除当前正在使用的 ${providerLabel} 凭据（${maskedKey}）吗？\n删除后系统将自动尝试回退到其它可用凭据。`
+      : `确定要从本地永久删除 ${providerLabel} 凭据（${maskedKey}）吗？\n注意：若有排队或正在运行的任务依赖此 Key，可能会导致任务无法追踪恢复。`;
+
+    if (!window.confirm(warningText)) return;
+
+    try {
+      setIsSaving(true);
+      setError("");
+      await onSave({ deleteApiKeyIndex: index });
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "删除 API Key 失败");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div
       ref={settingsRef}
@@ -236,6 +271,71 @@ export function ApiSettingsPanel({
           导入并保存
         </button>
       </form>
+
+      {settings.savedApiKeysMasked.length > 0 ? (
+        <div className="saved-keys-section">
+          <div className="saved-keys-title-row">
+            <span className="saved-keys-label">
+              <Key size={14} />
+              已保存凭据管理 ({settings.savedApiKeysMasked.length})
+            </span>
+          </div>
+          <div className="saved-keys-list">
+            {settings.savedApiKeysMasked.map((maskedKey, index) => {
+              const keyProviderId = settings.savedApiKeyProviderIds[index] || "duomi";
+              const providerLabel = getApiProviderLabel(keyProviderId);
+              const isDeepSeekKey = keyProviderId === "deepseek";
+              const isActive = index === settings.activeApiKeyIndex;
+
+              return (
+                <div key={`${maskedKey}-${index}`} className={`saved-key-row ${isActive ? "active" : ""}`}>
+                  <div className="saved-key-left">
+                    <span className={`saved-key-badge badge-${keyProviderId}`}>
+                      {providerLabel}
+                      {isDeepSeekKey ? " · 润写" : ""}
+                    </span>
+                    <span className="saved-key-mono" title="已脱敏密钥">{maskedKey}</span>
+                    {isActive ? <span className="saved-key-tag-active">使用中</span> : null}
+                  </div>
+                  <div className="saved-key-btns">
+                    {!isActive && !isDeepSeekKey ? (
+                      <button
+                        type="button"
+                        className="saved-key-btn-action activate"
+                        onClick={() => handleSetActiveKey(index)}
+                        disabled={isSaving}
+                        title="切换为此 Key"
+                      >
+                        使用
+                      </button>
+                    ) : null}
+                    {isActive ? (
+                      <button
+                        type="button"
+                        className="saved-key-btn-action deactivate"
+                        onClick={handleClearActiveKey}
+                        disabled={isSaving}
+                        title="取消激活当前 Key"
+                      >
+                        取消激活
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="saved-key-btn-del"
+                      onClick={() => handleDeleteKey(index)}
+                      disabled={isSaving}
+                      title="从本地永久删除此凭据"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

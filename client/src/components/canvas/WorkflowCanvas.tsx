@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type PointerEventHandler } from "react";
+import { memo, useEffect, useMemo, useRef, type PointerEventHandler } from "react";
 import { type PositionedJob } from "../../lib/canvas";
 import type { CardLayoutPreferences } from "../../lib/uiPreferences";
 import type { DrawFolder, DrawJob } from "../../types";
@@ -52,7 +52,7 @@ type WorkflowCanvasProps = {
   cardPreferences: CardLayoutPreferences;
 };
 
-export function WorkflowCanvas({
+export const WorkflowCanvas = memo(function WorkflowCanvas({
   activeFolder,
   boardSize,
   isDragging,
@@ -145,5 +145,4 @@ export function WorkflowCanvas({
       </div>
     </section>
   );
-}
-
+});

@@ -1,6 +1,7 @@
 import type { ImageProviderSettings, UpdateImageProviderSettingsPayload } from "../../types";
 import {
   DEFAULT_MODEL,
+  DUOMI_BASE_URL,
   getActiveApiKeyIndex,
   getDefaultBaseUrl,
   getSettings,
@@ -119,6 +120,41 @@ export const providerSettingsApi = {
       settings.apiKey = savedApiKeys[payload.setActiveApiKeyIndex];
       settings.providerId = nextProviderId;
       settings.baseUrl = getDefaultBaseUrl(nextProviderId);
+    }
+
+    if (typeof payload.deleteApiKeyIndex === "number") {
+      if (payload.deleteApiKeyIndex < 0 || payload.deleteApiKeyIndex >= savedApiKeys.length) {
+        throw new Error("指定的 API Key 索引不存在");
+      }
+      const deletedKey = savedApiKeys[payload.deleteApiKeyIndex];
+      const deletedProviderId = savedProviderIds[payload.deleteApiKeyIndex] || "duomi";
+      savedApiKeys.splice(payload.deleteApiKeyIndex, 1);
+      savedProviderIds.splice(payload.deleteApiKeyIndex, 1);
+
+      // 若被删除的 Key 正是当前激活的 Key
+      if (settings.apiKey === deletedKey && settings.providerId === deletedProviderId) {
+        // 优先寻找同平台的下一个可用 Key
+        const sameProviderIndex = savedProviderIds.findIndex((pId) => pId === deletedProviderId);
+        if (sameProviderIndex >= 0) {
+          settings.apiKey = savedApiKeys[sameProviderIndex];
+          settings.providerId = deletedProviderId;
+          settings.baseUrl = getDefaultBaseUrl(deletedProviderId);
+        } else {
+          // 若同平台无可用 Key，回退到其它可用的非 DeepSeek 绘图 Key
+          const fallbackIndex = savedProviderIds.findIndex((pId) => pId !== "deepseek");
+          if (fallbackIndex >= 0) {
+            const fallbackProviderId = savedProviderIds[fallbackIndex] || "duomi";
+            settings.apiKey = savedApiKeys[fallbackIndex];
+            settings.providerId = fallbackProviderId;
+            settings.baseUrl = getDefaultBaseUrl(fallbackProviderId);
+          } else {
+            // 无任何可用绘图 Key，重置为空
+            settings.apiKey = "";
+            settings.providerId = "duomi";
+            settings.baseUrl = DUOMI_BASE_URL;
+          }
+        }
+      }
     }
 
     await saveSettings(settings);

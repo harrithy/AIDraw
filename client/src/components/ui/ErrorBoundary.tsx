@@ -19,6 +19,11 @@ import {
   SETTINGS_STORE,
   UPLOADED_IMAGE_STORE
 } from "../../lib/storage/database";
+import {
+  LEGACY_PET_STORAGE_KEY,
+  LEGACY_THEME_STORAGE_KEY,
+  UI_PREFERENCES_STORAGE_KEY
+} from "../../lib/uiPreferences";
 
 export interface ErrorBoundaryProps {
   children: ReactNode;
@@ -90,6 +95,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   /** 清除界面偏好缓存并重新加载 */
   handleResetPreferences = (): void => {
     try {
+      localStorage.removeItem(UI_PREFERENCES_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_THEME_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_PET_STORAGE_KEY);
       localStorage.removeItem("aidraw-ui-preferences");
       localStorage.removeItem("aidraw-page-preferences");
     } catch {
@@ -98,7 +106,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     window.location.reload();
   };
 
-  /** 紧急从 IndexedDB 抢救导出全量数据 JSON */
+  /** 紧急从 IndexedDB 抢救导出全量数据 JSON（自动过滤 API Key 敏感凭据） */
   handleEmergencyBackup = async (): Promise<void> => {
     if (this.state.isExporting) return;
     this.setState({ isExporting: true, exportNotice: "正在从本地数据库提取全部备份..." });
@@ -126,16 +134,29 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         readAllFromStore(SETTINGS_STORE)
       ]);
 
+      // 自动脱敏已保存的 API Key，避免导出 JSON 泄露用户凭据
+      const sanitizedSettings = (settingsEntries as Array<Record<string, unknown>>).map((entry) => {
+        if (entry && typeof entry === "object") {
+          const sanitized = { ...entry };
+          if ("apiKey" in sanitized) sanitized.apiKey = "";
+          if ("savedApiKeys" in sanitized) sanitized.savedApiKeys = [];
+          if ("savedApiKeyProviderIds" in sanitized) sanitized.savedApiKeyProviderIds = [];
+          return sanitized;
+        }
+        return entry;
+      });
+
       const backupPackage = {
         format: "aidraw-emergency-backup",
         version: 1,
         exportedAt: new Date().toISOString(),
         reason: "crash-rescue",
+        securityNotice: "Sensitive API credentials (apiKey / savedApiKeys) have been automatically stripped for security.",
         error: this.state.error?.message || "unknown",
         folders,
         jobs,
         uploadedImages,
-        settings: settingsEntries
+        settings: sanitizedSettings
       };
 
       const jsonStr = JSON.stringify(backupPackage, null, 2);
@@ -155,7 +176,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       this.setState({
         isExporting: false,
-        exportNotice: `已成功导出救灾备份！包含 ${folders.length} 个文件夹、${jobs.length} 个任务与 ${uploadedImages.length} 个素材记录。`
+        exportNotice: `已成功导出救灾备份（已自动脱敏过滤 API Key）！包含 ${folders.length} 个文件夹、${jobs.length} 个任务与 ${uploadedImages.length} 个素材记录。`
       });
     } catch (err) {
       console.error("紧急备份提取失败:", err);
@@ -291,10 +312,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               className="error-action-btn warning"
               onClick={this.handleEmergencyBackup}
               disabled={isExporting}
-              title="直接从本地 IndexedDB 导出包含全部文件夹与任务的 JSON 备份"
+              title="直接从本地 IndexedDB 导出包含全部文件夹与任务的 JSON 备份（已自动脱敏过滤 API Key）"
             >
               <Download size={15} className={isExporting ? "animate-bounce" : ""} />
-              <span>{isExporting ? "正在提取备份..." : "紧急导出全部数据备份"}</span>
+              <span>{isExporting ? "正在提取备份..." : "紧急导出数据备份（已脱敏）"}</span>
             </button>
 
             <button

@@ -84,7 +84,7 @@ const isChatMessage = (value: unknown): value is { role: string; content: string
 /** 提取消息的文本内容（图片按 URL 长度计入），用于总量校验。 */
 const getMessageTextLength = (content: string | unknown[]) => {
   if (typeof content === "string") return content.length;
-  return content.reduce((total, block) => {
+  return (content as unknown[]).reduce<number>((total, block) => {
     if (isTextBlock(block)) return total + (block as { text: string }).text.length;
     if (isImageBlock(block)) {
       return total + ((block as { image_url: { url: string } }).image_url.url.length);
@@ -142,7 +142,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     sendJson(res, 400, { error: "messages 格式不正确，需为 1-16 条 role/content 消息" });
     return;
   }
-  const contentChars = messages.reduce(
+  const contentChars = (messages as Array<{ content: string | unknown[] }>).reduce<number>(
     (total, message) => total + getMessageTextLength(message.content),
     0
   );

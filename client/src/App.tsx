@@ -25,6 +25,7 @@ import { useAppAnimations } from "./hooks/useAppAnimations";
 import { useCanvasInteractions } from "./hooks/useCanvasInteractions";
 import { useUiPreferences } from "./hooks/useUiPreferences";
 import { BOARD_PADDING, calculateLayoutPositions, getPositionedJobs, type LayoutDirection, type PositionedJob } from "./lib/canvas";
+import { areJobSnapshotsEqual, getLatestOutputTime, isSameProviderSettings, isSameQueue } from "./lib/appSnapshots";
 import { getJobOutputImages } from "./lib/jobImages";
 import type {
   CreateJobPayload,
@@ -73,24 +74,6 @@ const emptyProviderSettings: ImageProviderSettings = {
 };
 
 const ONBOARDING_STORAGE_KEY = "aidraw-onboarding-v1";
-
-/** 获取任务最近一次生成结果的时间，用于判断哪个结果盒子最新。 */
-const getLatestOutputTime = (job: DrawJob) => {
-  const timestamp = Date.parse(job.completedAt ?? job.updatedAt ?? job.createdAt);
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-};
-
-/** 轮询结果没有实际变化时复用原数组，避免无意义的全画布渲染。 */
-const areJobSnapshotsEqual = (current: DrawJob[], next: DrawJob[]) =>
-  current.length === next.length &&
-  current.every(
-    (job, index) =>
-      job.id === next[index]?.id &&
-      job.updatedAt === next[index]?.updatedAt &&
-      job.posX === next[index]?.posX &&
-      job.posY === next[index]?.posY &&
-      job.hasCustomPosition === next[index]?.hasCustomPosition
-  );
 
 /**
  * 应用根组件
@@ -215,6 +198,11 @@ function App() {
   }, [onboardingOpen]);
 
   const activeFolder = folders.find((folder) => folder.id === activeFolderId) ?? null;
+  const jobsRef = useRef(jobs);
+  jobsRef.current = jobs;
+  const activeFolderRef = useRef(activeFolder);
+  activeFolderRef.current = activeFolder;
+
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
   const inFlightJobs = jobs.filter((job) => job.status === "pending" || job.status === "running").length;
   const failedJobsCount = useMemo(() => jobs.filter((job) => job.status === "failed").length, [jobs]);
@@ -318,16 +306,19 @@ function App() {
    */
   const loadQueue = useCallback(async () => {
     const health = await api.health();
-    setQueue(health.queue);
-    setProviderSettings({
-      baseUrl: health.imageProvider.baseUrl,
-      model: health.imageProvider.model,
-      hasApiKey: health.imageProvider.hasApiKey,
-      apiKeyMasked: health.imageProvider.apiKeyMasked,
-      savedApiKeysMasked: health.imageProvider.savedApiKeysMasked,
-      providerId: health.imageProvider.providerId,
-      savedApiKeyProviderIds: health.imageProvider.savedApiKeyProviderIds,
-      activeApiKeyIndex: health.imageProvider.activeApiKeyIndex
+    setQueue((current) => (isSameQueue(current, health.queue) ? current : health.queue));
+    setProviderSettings((current) => {
+      const next: ImageProviderSettings = {
+        baseUrl: health.imageProvider.baseUrl,
+        model: health.imageProvider.model,
+        hasApiKey: health.imageProvider.hasApiKey,
+        apiKeyMasked: health.imageProvider.apiKeyMasked,
+        savedApiKeysMasked: health.imageProvider.savedApiKeysMasked,
+        providerId: health.imageProvider.providerId,
+        savedApiKeyProviderIds: health.imageProvider.savedApiKeyProviderIds,
+        activeApiKeyIndex: health.imageProvider.activeApiKeyIndex
+      };
+      return isSameProviderSettings(current, next) ? current : next;
     });
   }, []);
 
@@ -508,42 +499,44 @@ function App() {
    * 乐观更新本地 state -> 发请求保存 -> 失败时回滚
    * @param orderedJobs - 按新顺序排列的任务列表
    */
-  const persistOrder = async (orderedJobs: DrawJob[]) => {
-    if (!activeFolder) return;
+  const persistOrder = useCallback(async (orderedJobs: DrawJob[]) => {
+    const currentFolder = activeFolderRef.current;
+    if (!currentFolder) return;
     setJobs(orderedJobs.map((job, index) => ({ ...job, orderIndex: index })));
     try {
       const nextJobs = await api.reorderJobs(
-        activeFolder.id,
+        currentFolder.id,
         orderedJobs.map((job) => job.id)
       );
       setJobs(nextJobs);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "排序保存失败");
-      void loadJobs(activeFolder.id);
+      void loadJobs(currentFolder.id);
     }
-  };
+  }, [loadJobs]);
 
   /**
    * 上下移动任务（改变 orderIndex）
    * @param jobId - 任务 ID
    * @param direction - -1 上移，1 下移
    */
-  const moveJob = async (jobId: string, direction: -1 | 1) => {
-    const index = jobs.findIndex((job) => job.id === jobId);
+  const moveJob = useCallback(async (jobId: string, direction: -1 | 1) => {
+    const currentJobs = jobsRef.current;
+    const index = currentJobs.findIndex((job) => job.id === jobId);
     const nextIndex = index + direction;
-    if (index < 0 || nextIndex < 0 || nextIndex >= jobs.length) return;
+    if (index < 0 || nextIndex < 0 || nextIndex >= currentJobs.length) return;
 
-    const ordered = [...jobs];
+    const ordered = [...currentJobs];
     const [job] = ordered.splice(index, 1);
     ordered.splice(nextIndex, 0, job);
     await persistOrder(ordered);
-  };
+  }, [persistOrder]);
 
   /**
    * 删除指定的任务盒子
    * @param jobId - 任务 ID
    */
-  const deleteJob = async (jobId: string) => {
+  const deleteJob = useCallback(async (jobId: string) => {
     try {
       await api.deleteJob(jobId);
       setJobs((current) => current.filter((j) => j.id !== jobId));
@@ -552,18 +545,19 @@ function App() {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "删除盒子失败");
     }
-  };
+  }, []);
 
   /**
    * 提交绘图任务
    * 创建任务后自动刷新队列状态
    * @param payload - 任务创建参数
    */
-  const submitJobs = async (payload: CreateJobPayload) => {
-    if (!activeFolder) return;
+  const submitJobs = useCallback(async (payload: CreateJobPayload) => {
+    const currentFolder = activeFolderRef.current;
+    if (!currentFolder) return;
     try {
       setIsSubmitting(true);
-      const created = await api.createJobs(activeFolder.id, payload);
+      const created = await api.createJobs(currentFolder.id, payload);
       setJobs((current) => [...current, ...created].sort((a, b) => a.orderIndex - b.orderIndex));
       await loadQueue();
       setNotice(`已加入 ${created.length} 个绘图任务`);
@@ -572,7 +566,7 @@ function App() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [loadQueue]);
 
   /**
    * 上传本地参考图片到图床并记录到当前文件夹中。
@@ -584,11 +578,15 @@ function App() {
   };
 
   /** 将任务的最新图片或视频上传到图床，并同步到当前文件夹的素材库。 */
-  const uploadLatestJobMedia = async (jobId: string) => {
-    const uploaded = await api.uploadLatestJobMedia(jobId);
-    setUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
-    setNotice("最新结果已上传到图床和素材库");
-  };
+  const uploadLatestJobMedia = useCallback(async (jobId: string) => {
+    try {
+      const uploaded = await api.uploadLatestJobMedia(jobId);
+      setUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
+      setNotice("最新结果已上传到图床和素材库");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "上传媒体失败");
+    }
+  }, []);
 
   /**
    * 从当前文件夹的素材库中移除指定记录。
@@ -676,8 +674,8 @@ function App() {
    * 重试绘图 — 将失败/已完成任务重新加入队列
    * @param jobId - 任务 ID
    */
-  const retryDrawing = async (jobId: string) => {
-    if (!activeFolder) return;
+  const retryDrawing = useCallback(async (jobId: string) => {
+    if (!activeFolderRef.current) return;
     try {
       const retried = await api.retryJob(jobId);
       setJobs((current) => current.map((job) => (job.id === retried.id ? retried : job)));
@@ -686,14 +684,14 @@ function App() {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "重新绘制失败");
     }
-  };
+  }, [loadQueue]);
 
   /**
    * 编辑参数后重绘 — 用编辑弹窗返回的新参数就地更新任务并重新入队
    * @param jobId - 任务 ID
    * @param edits - 编辑后的绘图参数
    */
-  const confirmRegenerate = async (jobId: string, edits: RegenerateEdits) => {
+  const confirmRegenerate = useCallback(async (jobId: string, edits: RegenerateEdits) => {
     try {
       setIsRegenerating(true);
       const updated = await api.regenerateJobWithEdits(jobId, edits);
@@ -706,7 +704,7 @@ function App() {
     } finally {
       setIsRegenerating(false);
     }
-  };
+  }, [loadQueue]);
 
   /**
    * 保存 API 设置（Base URL / Model / API Key）

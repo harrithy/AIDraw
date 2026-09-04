@@ -497,6 +497,167 @@
   margin-top: 8px;
 }
 
+/* 已保存凭据列表管理区 */
+.saved-keys-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.saved-keys-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.saved-keys-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.saved-keys-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.saved-key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--panel-strong) 75%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.saved-key-row:hover {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--hover) 80%, transparent);
+}
+
+.saved-key-row.active {
+  border-color: color-mix(in srgb, var(--green) 50%, var(--line));
+  background: color-mix(in srgb, var(--green) 7%, var(--panel-strong));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+.saved-key-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.saved-key-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.saved-key-badge.badge-duomi {
+  background: color-mix(in srgb, var(--green) 18%, transparent);
+  color: var(--green);
+}
+
+.saved-key-badge.badge-grsai {
+  background: color-mix(in srgb, #38bdf8 18%, transparent);
+  color: #38bdf8;
+}
+
+.saved-key-badge.badge-deepseek {
+  background: color-mix(in srgb, #f472b6 18%, transparent);
+  color: #f472b6;
+}
+
+.saved-key-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.saved-key-tag-active {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--green);
+  color: #042f1d;
+  white-space: nowrap;
+}
+
+.saved-key-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.saved-key-btn-action {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.saved-key-btn-action:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+}
+
+.saved-key-btn-action.deactivate {
+  color: var(--muted);
+}
+
+.saved-key-btn-action.deactivate:hover:not(:disabled) {
+  border-color: #f87171;
+  color: #f87171;
+  background: color-mix(in srgb, #f87171 10%, transparent);
+}
+
+.saved-key-btn-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.saved-key-btn-del:hover:not(:disabled) {
+  color: #f87171;
+  border-color: color-mix(in srgb, #f87171 40%, transparent);
+  background: color-mix(in srgb, #f87171 12%, transparent);
+}
+
 .anime-release-dialog {
   position: fixed !important;
   top: 50% !important;

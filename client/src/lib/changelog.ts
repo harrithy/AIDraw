@@ -27,10 +27,61 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.10",
+    title: "安全恢复闭环、凭据生命周期与画布防重渲染",
+    date: "2026-09-04",
+    badge: "✨ 最新版本",
+    summary:
+      "v1.4.10 全面落实《项目优化建议.md》核心治理项：修复 ErrorBoundary 偏好重置键名与灾备导出自动脱敏过滤 API Key；补全本地 API Key 凭据独立删除与激活智能回退管理；将全量服务端 API 与 Vite 构建脚本纳入严格 TypeScript 双轨检查；并在 App 轮询机制中引入快照防抖与 useCallback 稳定引用，彻底杜绝定时轮询引发的画布 JobCard 全量无效重渲染。",
+    highlights: [
+      "🛡️ ErrorBoundary 安全闭环：修复偏好重置键名漂移，灾备导出自动脱敏并剥离全部明文 API Key",
+      "🔑 API Key 凭据管理：新增已保存凭据独立管理列表，支持按项删除与自动平滑回退，删除前带任务依赖警示",
+      "📐 TypeScript 双轨严格检查：新增 tsconfig.node.json，涵盖 client/api 与 Vite 构建脚本，消除隐藏类型推导错误",
+      "⚡ 画布防无效重渲染：引入队列/设置状态快照相等性比对，稳定核心交互回调，10s 定时轮询不再触发全量盒子重渲染",
+      "🧪 全量测试覆盖扩充：新增 providerSettingsApi、ApiSettingsPanel 与 appSnapshots 全面测试，测试套件扩展至 24 个、247 项测试全部通过"
+    ],
+    items: [
+      {
+        category: "fix",
+        title: "修复 ErrorBoundary 界面偏好重置键名",
+        description:
+          "直接引入 UI_PREFERENCES_STORAGE_KEY（aidraw-ui-preferences-v1）及旧版本键名统一清理，确保崩溃发生后点击重置能彻底清除损坏的偏好缓存并以安全默认值启动。",
+        tag: "系统稳定性"
+      },
+      {
+        category: "improvement",
+        title: "灾备导出全量数据自动过滤 API Key",
+        description:
+          "在 ErrorBoundary 紧急导出 JSON 时自动脱敏剥离明文 apiKey 与 savedApiKeys，并在数据包与界面中增加安全声明，确保用户在提交 Issue 或日志时绝不会意外泄露敏感凭据。",
+        tag: "安全隐私"
+      },
+      {
+        category: "feature",
+        title: "已保存 API Key 独立管理与删除能力",
+        description:
+          "在 API 设置面板新增已保存本地凭据管理区，支持独立激活、取消激活与彻底删除；删除当前激活 Key 时自动回退至同平台或其它可用绘图 Key，删除前提供依赖任务运行警示。",
+        tag: "凭据管理"
+      },
+      {
+        category: "improvement",
+        title: "扩展 TypeScript 严格检查范围至 API 与工程配置",
+        description:
+          "新增 tsconfig.node.json 配置，将服务端媒体代理、DeepSeek 转发及 Vite/Vitest 配置全量纳入 npm run check 检查范围，提前拦截服务端 API 的潜在类型缺陷。",
+        tag: "工程质量"
+      },
+      {
+        category: "improvement",
+        title: "画布操作回调稳定化与状态防抖",
+        description:
+          "为后台队列与 API 配置引入快照深度浅比对，数据未变动时不触发 React 状态更新；同时通过 useCallback 稳定传递给 WorkflowCanvas 的交互回调，大幅提升大量卡片场景下的流畅度。",
+        tag: "性能优化"
+      }
+    ]
+  },
+  {
     version: "v1.4.9",
     title: "个性化设置抽屉、全局错误边界与模块化架构升级",
     date: "2026-09-04",
-    badge: "✨ 最新版本",
     summary:
       "v1.4.9 迎来重大体系升级：个性化设置全面重构为右侧抽屉，支持整页实时预览与外挂悬浮把手；引入全局 React ErrorBoundary 彻底拦截白屏并支持直连 IndexedDB 紧急数据抢救；同时将 8200+ 行超大单体 styles.css 拆解重构为 10 大高内聚领域样式模块，并修复靠边创作输入框的动画位移 Bug。",
     highlights: [

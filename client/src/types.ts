@@ -355,7 +355,7 @@ export type UpdateImageProviderSettingsPayload = {
   model?: string;
   /** 新的 API Key（作为当前激活的Key） */
   apiKey?: string;
-  /** 设为 true 时清除已保存的 API Key */
+  /** 设为 true 时取消当前激活的 API Key（不删除已保存凭据列表） */
   clearApiKey?: boolean;
   /** 导入一个新的 API Key */
   importApiKey?: string;
@@ -363,4 +363,6 @@ export type UpdateImageProviderSettingsPayload = {
   providerId?: ApiProviderId;
   /** 切换当前活跃的 API Key（传入其在 savedApiKeysMasked 中的索引） */
   setActiveApiKeyIndex?: number;
+  /** 删除指定索引的已保存 API Key（若删除当前激活的 Key 会自动平滑回退） */
+  deleteApiKeyIndex?: number;
 };
