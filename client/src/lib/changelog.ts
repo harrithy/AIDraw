@@ -28,22 +28,37 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
     version: "v1.4.9",
-    title: "个性化设置抽屉与动效升级",
+    title: "个性化设置抽屉、全局错误边界与模块化架构升级",
     date: "2026-09-04",
     badge: "✨ 最新版本",
     summary:
-      "个性化设置全面重构为现代化右侧抽屉：支持无遮挡整页实时预览，配备左外侧悬浮收展把手、卡片化布局与 GSAP 级联微动效系统；同时彻底修复了靠边创作输入框展开收起时的横向关键帧跳动问题。",
+      "v1.4.9 迎来重大体系升级：个性化设置全面重构为右侧抽屉，支持整页实时预览与外挂悬浮把手；引入全局 React ErrorBoundary 彻底拦截白屏并支持直连 IndexedDB 紧急数据抢救；同时将 8200+ 行超大单体 styles.css 拆解重构为 10 大高内聚领域样式模块，并修复靠边创作输入框的动画位移 Bug。",
     highlights: [
-      "🗂️ 个性化设置重构为右侧抽屉，页面保持完全可交互，告别传统弹窗遮挡",
-      "🚪 左外侧悬浮把手（Dock Toggle）：位于抽屉左缘居中，支持随时一键收起与展开",
-      "👀 整页实时预览模式：调整布局预设、外观与卡片选项实时反映在画布上，满意后再点击「应用」",
-      "✨ 全套现代化艺术微动效：GSAP 级联切页、雷达脉冲微标、双子星天象悬浮与提交流光扫光",
+      "🗂️ 个性化设置重构为右侧抽屉，配备左外侧悬浮把手（Dock Toggle）与整页实时预览",
+      "🛡️ 全局 React ErrorBoundary：彻底终结白屏死机，遭遇渲染异常时自动唤起自救面板",
+      "💾 紧急数据抢救：即使组件崩溃仍可直连 IndexedDB 一键导出全量画布与任务 JSON 备份",
+      "🎨 8200+ 行样式表模块化：拆解为 10 个高内聚领域样式模块，杜绝全局样式覆盖与污染",
+      "✨ 全套现代化艺术微动效：GSAP 级联切页、雷达脉冲微标、双子星天象与保存按钮流光",
       "🐛 彻底修复创作输入框靠边定位时展开/折叠先回中间再弹回右边的关键帧位移问题"
     ],
     items: [
       {
         category: "feature",
-        title: "右侧抽屉 + 整页预览模式",
+        title: "全局 ErrorBoundary 错误边界与数据自救系统",
+        description:
+          "在 React 根节点注入全局错误边界拦截渲染层未捕获异常，彻底终结白屏崩溃；提供「刷新重试」、「原地恢复」、「重置界面偏好并刷新」以及直接绕过 React 状态树直连 IndexedDB 导出全量 JSON 备份的紧急数据抢救功能，并支持一键复制完整技术调用栈诊断报告。",
+        tag: "系统稳定性"
+      },
+      {
+        category: "improvement",
+        title: "8200+ 行 styles.css 模块化工程重构",
+        description:
+          "将原先膨胀至 8,200+ 行的单体 styles.css 拆分为 10 个高内聚领域样式模块（tokens、base、layout、canvas、composer、modals、duomi、personalization、error-boundary、responsive），主入口通过 @import 严格保持自上而下的层叠优先级，彻底消除样式特异性污染。",
+        tag: "架构重构"
+      },
+      {
+        category: "feature",
+        title: "右侧抽屉 + 整页实时预览模式",
         description:
           "个性化设置改为非模态右侧抽屉：无遮罩、不锁滚动、不拦截焦点。打开后进入预览会话，布局预设、页面区域、图片盒子与外观的每次调整都会实时渲染到画布上供查看，点击「应用」持久化保存，点击「取消」或按 Esc 即可安全恢复原设置。",
         tag: "个性化"
@@ -57,7 +72,7 @@ export const INITIAL_RELEASES: ReleaseNote[] = [
       },
       {
         category: "feature",
-        title: "现代化与艺术化动效系统",
+        title: "现代化与艺术化微动效系统",
         description:
           "融入 GSAP 级联切页交错入场动画、实时预览雷达双层声纳波纹、预设微缩模型交互增亮、日月外观天象悬停与保存按钮扫光 Shimmer 动效。",
         tag: "动效升级"
