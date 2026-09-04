@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowRight, Cat, Check, CircleHelp, Clock, Copy, Github, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowDown, ArrowRight, Cat, Check, CircleHelp, Clock, Copy, Github, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { LayoutDirection } from "../../lib/canvas";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import type { DrawJob } from "../../types";
@@ -19,6 +19,7 @@ type CanvasToolbarProps = {
   onJumpToLatestOutput: () => void;
   onSortByTime: () => void;
   onOpenApiSettings: () => void;
+  onOpenPersonalization: () => void;
   onOpenGuide: () => void;
   /** 打开版本更新公告弹窗 */
   onOpenAnnouncement?: () => void;
@@ -75,6 +76,7 @@ export function CanvasToolbar({
   onJumpToLatestOutput,
   onSortByTime,
   onOpenApiSettings,
+  onOpenPersonalization,
   onOpenGuide,
   onOpenAnnouncement,
   unreadAnnouncementsCount,
@@ -184,7 +186,7 @@ export function CanvasToolbar({
   }, [jobs, searchQuery]);
 
   return (
-    <div className="canvas-toolbar floating-toolbar">
+    <div className="canvas-toolbar floating-toolbar" data-layout-obstacle="toolbar">
       {children ? <div className="tool-group">{children}</div> : null}
       <div className="tool-group">
         <button type="button" onClick={onZoomOut} title="缩小">
@@ -456,6 +458,14 @@ export function CanvasToolbar({
         )}
         <button type="button" onClick={onOpenGuide} title="新手指引">
           <CircleHelp size={17} />
+        </button>
+        <button
+          type="button"
+          onClick={onOpenPersonalization}
+          title="个性化设置"
+          aria-label="个性化设置"
+        >
+          <SlidersHorizontal size={17} />
         </button>
         <button
           type="button"

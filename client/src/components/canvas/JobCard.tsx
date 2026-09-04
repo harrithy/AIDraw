@@ -30,6 +30,12 @@ import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import { statusLabel } from "../../lib/jobLabels";
 import { formatModelPrice, getModelPrice } from "../../lib/modelPricing";
 import { prefersReducedMotion } from "../../lib/motion";
+import {
+  getAttachmentVisibleLimit,
+  getVisibleCardActionOrder,
+  type CardActionId,
+  type CardLayoutPreferences
+} from "../../lib/uiPreferences";
 import type { DrawJob } from "../../types";
 import { AnimatedModal } from "../ui/AnimatedModal";
 import { Button } from "../ui/button";
@@ -64,6 +70,7 @@ type JobCardProps = {
   onDelete?: (jobId: string) => void;
   onUploadLatestMedia?: (jobId: string) => Promise<void>;
   onUseImage?: (url: string) => void;
+  cardPreferences: CardLayoutPreferences;
 };
 
 const statusIcon = (status: DrawJob["status"]) => {
@@ -92,7 +99,8 @@ export const JobCard = memo(function JobCard({
   onEditRetry,
   onDelete,
   onUploadLatestMedia,
-  onUseImage
+  onUseImage,
+  cardPreferences
 }: JobCardProps) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -101,6 +109,7 @@ export const JobCard = memo(function JobCard({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isUploadingLatest, setIsUploadingLatest] = useState(false);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
+  const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
   // 默认折叠历史版本：卡片只显示最新一张，点卡片右缘的展开按钮查看并对比新旧版本。
   // （如需默认展开并排显示所有版本，可把下面两个初始值改为 true。）
   const [versionsExpanded, setVersionsExpanded] = useState(false);
@@ -156,6 +165,35 @@ export const JobCard = memo(function JobCard({
           )
         )
       : [];
+  const configuredAttachmentLimit = getAttachmentVisibleLimit(cardPreferences);
+  const attachmentVisibleLimit = Number.isFinite(configuredAttachmentLimit)
+    ? configuredAttachmentLimit
+    : Math.max(1, referenceImages.length);
+  const stackThumbnailCount =
+    referenceImages.length > attachmentVisibleLimit
+      ? Math.max(0, attachmentVisibleLimit - 1)
+      : referenceImages.length;
+  const collapsedReferenceImages =
+    cardPreferences.attachmentMode === "summary"
+      ? referenceImages.slice(0, 1)
+      : cardPreferences.attachmentMode === "stack"
+        ? referenceImages.slice(0, stackThumbnailCount)
+        : referenceImages;
+  const displayedReferenceImages = attachmentsExpanded ? referenceImages : collapsedReferenceImages;
+  const hiddenReferenceCount = Math.max(0, referenceImages.length - displayedReferenceImages.length);
+  const availableActionIds = new Set<CardActionId>([
+    ...(canRetry ? (["retry"] as CardActionId[]) : []),
+    "movePrevious",
+    "moveNext",
+    ...(currentImageUrl && hasVisualPrimary ? (["download", "copyLink"] as CardActionId[]) : []),
+    ...(currentImageUrl && hasVisualPrimary && onUploadLatestMedia ? (["upload"] as CardActionId[]) : []),
+    ...(currentImageUrl && currentAssetKind === "image" && onUseImage
+      ? (["useAsReference"] as CardActionId[])
+      : []),
+    ...(onDelete ? (["delete"] as CardActionId[]) : [])
+  ]);
+  const visibleActionOrder = getVisibleCardActionOrder(cardPreferences, availableActionIds);
+  const isToolbarExpanded = cardPreferences.toolbarBehavior === "always" || toolsOpen;
   /** 模型预计价格：视频按查表/按秒，图片按固定单价；无 sound 字段的旧 Kling 任务按关闭（off）计 */
   const jobPrice = getModelPrice(
     job.model,
@@ -175,7 +213,10 @@ export const JobCard = memo(function JobCard({
       | "--job-expanded-offset"
       | "--job-expanded-image-width"
       | "--job-history-image-width"
-      | "--job-version-count",
+      | "--job-version-count"
+      | "--job-reference-thumb-size"
+      | "--job-reference-visible-count"
+      | "--job-reference-max-size",
       string
     > = {
     left: `calc(${posX}px - var(--job-expanded-offset))`,
@@ -188,7 +229,14 @@ export const JobCard = memo(function JobCard({
     "--job-expanded-offset": `${expandedOffsetX}px`,
     "--job-expanded-image-width": `calc(${cardSize.imageWidth}px + var(--job-expanded-offset))`,
     "--job-history-image-width": `${historyImageWidth}px`,
-    "--job-version-count": String(Math.max(1, displayedVersions.length))
+    "--job-version-count": String(Math.max(1, displayedVersions.length)),
+    "--job-reference-thumb-size": `${cardPreferences.attachmentThumbnailSize}px`,
+    "--job-reference-visible-count": String(Math.max(1, attachmentVisibleLimit)),
+    "--job-reference-max-size": `${
+      Math.max(1, attachmentVisibleLimit) * cardPreferences.attachmentThumbnailSize +
+      Math.max(0, attachmentVisibleLimit - 1) * 8 +
+      12
+    }px`
   };
 
   const { contextSafe } = useGSAP({ scope: cardRef });
@@ -340,10 +388,14 @@ export const JobCard = memo(function JobCard({
     };
   }, [retryMenuOpen]);
 
-  // 工具栏收起时，一并关闭重绘菜单
+  // 工具栏收起时，一并关闭重绘菜单。
   useEffect(() => {
-    if (!toolsOpen) setRetryMenuOpen(false);
-  }, [toolsOpen]);
+    if (!isToolbarExpanded) setRetryMenuOpen(false);
+  }, [isToolbarExpanded]);
+
+  useEffect(() => {
+    setAttachmentsExpanded(false);
+  }, [cardPreferences.attachmentMode, cardPreferences.attachmentMaxVisible]);
 
   useGSAP(
     () => {
@@ -380,7 +432,7 @@ export const JobCard = memo(function JobCard({
 
   useGSAP(
     () => {
-      if (!toolsOpen || prefersReducedMotion()) return;
+      if (!isToolbarExpanded || prefersReducedMotion()) return;
 
       const toolButtons = gsap.utils.toArray<HTMLElement>(".job-actions button:not(.job-tools-toggle)");
       if (toolButtons.length === 0) return;
@@ -398,21 +450,134 @@ export const JobCard = memo(function JobCard({
         }
       );
     },
-    { dependencies: [toolsOpen], scope: cardRef }
+    { dependencies: [isToolbarExpanded], scope: cardRef }
   );
+
+  const renderAction = (actionId: CardActionId) => {
+    switch (actionId) {
+      case "retry":
+        return (
+          <div className="job-retry-wrapper" key={actionId}>
+            <button
+              type="button"
+              className={`job-retry-toggle${retryMenuOpen ? " is-open" : ""}`}
+              onClick={() => setRetryMenuOpen((value) => !value)}
+              title="重新绘制"
+              aria-haspopup="menu"
+              aria-expanded={retryMenuOpen}
+            >
+              <RotateCcw size={15} />
+            </button>
+            {retryMenuOpen ? (
+              <div className="job-retry-menu" role="menu">
+                {!job.capabilityId ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="job-retry-menu-item"
+                    onClick={() => {
+                      setRetryMenuOpen(false);
+                      setToolsOpen(false);
+                      onEditRetry(job);
+                    }}
+                  >
+                    <PenLine size={14} />
+                    <span>重新编辑</span>
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="job-retry-menu-item"
+                  onClick={() => {
+                    setRetryMenuOpen(false);
+                    onRetry(job.id);
+                  }}
+                >
+                  <Play size={14} />
+                  <span>继续</span>
+                </button>
+              </div>
+            ) : null}
+          </div>
+        );
+      case "movePrevious":
+        return (
+          <button key={actionId} type="button" onClick={() => onMove(job.id, -1)} disabled={index === 0} title="上移">
+            <ArrowUp size={15} />
+          </button>
+        );
+      case "moveNext":
+        return (
+          <button key={actionId} type="button" onClick={() => onMove(job.id, 1)} disabled={index === total - 1} title="下移">
+            <ArrowDown size={15} />
+          </button>
+        );
+      case "download":
+        return (
+          <button key={actionId} type="button" onClick={() => void handleDownload()} disabled={isDownloading} title={`下载${mediaLabel}`}>
+            {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
+          </button>
+        );
+      case "copyLink":
+        return (
+          <button key={actionId} type="button" onClick={() => void handleCopyLink()} title={`复制最新${mediaLabel}链接`}>
+            <Copy size={15} />
+          </button>
+        );
+      case "upload":
+        return (
+          <button
+            key={actionId}
+            type="button"
+            onClick={() => void handleUploadLatest()}
+            disabled={isUploadingLatest}
+            title={`上传最新${mediaLabel}到图床`}
+          >
+            {isUploadingLatest ? <Loader2 className="spin" size={15} /> : <CloudUpload size={15} />}
+          </button>
+        );
+      case "useAsReference":
+        return (
+          <button key={actionId} type="button" onClick={() => onUseImage?.(currentImageUrl!)} title="作为参考图引用">
+            <ImagePlus size={15} />
+          </button>
+        );
+      case "delete":
+        return (
+          <button
+            key={actionId}
+            type="button"
+            className="job-delete-btn"
+            onClick={() => setShowDeleteConfirm(true)}
+            title="删除盒子"
+          >
+            <Trash2 size={15} />
+          </button>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <article
       ref={cardRef}
-      className={`job-card status-${job.status}${toolsOpen ? " tools-open" : ""}${isDragging ? " card-dragging" : ""}${
-        referenceImages.length > 0 ? " has-references" : ""
-      }${hasMultipleVersions ? " has-output-versions" : ""}${hasMultipleVersions && versionsExpanded ? " versions-expanded" : ""}`}
+      className={`job-card status-${job.status}${isToolbarExpanded ? " tools-open" : ""}${toolsOpen ? " tools-manually-open" : ""}${
+        isDragging ? " card-dragging" : ""
+      }${cardPreferences.attachmentVisible && referenceImages.length > 0 ? " has-references" : ""}${
+        hasMultipleVersions ? " has-output-versions" : ""
+      }${hasMultipleVersions && versionsExpanded ? " versions-expanded" : ""} toolbar-side-${
+        cardPreferences.toolbarSide
+      } toolbar-behavior-${cardPreferences.toolbarBehavior} attachment-side-${
+        cardPreferences.attachmentSide
+      } attachment-mode-${cardPreferences.attachmentMode}${attachmentsExpanded ? " attachments-expanded" : ""}`}
       data-job-id={job.id}
       style={cardStyle}
     >
-      {referenceImages.length > 0 ? (
+      {cardPreferences.attachmentVisible && referenceImages.length > 0 ? (
         <div className="job-reference-strip" aria-label="参考图片" onPointerDown={(event) => event.stopPropagation()}>
-          {referenceImages.map((imageUrl, imageIndex) => (
+          {displayedReferenceImages.map((imageUrl, imageIndex) => (
             <button
               key={`${imageUrl}-${imageIndex}`}
               type="button"
@@ -428,6 +593,37 @@ export const JobCard = memo(function JobCard({
               />
             </button>
           ))}
+          {!attachmentsExpanded && cardPreferences.attachmentMode === "stack" ? (
+            <button
+              type="button"
+              className="job-reference-count"
+              onClick={() => setAttachmentsExpanded(true)}
+              aria-label={`展开全部 ${referenceImages.length} 张参考图片`}
+              title="展开全部参考图片"
+            >
+              {hiddenReferenceCount > 0 ? `+${hiddenReferenceCount}` : `${referenceImages.length}张`}
+            </button>
+          ) : hiddenReferenceCount > 0 ? (
+            <button
+              type="button"
+              className="job-reference-count"
+              onClick={() => setAttachmentsExpanded(true)}
+              aria-label={`展开其余 ${hiddenReferenceCount} 张参考图片`}
+              title="展开全部参考图片"
+            >
+              +{hiddenReferenceCount}
+            </button>
+          ) : attachmentsExpanded && referenceImages.length > 1 ? (
+            <button
+              type="button"
+              className="job-reference-count is-collapse"
+              onClick={() => setAttachmentsExpanded(false)}
+              aria-label="收起参考图片"
+              title="收起参考图片"
+            >
+              收起
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -452,106 +648,34 @@ export const JobCard = memo(function JobCard({
           flexDirection: "column",
           alignItems: "center"
         }}
+        onMouseEnter={() => {
+          if (cardPreferences.toolbarBehavior === "hover") setToolsOpen(true);
+        }}
+        onMouseLeave={() => {
+          if (cardPreferences.toolbarBehavior === "hover") setToolsOpen(false);
+        }}
+        onFocus={() => {
+          if (cardPreferences.toolbarBehavior === "hover") setToolsOpen(true);
+        }}
+        onBlur={(event) => {
+          if (
+            cardPreferences.toolbarBehavior === "hover" &&
+            !event.currentTarget.contains(event.relatedTarget as Node | null)
+          ) {
+            setToolsOpen(false);
+          }
+        }}
       >
         <button
           type="button"
           className="job-tools-toggle"
           onClick={() => setToolsOpen((value) => !value)}
-          aria-expanded={toolsOpen}
-          title={toolsOpen ? "收起工具栏" : "展开工具栏"}
+          aria-expanded={isToolbarExpanded}
+          title={isToolbarExpanded ? "收起工具栏" : "展开工具栏"}
         >
           <MoreHorizontal size={15} />
         </button>
-        {toolsOpen ? (
-          <>
-            {canRetry ? (
-              <div className="job-retry-wrapper">
-                <button
-                  type="button"
-                  className={`job-retry-toggle${retryMenuOpen ? " is-open" : ""}`}
-                  onClick={() => setRetryMenuOpen((value) => !value)}
-                  title="重新绘制"
-                  aria-haspopup="menu"
-                  aria-expanded={retryMenuOpen}
-                >
-                  <RotateCcw size={15} />
-                </button>
-                {retryMenuOpen ? (
-                  <div className="job-retry-menu" role="menu">
-                    {!job.capabilityId ? (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="job-retry-menu-item"
-                        onClick={() => {
-                          setRetryMenuOpen(false);
-                          setToolsOpen(false);
-                          onEditRetry(job);
-                        }}
-                      >
-                        <PenLine size={14} />
-                        <span>重新编辑</span>
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="job-retry-menu-item"
-                      onClick={() => {
-                        setRetryMenuOpen(false);
-                        onRetry(job.id);
-                      }}
-                    >
-                      <Play size={14} />
-                      <span>继续</span>
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            <button type="button" onClick={() => onMove(job.id, -1)} disabled={index === 0} title="上移">
-              <ArrowUp size={15} />
-            </button>
-            <button type="button" onClick={() => onMove(job.id, 1)} disabled={index === total - 1} title="下移">
-              <ArrowDown size={15} />
-            </button>
-            {currentImageUrl && hasVisualPrimary ? (
-              <>
-                <button type="button" onClick={() => void handleDownload()} disabled={isDownloading} title={`下载${mediaLabel}`}>
-                  {isDownloading ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
-                </button>
-                <button type="button" onClick={() => void handleCopyLink()} title={`复制最新${mediaLabel}链接`}>
-                  <Copy size={15} />
-                </button>
-                {onUploadLatestMedia ? (
-                  <button
-                    type="button"
-                    onClick={() => void handleUploadLatest()}
-                    disabled={isUploadingLatest}
-                    title={`上传最新${mediaLabel}到图床`}
-                  >
-                    {isUploadingLatest ? <Loader2 className="spin" size={15} /> : <CloudUpload size={15} />}
-                  </button>
-                ) : null}
-                {onUseImage && currentAssetKind === "image" && (
-                  <button type="button" onClick={() => onUseImage(currentImageUrl)} title="作为参考图引用">
-                    <ImagePlus size={15} />
-                  </button>
-                )}
-              </>
-            ) : null}
-            {onDelete ? (
-              <button
-                type="button"
-                className="job-delete-btn"
-                onClick={() => setShowDeleteConfirm(true)}
-                title="删除盒子"
-              >
-                <Trash2 size={15} />
-              </button>
-            ) : null}
-          </>
-        ) : null}
+        {isToolbarExpanded ? visibleActionOrder.map(renderAction) : null}
       </div>
 
       <div className={`job-image ${currentImageUrl || hasRichResult ? "has-output" : ""}${hasMultipleVersions ? " has-versions" : ""}${hasRichResult ? " has-rich-result" : ""}${isRichMediaOnly ? " is-rich-media-only" : ""}`}>

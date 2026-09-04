@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { api } from "./api";
 import { WorkflowCanvas } from "./components/canvas/WorkflowCanvas";
 import { CanvasToolbar } from "./components/layout/CanvasToolbar";
@@ -23,6 +23,7 @@ import {
 import { Message } from "./components/ui/message";
 import { useAppAnimations } from "./hooks/useAppAnimations";
 import { useCanvasInteractions } from "./hooks/useCanvasInteractions";
+import { useUiPreferences } from "./hooks/useUiPreferences";
 import { BOARD_PADDING, calculateLayoutPositions, getPositionedJobs, type LayoutDirection, type PositionedJob } from "./lib/canvas";
 import { getJobOutputImages } from "./lib/jobImages";
 import type {
@@ -49,6 +50,9 @@ const RegenerateEditDialog = lazy(() =>
 );
 const ReleaseNotesDialog = lazy(() =>
   import("./components/modals/ReleaseNotesDialog").then((module) => ({ default: module.ReleaseNotesDialog }))
+);
+const PersonalizationDialog = lazy(() =>
+  import("./components/modals/PersonalizationDialog").then((module) => ({ default: module.PersonalizationDialog }))
 );
 
 const emptyQueue: QueueStats = {
@@ -104,6 +108,21 @@ const areJobSnapshotsEqual = (current: DrawJob[], next: DrawJob[]) =>
  */
 function App() {
   const appRef = useRef<HTMLElement | null>(null);
+  const reportPreferenceSaveError = useCallback((error: unknown) => {
+    Message.error(error instanceof Error ? error.message : "个性化设置保存失败");
+  }, []);
+  const {
+    preferences,
+    updatePreferences,
+    applyPreset: applyUiPreferencesPreset,
+    resetLayout: resetUiPreferencesLayout
+  } = useUiPreferences(reportPreferenceSaveError);
+  const darkMode = preferences.appearance.theme === "dark";
+  const petEnabled = preferences.appearance.petEnabled;
+  const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
+    window.matchMedia?.("(max-width: 720px)").matches ?? false
+  );
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [folders, setFolders] = useState<DrawFolder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [jobs, setJobs] = useState<DrawJob[]>([]);
@@ -117,31 +136,24 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewJob, setPreviewJob] = useState<DrawJob | null>(null);
   const [apiSettingsOpen, setApiSettingsOpen] = useState(false);
+  const [personalizationOpen, setPersonalizationOpen] = useState(false);
   // 新手引导：检查 localStorage，已完成则跳过
   const [onboardingOpen, setOnboardingOpen] = useState(() => window.localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "done");
   // 版本更新公告：自动检查未读数量并在部署更新后自动弹窗提醒
   const [announcementOpen, setAnnouncementOpen] = useState(false);
   const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(() => getUnreadReleasesCount());
-  // 左侧面板：宽屏默认展开，窄屏默认收起
-  const [leftOpen, setLeftOpen] = useState(() => window.matchMedia?.("(min-width: 721px)").matches ?? true);
-  // 深色模式：优先读 localStorage，默认深色
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = window.localStorage.getItem("aidraw-theme");
-    const prefersDark = saved ? saved === "dark" : true;
-    document.documentElement.classList.toggle("dark", prefersDark);
-    return prefersDark;
-  });
+  // 新手引导期间临时展开左栏，但不覆盖用户保存的布局偏好。
+  const leftOpen = onboardingOpen || (isNarrowViewport ? mobileSidebarOpen : preferences.page.sidebarOpen);
   const [imageToUse, setImageToUse] = useState<string | null>(null);
-  // Mugi 桌宠：默认开启，工具切换后持久化
-  const [petEnabled, setPetEnabled] = useState(
-    () => window.localStorage.getItem("aidraw-pet-enabled") !== "off"
-  );
   const togglePet = useCallback(() => {
-    setPetEnabled((enabled) => {
-      window.localStorage.setItem("aidraw-pet-enabled", enabled ? "off" : "on");
-      return !enabled;
-    });
-  }, []);
+    updatePreferences((current) => ({
+      ...current,
+      appearance: {
+        ...current.appearance,
+        petEnabled: !current.appearance.petEnabled
+      }
+    }), false);
+  }, [updatePreferences]);
   const [editingRetryJob, setEditingRetryJob] = useState<DrawJob | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -152,13 +164,24 @@ function App() {
     imagePreview: false,
     onboarding: false,
     regenerate: false,
-    releaseNotes: false
+    releaseNotes: false,
+    personalization: false
   });
   if (apiSettingsOpen) loadedModalsRef.current.apiSettings = true;
   if (previewJob) loadedModalsRef.current.imagePreview = true;
   if (onboardingOpen) loadedModalsRef.current.onboarding = true;
   if (editingRetryJob) loadedModalsRef.current.regenerate = true;
   if (announcementOpen) loadedModalsRef.current.releaseNotes = true;
+  if (personalizationOpen) loadedModalsRef.current.personalization = true;
+
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mediaQuery = window.matchMedia("(max-width: 720px)");
+    const handleChange = (event: MediaQueryListEvent) => setIsNarrowViewport(event.matches);
+    setIsNarrowViewport(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
 
   // 页面加载或新手引导结束后，若存在未读版本更新，自动弹出更新公告
   useEffect(() => {
@@ -288,13 +311,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("aidraw-theme", darkMode ? "dark" : "light");
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
-
-  useEffect(() => {
-    if (onboardingOpen) setLeftOpen(true);
-  }, [onboardingOpen]);
 
   useEffect(() => {
     setPreviewJob((current) => {
@@ -709,8 +727,28 @@ function App() {
     setOnboardingOpen(false);
   };
 
+  const toggleSidebar = () => {
+    if (isNarrowViewport) {
+      setMobileSidebarOpen((current) => !current);
+      return;
+    }
+    updatePreferences((current) => ({
+      ...current,
+      page: { ...current.page, sidebarOpen: !current.page.sidebarOpen }
+    }));
+  };
+
+  const appStyle = {
+    "--ui-sidebar-width": `${preferences.page.sidebarWidth}px`,
+    "--ui-composer-width": `${preferences.page.composerWidth}px`
+  } as CSSProperties;
+
   return (
-    <main ref={appRef} className={`app-shell ${darkMode ? "dark" : ""}`}>
+    <main
+      ref={appRef}
+      className={`app-shell ${darkMode ? "dark" : ""} ${leftOpen ? "sidebar-open" : "sidebar-closed"} ui-toolbar-${preferences.page.toolbarPosition} ui-composer-${preferences.page.composerPosition}`}
+      style={appStyle}
+    >
       <WorkflowCanvas
         activeFolder={activeFolder}
         boardSize={boardSize}
@@ -731,26 +769,31 @@ function App() {
         onDeleteJob={deleteJob}
         onUploadLatestMedia={uploadLatestJobMedia}
         onUseImage={setImageToUse}
+        cardPreferences={preferences.card}
       />
 
-      <header className="floating-top">
-        <div className="metrics">
-          <Metric label="运行" value={`${queue.running}/${queue.maxConcurrent}`} />
-          <Metric label="等待" value={String(queue.pending)} />
-          <Metric label="完成" value={String(completedJobs)} />
-          <Metric label="处理中" value={String(inFlightJobs)} />
-        </div>
-        {activeFolder ? (
-          <UploadedImageLibrary
-            folderId={activeFolder.id}
-            folderName={activeFolder.name}
-            images={uploadedImages}
-            isLoading={isImageLibraryLoading}
-            onUseImage={useUploadedImage}
-            onDeleteImage={deleteUploadedImage}
-          />
-        ) : null}
-      </header>
+      {preferences.page.showMetrics || (preferences.page.showAssetLibrary && activeFolder) ? (
+        <header className="floating-top" data-layout-obstacle="top-panel">
+          {preferences.page.showMetrics ? (
+            <div className="metrics">
+              <Metric label="运行" value={`${queue.running}/${queue.maxConcurrent}`} />
+              <Metric label="等待" value={String(queue.pending)} />
+              <Metric label="完成" value={String(completedJobs)} />
+              <Metric label="处理中" value={String(inFlightJobs)} />
+            </div>
+          ) : null}
+          {preferences.page.showAssetLibrary && activeFolder ? (
+            <UploadedImageLibrary
+              folderId={activeFolder.id}
+              folderName={activeFolder.name}
+              images={uploadedImages}
+              isLoading={isImageLibraryLoading}
+              onUseImage={useUploadedImage}
+              onDeleteImage={deleteUploadedImage}
+            />
+          ) : null}
+        </header>
+      ) : null}
 
       <CanvasToolbar
         zoom={activeFolder?.canvasZoom ?? 1}
@@ -765,8 +808,15 @@ function App() {
         onOpenAnnouncement={() => setAnnouncementOpen(true)}
         unreadAnnouncementsCount={unreadAnnouncementsCount}
         onOpenApiSettings={() => setApiSettingsOpen(true)}
+        onOpenPersonalization={() => setPersonalizationOpen(true)}
         onOpenGuide={() => setOnboardingOpen(true)}
-        onToggleTheme={() => setDarkMode((value) => !value)}
+        onToggleTheme={() => updatePreferences((current) => ({
+          ...current,
+          appearance: {
+            ...current.appearance,
+            theme: current.appearance.theme === "dark" ? "light" : "dark"
+          }
+        }), false)}
         petEnabled={petEnabled}
         onTogglePet={togglePet}
         failedJobsCount={failedJobsCount}
@@ -787,7 +837,7 @@ function App() {
       <button
         type="button"
         className={`dock-toggle left ${leftOpen ? "open" : ""}`}
-        onClick={() => setLeftOpen((value) => !value)}
+        onClick={toggleSidebar}
         title={leftOpen ? "隐藏左侧面板" : "显示左侧面板"}
       >
         {leftOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
@@ -812,13 +862,24 @@ function App() {
           variant="composer"
           notice={notice}
           isSubmitting={isSubmitting}
+          collapsed={preferences.page.composerCollapsed}
+          onCollapsedChange={(composerCollapsed) => updatePreferences((current) => ({
+            ...current,
+            page: { ...current.page, composerCollapsed }
+          }))}
           usedImage={imageToUse}
           onSubmit={submitJobs}
           onUploadImage={uploadImage}
           onImageUsed={() => setImageToUse(null)}
         />
       ) : (
-        <div className="bottom-composer-empty panel-empty" data-tour="composer">先创建文件夹，再开始绘图任务。</div>
+        <div
+          className="bottom-composer-empty panel-empty"
+          data-tour="composer"
+          data-layout-obstacle="composer"
+        >
+          先创建文件夹，再开始绘图任务。
+        </div>
       )}
 
       {loadedModalsRef.current.apiSettings ? (
@@ -875,6 +936,19 @@ function App() {
             open={announcementOpen}
             onOpenChange={setAnnouncementOpen}
             onAcknowledge={() => setUnreadAnnouncementsCount(getUnreadReleasesCount())}
+          />
+        </Suspense>
+      ) : null}
+
+      {loadedModalsRef.current.personalization ? (
+        <Suspense fallback={null}>
+          <PersonalizationDialog
+            open={personalizationOpen}
+            preferences={preferences}
+            onOpenChange={setPersonalizationOpen}
+            onChange={updatePreferences}
+            onApplyPreset={applyUiPreferencesPreset}
+            onResetLayout={resetUiPreferencesLayout}
           />
         </Suspense>
       ) : null}

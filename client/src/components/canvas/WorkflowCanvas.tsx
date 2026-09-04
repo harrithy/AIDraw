@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type PointerEventHandler } from "react";
 import { type PositionedJob } from "../../lib/canvas";
+import type { CardLayoutPreferences } from "../../lib/uiPreferences";
 import type { DrawFolder, DrawJob } from "../../types";
 import { EmptyCanvas } from "./EmptyCanvas";
 import { JobCard } from "./JobCard";
@@ -48,6 +49,7 @@ type WorkflowCanvasProps = {
   onDeleteJob?: (jobId: string) => void;
   onUploadLatestMedia?: (jobId: string) => Promise<void>;
   onUseImage?: (url: string) => void;
+  cardPreferences: CardLayoutPreferences;
 };
 
 export function WorkflowCanvas({
@@ -69,7 +71,8 @@ export function WorkflowCanvas({
   onEditRetryJob,
   onDeleteJob,
   onUploadLatestMedia,
-  onUseImage
+  onUseImage,
+  cardPreferences
 }: WorkflowCanvasProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   /** 用 ref 存最新的 wheel handler，避免 useEffect 重复绑定/解绑事件 */
@@ -134,6 +137,7 @@ export function WorkflowCanvas({
                 onDelete={onDeleteJob}
                 onUploadLatestMedia={onUploadLatestMedia}
                 onUseImage={onUseImage}
+                cardPreferences={cardPreferences}
               />
             ))}
           </div>

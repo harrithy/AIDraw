@@ -46,7 +46,10 @@ export function LeftSidebar({
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [deleteFolderId, setDeleteFolderId] = useState<string | null>(null);
   return (
-    <aside className={`floating-panel left-panel ${isOpen ? "open" : "closed"}`}>
+    <aside
+      className={`floating-panel left-panel ${isOpen ? "open" : "closed"}`}
+      data-layout-obstacle={isOpen ? "sidebar" : undefined}
+    >
       <div className="brand">
         <div className="brand-mark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <img src="/logo.png" alt="AIDraw Logo" style={{ width: '100%', height: '100%', borderRadius: '8px', objectFit: 'cover' }} />

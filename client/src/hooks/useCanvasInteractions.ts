@@ -154,7 +154,8 @@ export function useCanvasInteractions({
 
   /**
    * 把指定任务卡片移动到画布的主要可视区域中央。
-   * 会避开已展开的左侧栏、顶部工具栏和底部创作框，并保留当前缩放比例。
+   * 会读取所有可见布局面板的实际边界，避开侧栏、顶部区域和创作框，
+   * 同时保留当前缩放比例与任务坐标。
    */
   const focusCanvasOnJob = useCallback(
     (positionedJob: PositionedJob) => {
@@ -163,19 +164,35 @@ export function useCanvasInteractions({
       if (!stage) return;
 
       const stageRect = stage.getBoundingClientRect();
-      const leftPanel = document.querySelector<HTMLElement>(".left-panel:not(.closed)");
-      const toolbar = document.querySelector<HTMLElement>(".floating-toolbar");
-      const composer = document.querySelector<HTMLElement>(".composer-panel, .bottom-composer-empty");
+      let visibleLeft = 0;
+      let visibleTop = 0;
+      let visibleBottom = stageRect.height;
 
-      const visibleLeft = leftPanel
-        ? Math.min(stageRect.width, Math.max(0, leftPanel.getBoundingClientRect().right - stageRect.left + 12))
-        : 0;
-      const visibleTop = toolbar
-        ? Math.min(stageRect.height, Math.max(0, toolbar.getBoundingClientRect().bottom - stageRect.top + 12))
-        : 0;
-      const visibleBottom = composer
-        ? Math.max(visibleTop, Math.min(stageRect.height, composer.getBoundingClientRect().top - stageRect.top - 12))
-        : stageRect.height;
+      document.querySelectorAll<HTMLElement>("[data-layout-obstacle]").forEach((element) => {
+        const styles = window.getComputedStyle(element);
+        if (styles.display === "none" || styles.visibility === "hidden") return;
+
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        const obstacleType = element.dataset.layoutObstacle;
+        if (obstacleType === "sidebar") {
+          visibleLeft = Math.max(
+            visibleLeft,
+            Math.min(stageRect.width, Math.max(0, rect.right - stageRect.left + 12))
+          );
+        } else if (obstacleType === "toolbar" || obstacleType === "top-panel") {
+          visibleTop = Math.max(
+            visibleTop,
+            Math.min(stageRect.height, Math.max(0, rect.bottom - stageRect.top + 12))
+          );
+        } else if (obstacleType === "composer") {
+          visibleBottom = Math.min(
+            visibleBottom,
+            Math.max(visibleTop, Math.min(stageRect.height, rect.top - stageRect.top - 12))
+          );
+        }
+      });
       const viewportCenter = {
         x: visibleLeft + (stageRect.width - visibleLeft) / 2,
         y: visibleTop + (visibleBottom - visibleTop) / 2
@@ -186,12 +203,38 @@ export function useCanvasInteractions({
 
       // 优先按当前 DOM 尺寸定位，确保展开后的 V1/V2/V3 整组版本也能完整居中。
       if (cardElement) {
-        const cardRect = cardElement.getBoundingClientRect();
+        const visualElements = [
+          cardElement,
+          ...cardElement.querySelectorAll<HTMLElement>(
+            ".job-card-header, .job-actions, .job-reference-strip, .job-version-toggle"
+          )
+        ];
+        const visualRects = visualElements
+          .map((element) => element.getBoundingClientRect())
+          .filter((rect) => rect.width > 0 && rect.height > 0);
+        const visualBounds = visualRects.reduce(
+          (bounds, rect) => ({
+            left: Math.min(bounds.left, rect.left),
+            right: Math.max(bounds.right, rect.right),
+            top: Math.min(bounds.top, rect.top),
+            bottom: Math.max(bounds.bottom, rect.bottom)
+          }),
+          {
+            left: Number.POSITIVE_INFINITY,
+            right: Number.NEGATIVE_INFINITY,
+            top: Number.POSITIVE_INFINITY,
+            bottom: Number.NEGATIVE_INFINITY
+          }
+        );
+        const visualCenter = {
+          x: (visualBounds.left + visualBounds.right) / 2,
+          y: (visualBounds.top + visualBounds.bottom) / 2
+        };
         updateCanvas({
           canvasPanX:
-            activeFolder.canvasPanX + stageRect.left + viewportCenter.x - (cardRect.left + cardRect.width / 2),
+            activeFolder.canvasPanX + stageRect.left + viewportCenter.x - visualCenter.x,
           canvasPanY:
-            activeFolder.canvasPanY + stageRect.top + viewportCenter.y - (cardRect.top + cardRect.height / 2)
+            activeFolder.canvasPanY + stageRect.top + viewportCenter.y - visualCenter.y
         });
         return;
       }

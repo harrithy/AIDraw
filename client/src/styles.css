@@ -6260,6 +6260,737 @@ button.search-clear-btn:hover {
   box-shadow: 0 2px 6px color-mix(in srgb, var(--green) 20%, transparent);
 }
 
+/* 个性化布局：桌面端由 CSS 变量和根节点状态统一驱动。 */
+.app-shell .left-panel {
+  width: var(--ui-sidebar-width, 292px);
+}
+
+.app-shell .dock-toggle.left.open {
+  left: var(--ui-sidebar-width, 292px);
+}
+
+.app-shell .floating-top {
+  left: calc(var(--ui-sidebar-width, 292px) + 24px);
+}
+
+.app-shell.sidebar-closed .floating-top {
+  left: 24px;
+}
+
+.app-shell .floating-toolbar {
+  right: auto;
+  left: calc(var(--ui-sidebar-width, 292px) + 24px);
+  transform: none;
+}
+
+.app-shell.sidebar-closed .floating-toolbar {
+  left: 24px;
+}
+
+.app-shell.ui-toolbar-top-center .floating-toolbar {
+  right: auto;
+  left: calc((100vw + var(--ui-sidebar-width, 292px)) / 2);
+  transform: translateX(-50%);
+}
+
+.app-shell.sidebar-closed.ui-toolbar-top-center .floating-toolbar {
+  left: 50%;
+}
+
+.app-shell.ui-toolbar-top-right .floating-toolbar {
+  right: 24px;
+  left: auto;
+  transform: none;
+}
+
+.app-shell.ui-toolbar-top-center .floating-top,
+.app-shell.ui-toolbar-top-right .floating-top {
+  top: 72px;
+}
+
+.app-shell .composer-panel {
+  width: min(var(--ui-composer-width, 760px), calc(100vw - 36px));
+}
+
+.app-shell.ui-composer-bottom-left .composer-panel,
+.app-shell.ui-composer-bottom-left .bottom-composer-empty {
+  right: auto;
+  left: calc(var(--ui-sidebar-width, 292px) + 24px);
+  transform: none;
+}
+
+.app-shell.sidebar-closed.ui-composer-bottom-left .composer-panel,
+.app-shell.sidebar-closed.ui-composer-bottom-left .bottom-composer-empty {
+  left: 24px;
+}
+
+.app-shell.ui-composer-bottom-right .composer-panel,
+.app-shell.ui-composer-bottom-right .bottom-composer-empty {
+  right: 24px;
+  left: auto;
+  transform: none;
+}
+
+/* 图片盒子的历史、工具和附件各占一条外侧轨道，避免同侧遮挡。 */
+.job-card.toolbar-side-left .job-actions {
+  right: auto;
+  left: -56px;
+}
+
+.job-card.toolbar-side-right .job-actions {
+  right: -56px;
+  left: auto;
+}
+
+.job-card.toolbar-side-left .job-retry-menu {
+  right: calc(100% + 12px) !important;
+  left: auto !important;
+}
+
+.job-card.attachment-side-left .job-reference-strip,
+.job-card.attachment-side-right .job-reference-strip {
+  top: 54px;
+  width: calc(var(--job-reference-thumb-size, 58px) + 12px);
+  max-height: min(
+    calc(var(--job-card-height, 356px) - 16px),
+    var(--job-reference-max-size, 70px)
+  );
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.job-card.attachment-side-left .job-reference-strip {
+  right: auto;
+  left: calc(-1 * (var(--job-reference-thumb-size, 58px) + 70px));
+}
+
+.job-card.attachment-side-right .job-reference-strip {
+  right: calc(-1 * (var(--job-reference-thumb-size, 58px) + 70px));
+  left: auto;
+}
+
+.job-card.attachment-side-bottom .job-reference-strip {
+  top: calc(100% + 12px);
+  right: auto;
+  left: 0;
+  display: flex;
+  width: min(var(--job-card-base-width, 316px), var(--job-reference-max-size, 70px));
+  max-width: var(--job-card-base-width, 316px);
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.job-reference-thumb,
+.job-reference-count {
+  flex: 0 0 var(--job-reference-thumb-size, 58px);
+  width: var(--job-reference-thumb-size, 58px);
+  height: var(--job-reference-thumb-size, 58px);
+}
+
+.job-reference-count {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0;
+  background: color-mix(in srgb, var(--panel-strong) 92%, var(--green) 8%);
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.job-reference-count:hover,
+.job-reference-count:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--hover);
+}
+
+.job-reference-count.is-collapse {
+  font-size: 10px;
+}
+
+.job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-strip {
+  overflow: visible;
+}
+
+.job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-thumb,
+.job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-count {
+  margin-top: calc(var(--job-reference-thumb-size, 58px) * -0.42);
+}
+
+.job-card.attachment-side-bottom.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-thumb,
+.job-card.attachment-side-bottom.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-count {
+  margin-top: 0;
+  margin-left: calc(var(--job-reference-thumb-size, 58px) * -0.42);
+}
+
+.job-card.attachments-expanded .job-reference-strip {
+  display: grid;
+  width: calc(var(--job-reference-thumb-size, 58px) + 12px);
+  max-height: calc(var(--job-card-height, 356px) - 16px);
+  overflow-y: auto;
+}
+
+.job-card.attachment-side-bottom.attachments-expanded .job-reference-strip {
+  display: flex;
+  width: var(--job-card-base-width, 316px);
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 个性化设置弹窗 */
+.personalization-dialog {
+  display: grid;
+  width: min(900px, calc(100vw - 32px));
+  max-width: 900px;
+  max-height: min(760px, calc(100dvh - 32px));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0;
+  background: var(--panel-strong);
+  color: var(--ink);
+  box-shadow: 0 28px 80px rgba(16, 21, 19, 0.2);
+}
+
+.personalization-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr);
+  align-items: end;
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
+  padding: 22px 56px 18px 24px;
+}
+
+.personalization-header [data-slot="dialog-title"] {
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 26px;
+}
+
+.personalization-header [data-slot="dialog-description"] {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.personalization-layout {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: 190px minmax(0, 1fr);
+}
+
+.personalization-nav {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 5px;
+  border-right: 1px solid var(--line);
+  padding: 16px 12px;
+  background: var(--subtle);
+}
+
+.personalization-nav button {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 11px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  text-align: left;
+}
+
+.personalization-nav button:hover,
+.personalization-nav button.active {
+  border-color: var(--line);
+  background: var(--panel-strong);
+  color: var(--ink);
+}
+
+.personalization-nav button.active svg {
+  color: var(--green-dark);
+}
+
+.personalization-nav .personalization-reset-button {
+  margin-top: auto;
+  color: var(--red);
+}
+
+.personalization-content {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 22px 24px 28px;
+}
+
+.personalization-section-heading,
+.personalization-action-editor-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.personalization-section-heading {
+  margin-bottom: 18px;
+}
+
+.personalization-section-heading h3 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.personalization-section-heading span,
+.personalization-setting-copy small,
+.personalization-action-editor-heading small,
+.personalization-preset-grid small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.personalization-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.personalization-preset-grid > button {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  text-align: left;
+}
+
+.personalization-preset-grid > button:hover,
+.personalization-preset-grid > button.active {
+  border-color: color-mix(in srgb, var(--green) 55%, var(--line));
+  box-shadow: 0 10px 24px rgba(16, 21, 19, 0.08);
+}
+
+.personalization-preset-grid strong {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.personalization-preset-preview {
+  position: relative;
+  display: block;
+  height: 82px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--subtle);
+}
+
+.personalization-preset-preview i,
+.personalization-preset-preview b,
+.personalization-preset-preview em {
+  position: absolute;
+  display: block;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--green) 22%, var(--panel-strong));
+}
+
+.personalization-preset-preview i {
+  inset: 5px auto 5px 5px;
+  width: 25%;
+}
+
+.personalization-preset-preview b {
+  right: 8px;
+  bottom: 6px;
+  left: 32%;
+  height: 14px;
+}
+
+.personalization-preset-preview em {
+  top: 6px;
+  right: 8px;
+  width: 34%;
+  height: 12px;
+}
+
+.personalization-preset-preview[data-preset="focus"] i,
+.personalization-preset-preview[data-preset="focus"] em {
+  opacity: 0.18;
+}
+
+.personalization-preset-preview[data-preset="focus"] b {
+  right: 22%;
+  left: 22%;
+}
+
+.personalization-preset-preview[data-preset="compact"] i {
+  width: 20%;
+}
+
+.personalization-preset-preview[data-preset="compact"] b {
+  right: 6px;
+  left: auto;
+  width: 48%;
+}
+
+.personalization-setting-list {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line);
+}
+
+.personalization-setting-row {
+  display: grid;
+  min-height: 62px;
+  grid-template-columns: minmax(170px, 1fr) minmax(250px, 1.4fr);
+  align-items: center;
+  gap: 18px;
+  padding: 11px 14px;
+  background: var(--panel);
+}
+
+.personalization-setting-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.personalization-setting-control {
+  display: flex;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.personalization-setting-control input[type="range"] {
+  width: min(260px, 100%);
+  accent-color: var(--green);
+}
+
+.personalization-setting-control select {
+  min-width: 128px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
+.personalization-choice-group {
+  display: inline-flex;
+  max-width: 100%;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  background: var(--subtle);
+}
+
+.personalization-choice-group button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.personalization-choice-group button:hover,
+.personalization-choice-group button.active {
+  background: var(--panel-strong);
+  color: var(--ink);
+  box-shadow: 0 2px 6px rgba(16, 21, 19, 0.08);
+}
+
+.personalization-action-editor {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  background: var(--panel);
+}
+
+.personalization-action-editor-heading {
+  margin-bottom: 4px;
+}
+
+.personalization-action-row {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 7px 5px 9px;
+  background: var(--panel-strong);
+  cursor: grab;
+}
+
+.personalization-action-row.dragging {
+  opacity: 0.55;
+}
+
+.personalization-action-row > svg {
+  color: var(--muted);
+}
+
+.personalization-action-row > button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.personalization-action-row > button:not(:disabled):hover {
+  border-color: var(--line);
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.personalization-save-status {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  padding: 0 24px;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (min-width: 1121px) and (max-width: 1500px) {
+  /* 工具按钮较多时把右侧信息区下移一行，避免两块悬浮面板相互覆盖。 */
+  .app-shell.ui-toolbar-top-left .floating-top {
+    top: 72px;
+  }
+}
+
+@media (max-width: 1120px) {
+  /* 中等宽度沿用原有安全停靠点，保留显隐和折叠偏好。 */
+  .app-shell .floating-top,
+  .app-shell.ui-toolbar-top-center .floating-top,
+  .app-shell.ui-toolbar-top-right .floating-top {
+    top: 70px;
+    right: 12px;
+    left: calc(min(var(--ui-sidebar-width, 292px), calc(100vw - 64px)) + 24px);
+  }
+
+  .app-shell.sidebar-closed .floating-top,
+  .app-shell.sidebar-closed.ui-toolbar-top-center .floating-top,
+  .app-shell.sidebar-closed.ui-toolbar-top-right .floating-top {
+    left: 64px;
+  }
+
+  .app-shell .floating-toolbar,
+  .app-shell.ui-toolbar-top-center .floating-toolbar,
+  .app-shell.ui-toolbar-top-right .floating-toolbar {
+    top: 12px;
+    right: 12px;
+    left: calc(min(var(--ui-sidebar-width, 292px), calc(100vw - 64px)) + 24px);
+    width: auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+    transform: none;
+  }
+
+  .app-shell .floating-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-shell.sidebar-closed .floating-toolbar,
+  .app-shell.sidebar-closed.ui-toolbar-top-center .floating-toolbar,
+  .app-shell.sidebar-closed.ui-toolbar-top-right .floating-toolbar {
+    right: 12px;
+    left: 64px;
+  }
+
+  .app-shell .left-panel {
+    width: min(var(--ui-sidebar-width, 292px), calc(100vw - 64px));
+  }
+
+  .app-shell .dock-toggle.left.open {
+    left: min(var(--ui-sidebar-width, 292px), calc(100vw - 52px));
+  }
+
+  .app-shell .composer-panel,
+  .app-shell.ui-composer-bottom-left .composer-panel,
+  .app-shell.ui-composer-bottom-right .composer-panel,
+  .app-shell .bottom-composer-empty,
+  .app-shell.ui-composer-bottom-left .bottom-composer-empty,
+  .app-shell.ui-composer-bottom-right .bottom-composer-empty {
+    right: auto;
+    left: calc((100vw + min(var(--ui-sidebar-width, 292px), calc(100vw - 64px))) / 2);
+    width: min(
+      var(--ui-composer-width, 760px),
+      calc(100vw - min(var(--ui-sidebar-width, 292px), calc(100vw - 64px)) - 36px)
+    );
+    transform: translateX(-50%);
+  }
+
+  .app-shell.sidebar-closed .composer-panel,
+  .app-shell.sidebar-closed.ui-composer-bottom-left .composer-panel,
+  .app-shell.sidebar-closed.ui-composer-bottom-right .composer-panel,
+  .app-shell.sidebar-closed .bottom-composer-empty,
+  .app-shell.sidebar-closed.ui-composer-bottom-left .bottom-composer-empty,
+  .app-shell.sidebar-closed.ui-composer-bottom-right .bottom-composer-empty {
+    left: 50%;
+    width: min(var(--ui-composer-width, 760px), calc(100vw - 36px));
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell .floating-toolbar,
+  .app-shell.sidebar-closed .floating-toolbar,
+  .app-shell.ui-toolbar-top-center .floating-toolbar,
+  .app-shell.sidebar-closed.ui-toolbar-top-center .floating-toolbar,
+  .app-shell.ui-toolbar-top-right .floating-toolbar {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    overflow-x: auto;
+    transform: none;
+  }
+
+  .app-shell .floating-top,
+  .app-shell.sidebar-closed .floating-top,
+  .app-shell.ui-toolbar-top-center .floating-top,
+  .app-shell.ui-toolbar-top-right .floating-top {
+    top: 70px;
+    right: 10px;
+    left: 10px;
+  }
+
+  .app-shell .composer-panel,
+  .app-shell.ui-composer-bottom-left .composer-panel,
+  .app-shell.ui-composer-bottom-right .composer-panel,
+  .app-shell .bottom-composer-empty,
+  .app-shell.ui-composer-bottom-left .bottom-composer-empty,
+  .app-shell.ui-composer-bottom-right .bottom-composer-empty {
+    right: auto !important;
+    bottom: 10px;
+    left: 10px !important;
+    width: calc(100vw - 20px) !important;
+    transform: none !important;
+  }
+
+  /* 窄屏强制使用底部附件与右侧点击展开，桌面偏好本身不被改写。 */
+  .job-card .job-actions,
+  .job-card.toolbar-side-left .job-actions,
+  .job-card.toolbar-side-right .job-actions {
+    right: -56px;
+    left: auto;
+  }
+
+  .job-card.toolbar-side-left .job-retry-menu {
+    right: auto !important;
+    left: calc(100% + 12px) !important;
+  }
+
+  .job-card .job-reference-strip,
+  .job-card.attachment-side-left .job-reference-strip,
+  .job-card.attachment-side-right .job-reference-strip,
+  .job-card.attachment-side-bottom .job-reference-strip,
+  .job-card.attachments-expanded .job-reference-strip {
+    top: calc(100% + 12px);
+    right: auto;
+    left: 0;
+    display: flex;
+    width: var(--job-card-base-width, 316px);
+    max-width: var(--job-card-base-width, 316px);
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-thumb,
+  .job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-count {
+    margin-top: 0;
+    margin-left: calc(var(--job-reference-thumb-size, 58px) * -0.42);
+  }
+
+  .job-card.toolbar-behavior-always:not(.tools-manually-open) .job-actions > :not(.job-tools-toggle) {
+    display: none;
+  }
+
+  .personalization-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .personalization-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+    padding: 16px 48px 14px 16px;
+  }
+
+  .personalization-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .personalization-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 8px;
+  }
+
+  .personalization-nav button {
+    flex: 0 0 auto;
+  }
+
+  .personalization-nav .personalization-reset-button {
+    margin-top: 0;
+    margin-left: auto;
+  }
+
+  .personalization-content {
+    padding: 16px;
+  }
+
+  .personalization-preset-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .personalization-setting-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .personalization-setting-control {
+    justify-content: flex-start;
+  }
+
+  .personalization-choice-group {
+    overflow-x: auto;
+  }
+}
+
 
 
 

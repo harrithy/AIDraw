@@ -103,6 +103,10 @@ type CreateJobPanelProps = {
   isSubmitting: boolean;
   notice?: string;
   variant?: "panel" | "composer";
+  /** 创作框折叠状态；传入后由父组件统一持久化。 */
+  collapsed?: boolean;
+  /** 创作框折叠状态变化回调。 */
+  onCollapsedChange?: (collapsed: boolean) => void;
   usedImage?: string | null;
   onSubmit: (payload: CreateJobPayload) => Promise<void>;
   onUploadImage: (file: File) => Promise<UploadResult>;
@@ -291,6 +295,8 @@ export function CreateJobPanel({
   isSubmitting,
   notice,
   variant = "panel",
+  collapsed,
+  onCollapsedChange,
   usedImage,
   onSubmit,
   onUploadImage,
@@ -315,7 +321,12 @@ export function CreateJobPanel({
   const [previewImage, setPreviewImage] = useState<UploadResult | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = collapsed ?? internalCollapsed;
+  const setCollapsed = (nextCollapsed: boolean) => {
+    if (collapsed === undefined) setInternalCollapsed(nextCollapsed);
+    onCollapsedChange?.(nextCollapsed);
+  };
   const [isDocOpen, setIsDocOpen] = useState(false);
   const hasOpenedDocRef = useRef(false);
   if (isDocOpen) hasOpenedDocRef.current = true;
@@ -1002,10 +1013,11 @@ export function CreateJobPanel({
   if (variant === "composer") {
     if (isCollapsed) {
       return (
-        <div 
-          className="create-panel composer-panel composer-collapsed cursor-pointer flex items-center justify-between" 
-          onClick={() => setIsCollapsed(false)}
+        <div
+          className="create-panel composer-panel composer-collapsed cursor-pointer flex items-center justify-between"
+          onClick={() => setCollapsed(false)}
           title="展开创作面板"
+          data-layout-obstacle="composer"
         >
           <div className="flex items-center gap-2 font-bold text-muted-foreground hover:text-foreground transition-colors">
             <PenLine size={16} />
@@ -1020,6 +1032,7 @@ export function CreateJobPanel({
         <form
           ref={panelRef}
           className="create-panel composer-panel"
+          data-layout-obstacle="composer"
           onSubmit={submit}
           onDragEnter={dragImages}
           onDragOver={holdDraggedImages}
@@ -1111,12 +1124,12 @@ export function CreateJobPanel({
               </div>
             )}
 
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="icon-sm" 
-              className="ml-auto flex-shrink-0" 
-              onClick={() => setIsCollapsed(true)} 
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="ml-auto flex-shrink-0"
+              onClick={() => setCollapsed(true)}
               title="收起面板"
             >
               <ChevronDown size={18} />
