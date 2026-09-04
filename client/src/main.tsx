@@ -8,6 +8,7 @@ import gsap from "gsap";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import "./styles.css";
 
 // 注册 GSAP React hook 插件，使 useGSAP 可在组件中使用
@@ -17,6 +18,8 @@ const root = createRoot(document.getElementById("root")!);
 
 root.render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>
 );
