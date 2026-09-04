@@ -51,8 +51,8 @@ const RegenerateEditDialog = lazy(() =>
 const ReleaseNotesDialog = lazy(() =>
   import("./components/modals/ReleaseNotesDialog").then((module) => ({ default: module.ReleaseNotesDialog }))
 );
-const PersonalizationDialog = lazy(() =>
-  import("./components/modals/PersonalizationDialog").then((module) => ({ default: module.PersonalizationDialog }))
+const PersonalizationDrawer = lazy(() =>
+  import("./components/panels/PersonalizationDrawer").then((module) => ({ default: module.PersonalizationDrawer }))
 );
 
 const emptyQueue: QueueStats = {
@@ -115,7 +115,10 @@ function App() {
     preferences,
     updatePreferences,
     applyPreset: applyUiPreferencesPreset,
-    resetLayout: resetUiPreferencesLayout
+    resetLayout: resetUiPreferencesLayout,
+    beginPreview,
+    commitPreview,
+    cancelPreview
   } = useUiPreferences(reportPreferenceSaveError);
   const darkMode = preferences.appearance.theme === "dark";
   const petEnabled = preferences.appearance.petEnabled;
@@ -154,6 +157,24 @@ function App() {
       }
     }), false);
   }, [updatePreferences]);
+  // 个性化设置弹窗的预览会话：打开时进入预览，应用时提交保存，取消/关闭时回退。
+  const handlePersonalizationOpenChange = useCallback((open: boolean) => {
+    if (open) beginPreview();
+    else cancelPreview();
+    setPersonalizationOpen(open);
+  }, [beginPreview, cancelPreview]);
+  const openPersonalization = useCallback(() => {
+    beginPreview();
+    setPersonalizationOpen(true);
+  }, [beginPreview]);
+  const commitPersonalization = useCallback(() => {
+    commitPreview();
+    setPersonalizationOpen(false);
+  }, [commitPreview]);
+  const cancelPersonalization = useCallback(() => {
+    cancelPreview();
+    setPersonalizationOpen(false);
+  }, [cancelPreview]);
   const [editingRetryJob, setEditingRetryJob] = useState<DrawJob | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -808,7 +829,7 @@ function App() {
         onOpenAnnouncement={() => setAnnouncementOpen(true)}
         unreadAnnouncementsCount={unreadAnnouncementsCount}
         onOpenApiSettings={() => setApiSettingsOpen(true)}
-        onOpenPersonalization={() => setPersonalizationOpen(true)}
+        onOpenPersonalization={openPersonalization}
         onOpenGuide={() => setOnboardingOpen(true)}
         onToggleTheme={() => updatePreferences((current) => ({
           ...current,
@@ -942,13 +963,15 @@ function App() {
 
       {loadedModalsRef.current.personalization ? (
         <Suspense fallback={null}>
-          <PersonalizationDialog
+          <PersonalizationDrawer
             open={personalizationOpen}
             preferences={preferences}
-            onOpenChange={setPersonalizationOpen}
-            onChange={updatePreferences}
-            onApplyPreset={applyUiPreferencesPreset}
-            onResetLayout={resetUiPreferencesLayout}
+            onOpenChange={handlePersonalizationOpenChange}
+            onPreview={updatePreferences}
+            onPreviewPreset={applyUiPreferencesPreset}
+            onPreviewReset={resetUiPreferencesLayout}
+            onCommit={commitPersonalization}
+            onCancel={cancelPersonalization}
           />
         </Suspense>
       ) : null}

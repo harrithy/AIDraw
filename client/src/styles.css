@@ -2816,7 +2816,7 @@ button:disabled {
   border: 0;
   background: transparent;
   transform: translateX(-50%);
-  animation: composer-pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: composer-pop-in-center 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   gap: 8px;
   box-shadow: none;
 }
@@ -3049,6 +3049,17 @@ button:disabled {
 @keyframes composer-pop-in {
   0% {
     opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes composer-pop-in-center {
+  0% {
+    opacity: 0;
     transform: translateX(-50%) translateY(16px) scale(0.98);
   }
   100% {
@@ -3082,6 +3093,11 @@ button:disabled {
   background: var(--subtle) !important;
   border-color: var(--line-strong) !important;
   transform: translateX(-50%) translateY(-2px);
+}
+
+.app-shell.ui-composer-bottom-left .composer-collapsed:hover,
+.app-shell.ui-composer-bottom-right .composer-collapsed:hover {
+  transform: translateY(-2px);
 }
 
 .create-panel label,
@@ -6319,6 +6335,10 @@ button.search-clear-btn:hover {
   transform: none;
 }
 
+.app-shell.ui-composer-bottom-left .composer-panel {
+  animation-name: composer-pop-in;
+}
+
 .app-shell.sidebar-closed.ui-composer-bottom-left .composer-panel,
 .app-shell.sidebar-closed.ui-composer-bottom-left .bottom-composer-empty {
   left: 24px;
@@ -6329,6 +6349,10 @@ button.search-clear-btn:hover {
   right: 24px;
   left: auto;
   transform: none;
+}
+
+.app-shell.ui-composer-bottom-right .composer-panel {
+  animation-name: composer-pop-in;
 }
 
 /* 图片盒子的历史、工具和附件各占一条外侧轨道，避免同侧遮挡。 */
@@ -6442,343 +6466,1235 @@ button.search-clear-btn:hover {
 }
 
 /* 个性化设置弹窗 */
-.personalization-dialog {
-  display: grid;
-  width: min(900px, calc(100vw - 32px));
-  max-width: 900px;
-  max-height: min(760px, calc(100dvh - 32px));
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0;
-  background: var(--panel-strong);
-  color: var(--ink);
-  box-shadow: 0 28px 80px rgba(16, 21, 19, 0.2);
+.drawer {
+  position: fixed;
+  inset-block: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  animation: drawer-slide-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.personalization-drawer {
+  width: min(500px, calc(100vw - 52px));
+  overflow: visible;
+  border-left: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--panel-strong) 92%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  color: var(--ink);
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.18);
+  transition: width 340ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 340ms ease;
+  will-change: width;
+}
+
+/* 抽屉左侧中间外侧的收起/展开按钮（现代化艺术化 dock-toggle 悬浮把手） */
+.personalization-dock-toggle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translate(-100%, -50%);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 4px 16px rgba(16, 21, 19, 0.08), 0 1px 3px rgba(16, 21, 19, 0.04);
+  cursor: pointer;
+  z-index: 30;
+  pointer-events: auto;
+  transition:
+    transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 240ms ease;
+}
+
+/* 悬停磁吸外探微动效 */
+.personalization-dock-toggle:hover {
+  border-color: color-mix(in srgb, var(--green) 40%, var(--line));
+  background: var(--hover);
+  transform: translate(-100%, -50%) translateX(-3px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(16, 21, 19, 0.12), 0 0 14px color-mix(in srgb, var(--green) 20%, transparent);
+}
+
+.personalization-dock-toggle:active {
+  transform: translate(-100%, -50%) scale(0.94);
+}
+
+/* 把手图标平滑 180° 旋转弹簧动效 */
+.personalization-dock-toggle-icon {
+  display: grid;
+  place-items: center;
+  transition: transform 340ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.personalization-dock-toggle.collapsed .personalization-dock-toggle-icon {
+  transform: rotate(180deg);
+}
+
+/* 收起态：抽屉完全收回至右侧边缘，仅留外挂把手悬浮于屏缘 */
+.personalization-drawer.collapsed {
+  width: 0;
+  border-left-color: transparent;
+  box-shadow: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  pointer-events: none;
+}
+
+.personalization-drawer.collapsed .personalization-header,
+.personalization-drawer.collapsed .personalization-nav,
+.personalization-drawer.collapsed .personalization-content,
+.personalization-drawer.collapsed .personalization-footer {
+  display: none;
+}
+
+/* 抽屉头部 */
 .personalization-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr);
-  align-items: end;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 14px;
   border-bottom: 1px solid var(--line);
-  padding: 22px 56px 18px 24px;
+  padding: 18px 20px 16px;
+  background: color-mix(in srgb, var(--panel-strong) 60%, transparent);
+}
+
+.personalization-header-copy {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.personalization-eyebrow-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.personalization-icon-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--green) 12%, var(--panel-strong));
+  color: var(--green-dark);
+  border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
+  transition: transform 200ms ease;
+}
+
+.personalization-icon-pill:hover {
+  transform: rotate(15deg) scale(1.08);
+}
+
+/* 实时预览徽章与雷达光波扩散动效 */
+.personalization-preview-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--green) 35%, var(--line));
+  border-radius: 999px;
+  padding: 2px 10px 2px 8px;
+  background: color-mix(in srgb, var(--green) 10%, var(--panel-strong));
+  color: var(--green-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+.personalization-preview-pulse {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--green);
+}
+
+.personalization-preview-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  border: 1.5px solid var(--green);
+  animation: radar-ripple 2.2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+@keyframes radar-ripple {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+.personalization-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .personalization-header [data-slot="dialog-title"] {
-  margin-top: 4px;
+  margin: 0;
   color: var(--ink);
-  font-size: 26px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .personalization-header [data-slot="dialog-description"] {
   color: var(--muted);
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
 }
 
-.personalization-layout {
-  display: grid;
-  min-height: 0;
-  grid-template-columns: 190px minmax(0, 1fr);
-}
-
-.personalization-nav {
+.personalization-header-actions {
   display: flex;
-  min-height: 0;
-  flex-direction: column;
-  gap: 5px;
-  border-right: 1px solid var(--line);
-  padding: 16px 12px;
-  background: var(--subtle);
-}
-
-.personalization-nav button {
-  display: flex;
-  min-height: 40px;
   align-items: center;
-  gap: 9px;
-  border: 1px solid transparent;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.personalization-action-btn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 0 11px;
-  background: transparent;
+  padding: 0;
+  background: var(--panel);
   color: var(--muted);
-  font-weight: 700;
-  text-align: left;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.personalization-nav button:hover,
-.personalization-nav button.active {
-  border-color: var(--line);
-  background: var(--panel-strong);
+.personalization-action-btn:hover {
+  border-color: var(--line-strong);
+  background: var(--hover);
   color: var(--ink);
+  transform: translateY(-1.5px) scale(1.05);
 }
 
-.personalization-nav button.active svg {
-  color: var(--green-dark);
+.personalization-action-btn:active {
+  transform: translateY(0) scale(0.94);
 }
 
-.personalization-nav .personalization-reset-button {
-  margin-top: auto;
+.personalization-action-btn.close:hover {
+  border-color: color-mix(in srgb, var(--red) 40%, var(--line));
+  background: color-mix(in srgb, var(--red) 10%, var(--panel));
   color: var(--red);
 }
 
-.personalization-content {
-  min-width: 0;
-  overflow-y: auto;
-  padding: 22px 24px 28px;
-}
-
-.personalization-section-heading,
-.personalization-action-editor-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.personalization-section-heading {
-  margin-bottom: 18px;
-}
-
-.personalization-section-heading h3 {
-  margin: 0;
-  font-size: 19px;
-}
-
-.personalization-section-heading span,
-.personalization-setting-copy small,
-.personalization-action-editor-heading small,
-.personalization-preset-grid small {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.personalization-preset-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.personalization-preset-grid > button {
-  display: grid;
-  min-width: 0;
-  gap: 9px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px;
-  background: var(--panel);
-  color: var(--ink);
-  text-align: left;
-}
-
-.personalization-preset-grid > button:hover,
-.personalization-preset-grid > button.active {
-  border-color: color-mix(in srgb, var(--green) 55%, var(--line));
-  box-shadow: 0 10px 24px rgba(16, 21, 19, 0.08);
-}
-
-.personalization-preset-grid strong {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.personalization-preset-preview {
-  position: relative;
-  display: block;
-  height: 82px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 7px;
+/* 分段药丸导航 */
+.personalization-nav {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
   background: var(--subtle);
 }
 
-.personalization-preset-preview i,
-.personalization-preset-preview b,
-.personalization-preset-preview em {
-  position: absolute;
-  display: block;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--green) 22%, var(--panel-strong));
-}
-
-.personalization-preset-preview i {
-  inset: 5px auto 5px 5px;
-  width: 25%;
-}
-
-.personalization-preset-preview b {
-  right: 8px;
-  bottom: 6px;
-  left: 32%;
-  height: 14px;
-}
-
-.personalization-preset-preview em {
-  top: 6px;
-  right: 8px;
-  width: 34%;
-  height: 12px;
-}
-
-.personalization-preset-preview[data-preset="focus"] i,
-.personalization-preset-preview[data-preset="focus"] em {
-  opacity: 0.18;
-}
-
-.personalization-preset-preview[data-preset="focus"] b {
-  right: 22%;
-  left: 22%;
-}
-
-.personalization-preset-preview[data-preset="compact"] i {
-  width: 20%;
-}
-
-.personalization-preset-preview[data-preset="compact"] b {
-  right: 6px;
-  left: auto;
-  width: 48%;
-}
-
-.personalization-setting-list {
+.personalization-nav-track {
   display: grid;
-  gap: 1px;
-  overflow: hidden;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--line);
-}
-
-.personalization-setting-row {
-  display: grid;
-  min-height: 62px;
-  grid-template-columns: minmax(170px, 1fr) minmax(250px, 1.4fr);
-  align-items: center;
-  gap: 18px;
-  padding: 11px 14px;
+  padding: 3px;
   background: var(--panel);
 }
 
-.personalization-setting-copy {
+.personalization-nav-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 180ms ease;
+  white-space: nowrap;
+}
+
+.personalization-nav-tab svg {
+  flex-shrink: 0;
+  transition: color 180ms ease, transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.personalization-nav-tab:hover {
+  color: var(--ink);
+  background: var(--hover);
+  transform: translateY(-1px);
+}
+
+.personalization-nav-tab.active {
+  background: var(--panel-strong);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08), 0 0 10px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+.personalization-nav-tab.active svg {
+  color: var(--green);
+  transform: scale(1.1);
+}
+
+/* 抽屉滚动内容区 */
+.personalization-content {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px 24px;
+}
+
+.personalization-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.personalization-section-intro {
+  margin-bottom: 14px;
+}
+
+.personalization-section-intro h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.personalization-section-intro p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* 预设卡片网格与动效 */
+.personalization-preset-grid {
   display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 440px) {
+  .personalization-preset-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.personalization-preset-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  text-align: left;
+  transition:
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms ease,
+    box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 200ms ease;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.personalization-preset-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at top left,
+    color-mix(in srgb, var(--green) 14%, transparent),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 280ms ease;
+  pointer-events: none;
+}
+
+.personalization-preset-card:hover::before {
+  opacity: 1;
+}
+
+.personalization-preset-card:hover {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--line));
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(16, 21, 19, 0.08), 0 0 16px color-mix(in srgb, var(--green) 16%, transparent);
+}
+
+.personalization-preset-card:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.personalization-preset-card.active {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 5%, var(--panel));
+  box-shadow:
+    0 0 0 1.5px var(--green),
+    0 8px 24px rgba(47, 118, 96, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* 预设高保真微缩示意图与互动流光 */
+.personalization-preset-mockup {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 84px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--subtle);
+  margin-bottom: 10px;
+}
+
+.mockup-header {
+  height: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background: var(--panel-strong);
+}
+
+.mockup-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.mockup-sidebar {
+  width: 26%;
+  border-right: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background: color-mix(in srgb, var(--green) 12%, var(--panel-strong));
+  transition: all 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.personalization-preset-card:hover .mockup-sidebar {
+  background: color-mix(in srgb, var(--green) 24%, var(--panel-strong));
+}
+
+.mockup-canvas {
+  position: relative;
+  flex: 1;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mockup-card-slot {
+  height: 16px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--green) 20%, var(--panel-strong));
+  border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
+  transition: all 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.personalization-preset-card:hover .mockup-card-slot {
+  border-color: var(--green);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--green) 28%, transparent);
+}
+
+.mockup-card-slot.slot-2 {
+  width: 75%;
+  height: 12px;
+  opacity: 0.6;
+}
+
+.mockup-composer {
+  position: absolute;
+  bottom: 4px;
+  left: 15%;
+  right: 15%;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--ink);
+  opacity: 0.18;
+  transition: all 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.personalization-preset-card:hover .mockup-composer {
+  opacity: 0.28;
+}
+
+/* 专注模式预览 */
+.personalization-preset-mockup[data-preset="focus"] .mockup-sidebar {
+  width: 0;
+  border-right: none;
+  opacity: 0;
+}
+
+.personalization-preset-mockup[data-preset="focus"] .mockup-card-slot {
+  height: 28px;
+}
+
+.personalization-preset-mockup[data-preset="focus"] .mockup-composer {
+  left: 28%;
+  right: 28%;
+  height: 8px;
+  opacity: 0.12;
+}
+
+/* 紧凑模式预览 */
+.personalization-preset-mockup[data-preset="compact"] .mockup-sidebar {
+  width: 18%;
+}
+
+.personalization-preset-mockup[data-preset="compact"] .mockup-canvas {
+  padding: 4px;
   gap: 3px;
+}
+
+.mockup-card-slot.slot-1 {
+  height: 14px;
+}
+
+.personalization-preset-mockup[data-preset="compact"] .mockup-composer {
+  left: auto;
+  right: 4px;
+  width: 50%;
+  height: 8px;
+}
+
+.personalization-preset-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.personalization-preset-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.personalization-preset-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.personalization-preset-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--subtle);
+  color: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+
+.personalization-preset-card.active .personalization-preset-tag {
+  background: color-mix(in srgb, var(--green) 12%, var(--panel-strong));
+  color: var(--green-dark);
+  border-color: color-mix(in srgb, var(--green) 30%, transparent);
+}
+
+.personalization-preset-desc {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* 动效：活跃对勾徽章弹性入场 */
+.personalization-preset-active-indicator {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--green);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(47, 118, 96, 0.45);
+  animation: badge-spring-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes badge-spring-pop {
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.personalization-custom-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--subtle);
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.personalization-custom-tip .tip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: badge-pulse 2s infinite;
+}
+
+/* 分组卡片 */
+.personalization-group-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.personalization-group-card:hover {
+  border-color: color-mix(in srgb, var(--green) 28%, var(--line));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+}
+
+.personalization-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background: color-mix(in srgb, var(--subtle) 60%, var(--panel));
+}
+
+.personalization-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.personalization-group-icon {
+  display: grid;
+  place-items: center;
+  color: var(--green-dark);
+}
+
+.personalization-group-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.personalization-group-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 12%, var(--panel-strong));
+  color: var(--green-dark);
+  border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
+}
+
+.personalization-group-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 设置项行 */
+.personalization-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+  transition: background-color 150ms ease;
+}
+
+.personalization-setting-row:hover {
+  background: color-mix(in srgb, var(--hover) 60%, var(--panel));
+}
+
+.personalization-setting-row:last-child {
+  border-bottom: none;
+}
+
+.personalization-setting-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.personalization-setting-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.personalization-setting-desc {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 .personalization-setting-control {
   display: flex;
-  min-width: 0;
-  justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
 }
 
-.personalization-setting-control input[type="range"] {
-  width: min(260px, 100%);
-  accent-color: var(--green);
+/* 滑动条定制与悬浮光晕 */
+.personalization-slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.personalization-setting-control select {
-  min-width: 128px;
-  height: 36px;
+.personalization-slider-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 160px;
+}
+
+.personalization-slider-bar input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--green) 0%,
+    var(--green) var(--slider-fill, 50%),
+    color-mix(in srgb, var(--line) 80%, transparent) var(--slider-fill, 50%),
+    color-mix(in srgb, var(--line) 80%, transparent) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+
+.personalization-slider-bar input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--panel-strong);
+  border: 2px solid var(--green);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition:
+    transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 180ms ease;
+}
+
+.personalization-slider-bar input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--green) 20%, transparent), 0 2px 8px rgba(47, 118, 96, 0.4);
+}
+
+.personalization-slider-bar input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--green) 30%, transparent), 0 3px 12px rgba(47, 118, 96, 0.5);
+}
+
+.personalization-slider-badge {
+  display: inline-block;
+  min-width: 58px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  padding: 3px 6px;
+  border-radius: 6px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 10px;
-  background: var(--input-bg);
+  background: var(--subtle);
   color: var(--ink);
+  transition:
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
+.personalization-slider-wrapper:hover .personalization-slider-badge {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--line));
+  color: var(--green-dark);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+/* 分段选择器 ChoiceGroup */
 .personalization-choice-group {
   display: inline-flex;
-  max-width: 100%;
-  gap: 4px;
+  gap: 2px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 3px;
+  padding: 2px;
   background: var(--subtle);
 }
 
 .personalization-choice-group button {
-  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
   border: 0;
   border-radius: 6px;
-  padding: 0 10px;
+  padding: 0 9px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.personalization-choice-group button:hover,
+.personalization-choice-group button .choice-icon {
+  display: grid;
+  place-items: center;
+}
+
+.personalization-choice-group button:hover {
+  color: var(--ink);
+  background: var(--hover);
+  transform: translateY(-0.5px);
+}
+
 .personalization-choice-group button.active {
   background: var(--panel-strong);
   color: var(--ink);
-  box-shadow: 0 2px 6px rgba(16, 21, 19, 0.08);
+  font-weight: 700;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
 }
 
+/* 动作按钮编辑器 */
 .personalization-action-editor {
-  display: grid;
-  gap: 7px;
-  padding: 14px;
-  background: var(--panel);
+  padding: 8px 10px;
 }
 
-.personalization-action-editor-heading {
-  margin-bottom: 4px;
+.personalization-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.personalization-action-row {
-  display: grid;
-  min-height: 42px;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+.personalization-action-item {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 5px 7px 5px 9px;
+  padding: 4px 8px 4px 6px;
   background: var(--panel-strong);
-  cursor: grab;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
 }
 
-.personalization-action-row.dragging {
-  opacity: 0.55;
+.personalization-action-item:hover {
+  border-color: color-mix(in srgb, var(--green) 35%, var(--line));
+  transform: translateX(2.5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.personalization-action-row > svg {
-  color: var(--muted);
+.personalization-action-item:hover .action-icon {
+  color: var(--green);
+  transform: scale(1.18);
 }
 
-.personalization-action-row > button {
+.personalization-action-item.dragging {
+  opacity: 0.45;
+  border: 1px dashed var(--green);
+  background: color-mix(in srgb, var(--green) 6%, var(--panel));
+}
+
+.personalization-action-item.is-hidden {
+  opacity: 0.65;
+  background: var(--subtle);
+}
+
+.drag-handle {
   display: grid;
-  width: 30px;
-  height: 30px;
   place-items: center;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 0;
-  background: transparent;
+  width: 22px;
+  height: 28px;
   color: var(--muted);
+  cursor: grab;
+  border-radius: 4px;
+  transition: color 150ms ease, background-color 150ms ease;
 }
 
-.personalization-action-row > button:not(:disabled):hover {
-  border-color: var(--line);
+.drag-handle:hover {
   background: var(--hover);
+  color: var(--green);
+}
+
+.action-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.action-icon {
+  display: grid;
+  place-items: center;
+  color: var(--green-dark);
+  transition: transform 180ms ease, color 180ms ease;
+}
+
+.action-label {
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--ink);
 }
 
-.personalization-save-status {
+.action-hidden-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--muted) 20%, transparent);
+  color: var(--muted);
+}
+
+.action-controls {
   display: flex;
-  min-height: 42px;
   align-items: center;
-  justify-content: flex-end;
-  gap: 7px;
-  border-top: 1px solid var(--line);
-  padding: 0 24px;
-  color: var(--green-dark);
-  font-size: 12px;
+  gap: 8px;
+}
+
+.action-order-arrows {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-left: 1px solid var(--line);
+  padding-left: 6px;
+}
+
+.action-order-arrows button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.action-order-arrows button:not(:disabled):hover {
+  border-color: var(--line);
+  background: var(--hover);
+  color: var(--ink);
+  transform: scale(1.15);
+}
+
+.action-order-arrows button:not(:disabled):active {
+  transform: scale(0.92);
+}
+
+.action-order-arrows button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* 外观主题卡片与日月天象动效 */
+.personalization-theme-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.personalization-theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--panel-strong);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms ease,
+    box-shadow 220ms ease;
+  text-align: left;
+}
+
+.personalization-theme-card:hover {
+  border-color: color-mix(in srgb, var(--green) 40%, var(--line));
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
+}
+
+.theme-card-icon {
+  transition: transform 340ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 300ms ease;
+}
+
+.personalization-theme-card.light:hover .theme-card-icon {
+  transform: rotate(45deg) scale(1.18);
+  color: #f59e0b;
+  filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.5));
+}
+
+.personalization-theme-card.dark:hover .theme-card-icon {
+  transform: rotate(-25deg) scale(1.18);
+  color: #a78bfa;
+  filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.5));
+}
+
+.personalization-theme-card.active {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1.5px var(--green), 0 8px 20px rgba(47, 118, 96, 0.14);
+  background: color-mix(in srgb, var(--green) 4%, var(--panel-strong));
+}
+
+.theme-card-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  border-radius: 6px;
+  padding: 0 12px;
+  transition: all 200ms ease;
+}
+
+.personalization-theme-card.light .theme-card-preview {
+  background: #f7f9f8;
+  border: 1px solid #e1e6e3;
+  color: #1a221f;
+}
+
+.personalization-theme-card.dark .theme-card-preview {
+  background: #111614;
+  border: 1px solid #232d29;
+  color: #eaf3ee;
+}
+
+.theme-card-mockup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 44px;
+}
+
+.theme-card-mockup .mock-bar {
+  height: 6px;
+  border-radius: 2px;
+  transition: all 200ms ease;
+}
+
+.theme-card-mockup.light .mock-bar {
+  background: #cbd5d0;
+}
+
+.theme-card-mockup.dark .mock-bar {
+  background: #34423c;
+}
+
+.theme-card-mockup .mock-box {
+  height: 14px;
+  border-radius: 3px;
+  transition: all 200ms ease;
+}
+
+.theme-card-mockup.light .mock-box {
+  background: var(--green);
+  opacity: 0.35;
+}
+
+.theme-card-mockup.dark .mock-box {
+  background: var(--green);
+  opacity: 0.45;
+}
+
+.personalization-theme-card:hover .theme-card-mockup .mock-box {
+  opacity: 0.8;
+  box-shadow: 0 0 8px var(--green);
+}
+
+.theme-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.theme-card-footer strong {
+  font-size: 13px;
   font-weight: 700;
+}
+
+.theme-check {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #ffffff;
+  animation: badge-spring-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 抽屉底部操作栏与扫光动效 */
+.personalization-footer {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding: 12px 20px;
+  background: color-mix(in srgb, var(--panel-strong) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.personalization-footer-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.status-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  flex-shrink: 0;
+}
+
+.status-indicator-dot.dirty {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: badge-pulse 1.4s infinite;
+}
+
+.status-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.personalization-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 提交按钮流光扫光动效 */
+.personalization-commit-btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--green) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border: none !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 2px 8px rgba(47, 118, 96, 0.25);
+}
+
+.personalization-commit-btn:not(:disabled):hover {
+  background: var(--green-dark) !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 18px rgba(47, 118, 96, 0.42);
+}
+
+.personalization-commit-btn:not(:disabled):active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+.personalization-commit-btn:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 70%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
+  );
+  transform: skewX(-20deg);
+  animation: button-shimmer 3.2s infinite;
+}
+
+@keyframes button-shimmer {
+  0%, 60% {
+    left: -120%;
+  }
+  100% {
+    left: 160%;
+  }
+}
+
+.personalization-commit-btn:disabled {
+  opacity: 0.45 !important;
 }
 
 @media (min-width: 1121px) and (max-width: 1500px) {
@@ -6859,6 +7775,16 @@ button.search-clear-btn:hover {
     left: 50%;
     width: min(var(--ui-composer-width, 760px), calc(100vw - 36px));
   }
+
+  .app-shell.ui-composer-bottom-left .composer-panel,
+  .app-shell.ui-composer-bottom-right .composer-panel {
+    animation-name: composer-pop-in-center;
+  }
+
+  .app-shell.ui-composer-bottom-left .composer-collapsed:hover,
+  .app-shell.ui-composer-bottom-right .composer-collapsed:hover {
+    transform: translateX(-50%) translateY(-2px);
+  }
 }
 
 @media (max-width: 720px) {
@@ -6895,6 +7821,13 @@ button.search-clear-btn:hover {
     left: 10px !important;
     width: calc(100vw - 20px) !important;
     transform: none !important;
+    animation-name: composer-pop-in !important;
+  }
+
+  .app-shell .composer-collapsed:hover,
+  .app-shell.ui-composer-bottom-left .composer-collapsed:hover,
+  .app-shell.ui-composer-bottom-right .composer-collapsed:hover {
+    transform: translateY(-2px) !important;
   }
 
   /* 窄屏强制使用底部附件与右侧点击展开，桌面偏好本身不被改写。 */
@@ -6936,58 +7869,29 @@ button.search-clear-btn:hover {
     display: none;
   }
 
-  .personalization-dialog {
-    width: calc(100vw - 20px);
-    max-height: calc(100dvh - 20px);
+  .personalization-drawer {
+    width: min(460px, 100vw);
+    border-left: 0;
   }
 
   .personalization-header {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-    padding: 16px 48px 14px 16px;
-  }
-
-  .personalization-layout {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    padding: 14px 12px 12px 16px;
   }
 
   .personalization-nav {
-    flex-direction: row;
-    overflow-x: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
     padding: 8px;
   }
 
-  .personalization-nav button {
-    flex: 0 0 auto;
-  }
-
-  .personalization-nav .personalization-reset-button {
-    margin-top: 0;
-    margin-left: auto;
-  }
-
   .personalization-content {
-    padding: 16px;
+    padding: 14px 16px 20px;
   }
 
   .personalization-preset-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .personalization-setting-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 9px;
-  }
-
-  .personalization-setting-control {
-    justify-content: flex-start;
-  }
-
-  .personalization-choice-group {
-    overflow-x: auto;
+  .personalization-footer {
+    padding: 10px 12px;
   }
 }
 
