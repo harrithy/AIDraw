@@ -84,9 +84,15 @@ export function FolderTransferControls({ folder, onImported }: FolderTransferCon
       } catch {
         throw new Error("导入失败：文件不是有效的 JSON");
       }
-      const createdFolder = await api.importFolderBackup(data);
-      Message.success(`已导入「${createdFolder.name}」`);
-      onImported(createdFolder.id);
+      const createdFolders = await api.importFolderBackup(data);
+      const firstFolder = createdFolders[0];
+      if (!firstFolder) throw new Error("导入失败：备份中没有可恢复的文件夹");
+      Message.success(
+        createdFolders.length === 1
+          ? `已导入「${firstFolder.name}」`
+          : `已从紧急备份恢复 ${createdFolders.length} 个文件夹`
+      );
+      onImported(firstFolder.id);
     } catch (error) {
       Message.error(error instanceof Error ? error.message : "导入失败");
     } finally {
@@ -109,8 +115,8 @@ export function FolderTransferControls({ folder, onImported }: FolderTransferCon
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={isImporting}
-        title="导入文件夹备份（.json）"
-        aria-label="导入文件夹备份"
+        title="导入文件夹或紧急救灾备份（.json）"
+        aria-label="导入文件夹或紧急救灾备份"
       >
         {isImporting ? <Loader2 className="spin" size={17} /> : <Upload size={17} />}
       </button>

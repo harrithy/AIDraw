@@ -32,6 +32,7 @@ describe("ApiSettingsPanel component", () => {
       root.unmount();
     });
     container.remove();
+    vi.unstubAllGlobals();
   });
 
   it("renders saved credentials list with badges and active marker", () => {
@@ -104,7 +105,8 @@ describe("ApiSettingsPanel component", () => {
 
   it("prompts with confirm and calls onSave with deleteApiKeyIndex when delete button is clicked", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirmSpy = vi.fn().mockReturnValue(true);
+    vi.stubGlobal("confirm", confirmSpy);
 
     act(() => {
       root.render(
@@ -126,12 +128,12 @@ describe("ApiSettingsPanel component", () => {
     expect(confirmSpy.mock.calls[0][0]).toContain("sk-g...2222");
     expect(onSave).toHaveBeenCalledWith({ deleteApiKeyIndex: 1 });
 
-    confirmSpy.mockRestore();
   });
 
   it("does not call onSave when delete confirmation is cancelled", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const confirmSpy = vi.fn().mockReturnValue(false);
+    vi.stubGlobal("confirm", confirmSpy);
 
     act(() => {
       root.render(
@@ -151,6 +153,5 @@ describe("ApiSettingsPanel component", () => {
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(onSave).not.toHaveBeenCalled();
 
-    confirmSpy.mockRestore();
   });
 });

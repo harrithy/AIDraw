@@ -19,7 +19,7 @@ import { getSettings } from "@/lib/storage/settings";
 type PromptPolishProps = {
   /** 当前提示词文本；为空时点击会提示先填写。 */
   text: string;
-  /** 润写过程中逐个增量回写、润写完成后回写完整结果。 */
+  /** 润写完整成功后回写结果；失败时不会覆盖原文。 */
   onPolished: (text: string) => void;
   /** 触发按钮尺寸，默认 sm。 */
   size?: "sm" | "icon-sm";
@@ -78,6 +78,8 @@ export function PromptPolish({ text, onPolished, size = "sm", images = [] }: Pro
   const [thinking, setThinking] = useState<DeepSeekThinkingLevel>("high");
   const [lastResult, setLastResult] = useState<{ original: string; polished: string } | null>(null);
   const modelTouchedByUserRef = useRef(false);
+  const latestTextRef = useRef(text);
+  latestTextRef.current = text;
 
   const hasUndo = !isPolishing && lastResult !== null && text === lastResult.polished;
 
@@ -89,7 +91,8 @@ export function PromptPolish({ text, onPolished, size = "sm", images = [] }: Pro
   }, [images.length, model]);
 
   const polish = async (style: PromptPolishStyle) => {
-    const nextText = text.trim();
+    const originalText = text;
+    const nextText = originalText.trim();
     if (!nextText) {
       Message.error("请先填写提示词，再使用 AI 润写");
       return;
@@ -103,21 +106,20 @@ export function PromptPolish({ text, onPolished, size = "sm", images = [] }: Pro
         Message.error("未配置 DeepSeek API Key，请先在「接口设置」中导入 DeepSeek Key");
         return;
       }
-      let streamed = "";
       const polished = await polishWithDeepSeek({
         text: nextText,
         apiKey,
         style,
         model,
         thinking,
-        images,
-        onDelta: (delta) => {
-          streamed += delta;
-          onPolished(streamed);
-        }
+        images
       });
+      if (latestTextRef.current !== originalText) {
+        Message.info("润写期间提示词已被修改，本次结果未覆盖你的新内容");
+        return;
+      }
       onPolished(polished);
-      setLastResult({ original: nextText, polished });
+      setLastResult({ original: originalText, polished });
       Message.success(
         `提示词润写完成（${DEEPSEEK_MODEL_LABELS[model].split("（")[0]} · ${PROMPT_POLISH_STYLE_LABELS[style]}）`
       );

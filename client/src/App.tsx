@@ -104,6 +104,7 @@ function App() {
     cancelPreview
   } = useUiPreferences(reportPreferenceSaveError);
   const darkMode = preferences.appearance.theme === "dark";
+  const animeMode = preferences.appearance.theme === "anime";
   const petEnabled = preferences.appearance.petEnabled;
   const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
     window.matchMedia?.("(max-width: 720px)").matches ?? false
@@ -111,6 +112,12 @@ function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [folders, setFolders] = useState<DrawFolder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const activeFolderIdRef = useRef<string | null>(activeFolderId);
+  activeFolderIdRef.current = activeFolderId;
+  const selectActiveFolder = useCallback((folderId: string | null) => {
+    activeFolderIdRef.current = folderId;
+    setActiveFolderId(folderId);
+  }, []);
   const [jobs, setJobs] = useState<DrawJob[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isImageLibraryLoading, setIsImageLibraryLoading] = useState(false);
@@ -151,8 +158,9 @@ function App() {
     setPersonalizationOpen(true);
   }, [beginPreview]);
   const commitPersonalization = useCallback(() => {
-    commitPreview();
+    if (!commitPreview()) return false;
     setPersonalizationOpen(false);
+    return true;
   }, [commitPreview]);
   const cancelPersonalization = useCallback(() => {
     cancelPreview();
@@ -271,13 +279,13 @@ function App() {
   const loadFolders = useCallback(async () => {
     const nextFolders = await api.listFolders();
     setFolders(nextFolders);
-    setActiveFolderId((current) =>
-      current && nextFolders.some((folder) => folder.id === current)
-        ? current
-        : nextFolders[0]?.id ?? null
-    );
+    const currentFolderId = activeFolderIdRef.current;
+    const nextActiveFolderId = currentFolderId && nextFolders.some((folder) => folder.id === currentFolderId)
+      ? currentFolderId
+      : nextFolders[0]?.id ?? null;
+    if (nextActiveFolderId !== currentFolderId) selectActiveFolder(nextActiveFolderId);
     return nextFolders;
-  }, []);
+  }, [selectActiveFolder]);
 
   /**
    * 加载指定文件夹内的所有绘图任务。
@@ -285,6 +293,9 @@ function App() {
    */
   const loadJobs = useCallback(async (folderId: string) => {
     const nextJobs = await api.listJobs(folderId);
+
+    // 文件夹切换后忽略旧请求的迟到响应，避免把 A 文件夹任务写进 B 文件夹界面。
+    if (activeFolderIdRef.current !== folderId) return;
 
     // 拖拽期间卡片由 DOM translate 临时移动。此时替换 jobs 会让 React 的 left/top
     // 与 translate 同时包含拖拽位移，造成长按超过轮询周期后位置被重复计算。
@@ -298,6 +309,7 @@ function App() {
    */
   const loadUploadedImages = useCallback(async (folderId: string) => {
     const nextImages = await api.listUploadedImages(folderId);
+    if (activeFolderIdRef.current !== folderId) return;
     setUploadedImages(nextImages);
   }, []);
 
@@ -324,7 +336,8 @@ function App() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
-  }, [darkMode]);
+    document.documentElement.classList.toggle("anime-theme", animeMode);
+  }, [animeMode, darkMode]);
 
   useEffect(() => {
     setPreviewJob((current) => {
@@ -359,11 +372,21 @@ function App() {
     lockedCardPositionRef.current = null;
     setUploadedImages([]);
     setIsImageLibraryLoading(true);
+    let cancelled = false;
     void Promise.all([loadJobs(activeFolderId), loadUploadedImages(activeFolderId)])
       .catch((error) => {
-        setNotice(error instanceof Error ? error.message : "文件夹数据加载失败");
+        if (!cancelled && activeFolderIdRef.current === activeFolderId) {
+          setNotice(error instanceof Error ? error.message : "文件夹数据加载失败");
+        }
       })
-      .finally(() => setIsImageLibraryLoading(false));
+      .finally(() => {
+        if (!cancelled && activeFolderIdRef.current === activeFolderId) {
+          setIsImageLibraryLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [activeFolderId, loadJobs, loadUploadedImages]);
 
   // 状态事件负责实时刷新；每 10 秒轮询一次作为跨标签页/浏览器休眠后的兜底。
@@ -373,7 +396,9 @@ function App() {
     const refresh = () => {
       if (document.visibilityState === "hidden") return;
       void Promise.all([loadJobs(activeFolderId), loadQueue()]).catch((error) => {
-        setNotice(error instanceof Error ? error.message : "状态同步失败");
+        if (activeFolderIdRef.current === activeFolderId) {
+          setNotice(error instanceof Error ? error.message : "状态同步失败");
+        }
       });
     };
     const timer = window.setInterval(refresh, 10_000);
@@ -430,7 +455,7 @@ function App() {
     try {
       const folder = await api.createFolder(name);
       setFolders((current) => [folder, ...current]);
-      setActiveFolderId(folder.id);
+      selectActiveFolder(folder.id);
       setFolderName("");
       setNotice(`已创建文件夹：${folder.name}`);
     } catch (error) {
@@ -462,7 +487,7 @@ function App() {
       await api.deleteFolder(folderId);
       setFolders((current) => current.filter((f) => f.id !== folderId));
       if (activeFolderId === folderId) {
-        setActiveFolderId(null);
+        selectActiveFolder(null);
       }
       setNotice("文件夹已删除");
     } catch (error) {
@@ -476,12 +501,15 @@ function App() {
    */
   const sortJobs = async (mode: "time" | "name") => {
     if (!activeFolder) return;
+    const folderId = activeFolder.id;
     const ordered = [...jobs].sort((a, b) => {
       if (mode === "time") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       return a.prompt.localeCompare(b.prompt, "zh-CN");
     });
     await persistOrder(ordered);
-    setNotice(mode === "time" ? "已按生成时间排序" : "已按提示词排序");
+    if (activeFolderIdRef.current === folderId) {
+      setNotice(mode === "time" ? "已按生成时间排序" : "已按提示词排序");
+    }
   };
 
   /** 将画布定位到当前文件夹最近生成出结果的图片或视频盒子。 */
@@ -502,16 +530,19 @@ function App() {
   const persistOrder = useCallback(async (orderedJobs: DrawJob[]) => {
     const currentFolder = activeFolderRef.current;
     if (!currentFolder) return;
+    const folderId = currentFolder.id;
     setJobs(orderedJobs.map((job, index) => ({ ...job, orderIndex: index })));
     try {
       const nextJobs = await api.reorderJobs(
-        currentFolder.id,
+        folderId,
         orderedJobs.map((job) => job.id)
       );
-      setJobs(nextJobs);
+      if (activeFolderIdRef.current === folderId) setJobs(nextJobs);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "排序保存失败");
-      void loadJobs(currentFolder.id);
+      if (activeFolderIdRef.current === folderId) {
+        setNotice(error instanceof Error ? error.message : "排序保存失败");
+        void loadJobs(folderId);
+      }
     }
   }, [loadJobs]);
 
@@ -555,14 +586,19 @@ function App() {
   const submitJobs = useCallback(async (payload: CreateJobPayload) => {
     const currentFolder = activeFolderRef.current;
     if (!currentFolder) return;
+    const folderId = currentFolder.id;
     try {
       setIsSubmitting(true);
-      const created = await api.createJobs(currentFolder.id, payload);
-      setJobs((current) => [...current, ...created].sort((a, b) => a.orderIndex - b.orderIndex));
+      const created = await api.createJobs(folderId, payload);
+      if (activeFolderIdRef.current === folderId) {
+        setJobs((current) => [...current, ...created].sort((a, b) => a.orderIndex - b.orderIndex));
+        setNotice(`已加入 ${created.length} 个绘图任务`);
+      }
       await loadQueue();
-      setNotice(`已加入 ${created.length} 个绘图任务`);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "任务创建失败");
+      if (activeFolderIdRef.current === folderId) {
+        setNotice(error instanceof Error ? error.message : "任务创建失败");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -579,12 +615,18 @@ function App() {
 
   /** 将任务的最新图片或视频上传到图床，并同步到当前文件夹的素材库。 */
   const uploadLatestJobMedia = useCallback(async (jobId: string) => {
+    const folderId = jobsRef.current.find((job) => job.id === jobId)?.folderId;
     try {
       const uploaded = await api.uploadLatestJobMedia(jobId);
-      setUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
-      setNotice("最新结果已上传到图床和素材库");
+      if (folderId && activeFolderIdRef.current === folderId) {
+        setUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
+        setNotice("最新结果已上传到图床和素材库");
+      }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "上传媒体失败");
+      if (!folderId || activeFolderIdRef.current === folderId) {
+        setNotice(error instanceof Error ? error.message : "上传媒体失败");
+      }
+      throw error;
     }
   }, []);
 
@@ -616,9 +658,11 @@ function App() {
    */
   const clearFailedJobs = async () => {
     if (!activeFolderId || failedJobsCount === 0) return;
+    const folderId = activeFolderId;
     try {
       setIsClearingFailed(true);
-      const count = await api.deleteFailedJobs(activeFolderId);
+      const count = await api.deleteFailedJobs(folderId);
+      if (activeFolderIdRef.current !== folderId) return;
       setJobs((current) => current.filter((j) => j.status !== "failed"));
       setPreviewJob((current) => (current?.status === "failed" ? null : current));
       setEditingRetryJob((current) => (current?.status === "failed" ? null : current));
@@ -626,8 +670,10 @@ function App() {
       setNotice(`已清理 ${count} 个生成失败的盒子`);
       Message.success(`已清理 ${count} 个生成失败的盒子喵！`);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "清理失败盒子出错");
-      Message.error(error instanceof Error ? error.message : "清理失败盒子出错");
+      if (activeFolderIdRef.current === folderId) {
+        setNotice(error instanceof Error ? error.message : "清理失败盒子出错");
+        Message.error(error instanceof Error ? error.message : "清理失败盒子出错");
+      }
     } finally {
       setIsClearingFailed(false);
     }
@@ -640,6 +686,7 @@ function App() {
    */
   const applyLayout = async (direction: LayoutDirection, gridColumns: number) => {
     if (!activeFolderId || jobs.length === 0) return;
+    const folderId = activeFolderId;
 
     try {
       const positions = calculateLayoutPositions(jobs, {
@@ -651,7 +698,8 @@ function App() {
         startY: 150
       });
 
-      const updatedJobs = await api.batchUpdateJobPositions(activeFolderId, positions);
+      const updatedJobs = await api.batchUpdateJobPositions(folderId, positions);
+      if (activeFolderIdRef.current !== folderId) return;
       setJobs(updatedJobs);
       resetCanvas();
 
@@ -665,8 +713,10 @@ function App() {
       setNotice(`已按【${name}】重置画布排版`);
       Message.success(`已按【${name}】重置画布排版喵！`);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "重置排版失败");
-      Message.error(error instanceof Error ? error.message : "重置排版失败");
+      if (activeFolderIdRef.current === folderId) {
+        setNotice(error instanceof Error ? error.message : "重置排版失败");
+        Message.error(error instanceof Error ? error.message : "重置排版失败");
+      }
     }
   };
 
@@ -675,14 +725,19 @@ function App() {
    * @param jobId - 任务 ID
    */
   const retryDrawing = useCallback(async (jobId: string) => {
-    if (!activeFolderRef.current) return;
+    const folderId = jobsRef.current.find((job) => job.id === jobId)?.folderId;
+    if (!folderId) return;
     try {
       const retried = await api.retryJob(jobId);
-      setJobs((current) => current.map((job) => (job.id === retried.id ? retried : job)));
+      if (activeFolderIdRef.current === folderId) {
+        setJobs((current) => current.map((job) => (job.id === retried.id ? retried : job)));
+        setNotice("已重新加入绘制队列");
+      }
       await loadQueue();
-      setNotice("已重新加入绘制队列");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "重新绘制失败");
+      if (activeFolderIdRef.current === folderId) {
+        setNotice(error instanceof Error ? error.message : "重新绘制失败");
+      }
     }
   }, [loadQueue]);
 
@@ -692,15 +747,21 @@ function App() {
    * @param edits - 编辑后的绘图参数
    */
   const confirmRegenerate = useCallback(async (jobId: string, edits: RegenerateEdits) => {
+    const folderId = jobsRef.current.find((job) => job.id === jobId)?.folderId;
+    if (!folderId) return;
     try {
       setIsRegenerating(true);
       const updated = await api.regenerateJobWithEdits(jobId, edits);
-      setJobs((current) => current.map((job) => (job.id === updated.id ? updated : job)));
+      if (activeFolderIdRef.current === folderId) {
+        setJobs((current) => current.map((job) => (job.id === updated.id ? updated : job)));
+        setEditingRetryJob(null);
+        setNotice("已用新参数重新加入绘制队列");
+      }
       await loadQueue();
-      setEditingRetryJob(null);
-      setNotice("已用新参数重新加入绘制队列");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "重新绘制失败");
+      if (activeFolderIdRef.current === folderId) {
+        setNotice(error instanceof Error ? error.message : "重新绘制失败");
+      }
     } finally {
       setIsRegenerating(false);
     }
@@ -731,7 +792,7 @@ function App() {
   const handleFolderImported = async (folderId: string) => {
     try {
       await loadFolders();
-      setActiveFolderId(folderId);
+      selectActiveFolder(folderId);
       setNotice("已导入文件夹备份，可开始查看任务");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "导入后刷新失败");
@@ -765,7 +826,7 @@ function App() {
   return (
     <main
       ref={appRef}
-      className={`app-shell ${darkMode ? "dark" : ""} ${leftOpen ? "sidebar-open" : "sidebar-closed"} ui-toolbar-${preferences.page.toolbarPosition} ui-composer-${preferences.page.composerPosition}`}
+      className={`app-shell${darkMode ? " dark" : ""}${animeMode ? " anime-theme" : ""} ${leftOpen ? "sidebar-open" : "sidebar-closed"} ui-toolbar-${preferences.page.toolbarPosition} ui-composer-${preferences.page.composerPosition}`}
       style={appStyle}
     >
       <WorkflowCanvas
@@ -869,7 +930,7 @@ function App() {
         folderName={folderName}
         onFolderNameChange={setFolderName}
         onCreateFolder={createFolder}
-        onSelectFolder={setActiveFolderId}
+        onSelectFolder={selectActiveFolder}
         onRenameFolder={renameFolder}
         onDeleteFolder={deleteFolder}
       />

@@ -19,6 +19,8 @@ import {
   SETTINGS_STORE,
   UPLOADED_IMAGE_STORE
 } from "../../lib/storage/database";
+import { buildEmergencyBackup } from "../../lib/folderBackup";
+import type { DrawFolder, DrawJob, UploadedImage } from "../../types";
 import {
   LEGACY_PET_STORAGE_KEY,
   LEGACY_THEME_STORAGE_KEY,
@@ -146,18 +148,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return entry;
       });
 
-      const backupPackage = {
-        format: "aidraw-emergency-backup",
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        reason: "crash-rescue",
-        securityNotice: "Sensitive API credentials (apiKey / savedApiKeys) have been automatically stripped for security.",
-        error: this.state.error?.message || "unknown",
-        folders,
-        jobs,
-        uploadedImages,
-        settings: sanitizedSettings
-      };
+      const backupPackage = buildEmergencyBackup({
+        folders: folders as DrawFolder[],
+        jobs: jobs as DrawJob[],
+        uploadedImages: uploadedImages as UploadedImage[],
+        settings: sanitizedSettings,
+        error: this.state.error?.message || "unknown"
+      });
 
       const jsonStr = JSON.stringify(backupPackage, null, 2);
       const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });

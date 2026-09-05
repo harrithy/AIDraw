@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { parseImportBackups } from "../../lib/folderBackup";
 
 // 可受控抛错的测试组件
 function ProblematicChild({ shouldThrow, message }: { shouldThrow: boolean; message?: string }) {
@@ -271,6 +272,7 @@ describe("ErrorBoundary component", () => {
       // 保留非敏感字段
       expect(json.settings[0].baseUrl).toBe("https://duomiapi.com");
       expect(json.settings[0].model).toBe("gpt-image-2");
+      expect(parseImportBackups(json)).toHaveLength(1);
     } finally {
       openDbSpy.mockRestore();
       URL.createObjectURL = originalCreateObjectURL;

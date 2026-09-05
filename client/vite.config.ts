@@ -2,9 +2,9 @@ import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-import deepseekChatHandler from "./api/deepseek-chat";
-import mediaProxyHandler from "./api/media-proxy";
-import mediaUploadHandler from "./api/media-upload";
+import deepseekChatHandler from "./api/deepseek-chat.ts";
+import mediaProxyHandler from "./api/media-proxy.ts";
+import mediaUploadHandler from "./api/media-upload.ts";
 
 const mediaProxyPlugin = (): Plugin => ({
   name: "media-proxy",
@@ -19,7 +19,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), mediaProxyPlugin()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src")
+      "@": path.resolve(import.meta.dirname, "./src")
     }
   },
   build: {

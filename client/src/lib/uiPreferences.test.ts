@@ -7,6 +7,7 @@ import {
   applyUiPreset,
   createDefaultUiPreferences,
   getAttachmentVisibleLimit,
+  getCollapsedAttachmentIndicator,
   getVisibleCardActionOrder,
   loadUiPreferences,
   normalizeCardActionOrder,
@@ -49,6 +50,12 @@ describe("UI preferences", () => {
     expect(preferences.page.sidebarOpen).toBe(false);
   });
 
+  it("keeps the anime theme when loading legacy appearance settings", () => {
+    window.localStorage.setItem(LEGACY_THEME_STORAGE_KEY, "anime");
+    const preferences = loadUiPreferences(window.localStorage, true);
+    expect(preferences.appearance.theme).toBe("anime");
+  });
+
   it("falls back safely when stored JSON is invalid", () => {
     window.localStorage.setItem(UI_PREFERENCES_STORAGE_KEY, "{broken");
     const preferences = loadUiPreferences(window.localStorage, true);
@@ -73,6 +80,16 @@ describe("UI preferences", () => {
     expect(preferences.card.actionOrder[0]).toBe("delete");
     expect(new Set(preferences.card.actionOrder).size).toBe(CARD_ACTION_IDS.length);
     expect(preferences.card.hiddenActions).toEqual(["download"]);
+  });
+
+  it("normalizes anime as a supported appearance theme", () => {
+    const fallback = createDefaultUiPreferences(window.localStorage, true);
+    const preferences = normalizeUiPreferences({
+      ...fallback,
+      appearance: { ...fallback.appearance, theme: "anime" }
+    }, fallback);
+
+    expect(preferences.appearance.theme).toBe("anime");
   });
 
   it("applies presets without changing appearance or action choices", () => {
@@ -133,13 +150,21 @@ describe("UI preferences", () => {
     expect(getAttachmentVisibleLimit({ ...preferences, attachmentMaxVisible: 3 })).toBe(3);
   });
 
+  it("does not render a redundant count tile for a single stacked attachment", () => {
+    expect(getCollapsedAttachmentIndicator("stack", 1, 1)).toBeNull();
+    expect(getCollapsedAttachmentIndicator("stack", 3, 3)).toBe("3张");
+    expect(getCollapsedAttachmentIndicator("stack", 5, 2)).toBe("+3");
+    expect(getCollapsedAttachmentIndicator("summary", 4, 1)).toBe("+3");
+  });
+
   it("saves the canonical and legacy preference keys", () => {
     const preferences = createDefaultUiPreferences(window.localStorage, true);
-    preferences.appearance = { theme: "light", petEnabled: false };
+    preferences.appearance = { theme: "anime", petEnabled: false };
     saveUiPreferences(preferences, window.localStorage);
     expect(JSON.parse(window.localStorage.getItem(UI_PREFERENCES_STORAGE_KEY) || "null"))
       .toEqual(preferences);
-    expect(window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY)).toBe("light");
+    expect(window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY)).toBe("anime");
     expect(window.localStorage.getItem(LEGACY_PET_STORAGE_KEY)).toBe("off");
+    expect(loadUiPreferences(window.localStorage, true)).toEqual(preferences);
   });
 });

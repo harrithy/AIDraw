@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import {
   CheckCheck,
   Calendar,
+  Cat,
+  CircleCheckBig,
   ExternalLink,
+  Github,
+  Megaphone,
   Sparkles,
-  Heart,
-  Bot,
-  Zap,
-  Rocket
+  Wrench
 } from "lucide-react";
 import {
   Dialog,
@@ -83,30 +84,30 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="anime-release-dialog">
-        {/* 顶部二次元机能风 Header */}
+        {/* 更新简报 Header */}
         <DialogHeader className="anime-release-header">
-          <div className="flex items-center justify-between gap-3 w-full pr-8">
-            <div className="flex items-center gap-2.5">
+          <div className="anime-release-header-inner">
+            <div className="anime-release-identity">
               <div className="anime-cat-avatar">
-                <span className="anime-cat-emoji">🐾</span>
+                <Megaphone aria-hidden="true" size={18} strokeWidth={1.8} />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <DialogTitle className="text-sm font-black tracking-wide anime-gradient-text flex items-center gap-1.5">
+              <div className="anime-release-heading">
+                <div className="anime-release-title-row">
+                  <DialogTitle className="anime-release-title">
                     <span>系统更新通报</span>
-                    <span className="text-[10px] tracking-normal font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    <span className="anime-release-kicker">
                       PATCH LOG
                     </span>
                   </DialogTitle>
                 </div>
-                <DialogDescription className="text-[11px] text-[var(--muted)] flex items-center gap-1.5 mt-0.5 font-medium">
-                  <Sparkles size={11} className="text-pink-400 animate-spin" style={{ animationDuration: "6s" }} />
+                <DialogDescription className="anime-release-description">
+                  <Calendar aria-hidden="true" size={12} strokeWidth={1.8} />
                   <span>雪奈核心指令集 · {activeRelease.date}</span>
                 </DialogDescription>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="anime-release-actions">
               {/* 一键全阅按钮 */}
               {unreadCount > 0 && (
                 <button
@@ -115,21 +116,24 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
                   className="anime-mark-read-btn"
                   title="将所有版本标记为已读"
                 >
-                  <CheckCheck size={12} className="text-pink-400" />
+                  <CheckCheck aria-hidden="true" size={14} strokeWidth={1.8} />
                   <span>一键已读 ({unreadCount})</span>
                 </button>
               )}
 
               {/* 历史版本下拉选择 */}
               <Select value={selectedVersion} onValueChange={setSelectedVersion}>
-                <SelectTrigger className="anime-version-select-trigger h-7.5 w-[140px] text-xs font-bold">
+                <SelectTrigger className="anime-version-select-trigger">
                   <SelectValue placeholder="选择版本">
-                    <div className="flex items-center justify-between w-full pr-1 text-xs font-bold">
-                      <span className="text-emerald-600 dark:text-emerald-400">✦ {selectedVersion}</span>
+                    <div className="anime-version-value">
+                      <span className="anime-version-number">
+                        <Sparkles aria-hidden="true" size={12} strokeWidth={1.8} />
+                        {selectedVersion}
+                      </span>
                       {isLatest ? (
-                        <span className="text-[10px] font-black text-pink-500">NEW</span>
+                        <span className="anime-version-status">NEW</span>
                       ) : !isReleaseRead(selectedVersion) ? (
-                        <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-ping" />
+                        <span className="anime-unread-dot" aria-label="未读版本" />
                       ) : null}
                     </div>
                   </SelectValue>
@@ -138,7 +142,7 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
                   position="popper"
                   align="end"
                   sideOffset={4}
-                  className="anime-version-select-content w-[150px] min-w-[150px] p-1 shadow-2xl"
+                  className="anime-version-select-content"
                 >
                   {allReleases.map((rel) => {
                     const isRelLatest = rel.version === LATEST_RELEASE.version;
@@ -147,17 +151,17 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
                       <SelectItem
                         key={rel.version}
                         value={rel.version}
-                        className="anime-select-item text-xs font-medium cursor-pointer py-1.5 px-2 rounded-md"
+                        className="anime-select-item"
                       >
-                        <div className="flex items-center justify-between w-full gap-2 text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-[var(--ink)]">✦ {rel.version}</span>
-                            {isUnread && <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />}
+                        <div className="anime-select-item-content">
+                          <div className="anime-select-version">
+                            <span>{rel.version}</span>
+                            {isUnread && <span className="anime-unread-dot" aria-label="未读版本" />}
                           </div>
                           {isRelLatest ? (
-                            <span className="text-[10px] font-black text-pink-500">NEW</span>
+                            <span className="anime-version-status">NEW</span>
                           ) : (
-                            <span className="text-[10px] text-[var(--muted)]">{rel.date}</span>
+                            <span className="anime-select-date">{rel.date}</span>
                           )}
                         </div>
                       </SelectItem>
@@ -171,15 +175,18 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
 
         {/* 内容主体 */}
         <div className="anime-release-content">
-          {/* 小雪专属赛博猫娘气泡导语 */}
+          {/* 小雪更新导语 */}
           <div className="anime-yuki-bubble">
             <div className="anime-yuki-tag">
-              <span className="anime-yuki-badge">🐱 小雪 Yuki</span>
-              <span className="text-[10px] text-pink-500 font-bold">喵～🐾</span>
+              <span className="anime-yuki-badge">
+                <Cat aria-hidden="true" size={13} strokeWidth={1.9} />
+                小雪 Yuki
+              </span>
+              <span className="anime-yuki-label">STUDIO DISPATCH</span>
             </div>
-            <p className="text-xs text-[var(--ink)] leading-relaxed font-medium mt-1">
-              报告主人！本次 <strong className="text-emerald-500 font-bold">{activeRelease.version}</strong> 算力核心装填完毕：
-              <span className="text-[var(--muted)]"> {activeRelease.summary}</span>
+            <p className="anime-yuki-copy">
+              报告主人！本次 <strong>{activeRelease.version}</strong> 算力核心装填完毕：
+              <span> {activeRelease.summary}</span>
             </p>
           </div>
 
@@ -187,17 +194,22 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
           {featureItems.length > 0 && (
             <div className="anime-section">
               <div className="anime-section-header">
-                <span className="anime-section-icon feature">★</span>
-                <span className="anime-section-title">核心机能实装 · NEW FEATURES</span>
+                <span className="anime-section-index">01</span>
+                <span className="anime-section-icon feature">
+                  <Sparkles aria-hidden="true" size={13} strokeWidth={1.9} />
+                </span>
+                <span className="anime-section-title">
+                  核心机能实装 <span>NEW FEATURES</span>
+                </span>
                 <div className="anime-section-line" />
               </div>
               <div className="anime-feature-cards">
                 {featureItems.map((item, idx) => (
                   <div key={idx} className="anime-feature-card">
                     <div className="anime-feature-card-header">
-                      <div className="flex items-center gap-1.5">
-                        <span className="anime-star">✦</span>
-                        <strong className="text-xs font-bold text-[var(--ink)]">
+                      <div className="anime-feature-title">
+                        <CircleCheckBig aria-hidden="true" size={14} strokeWidth={1.8} />
+                        <strong>
                           {item.title}
                         </strong>
                       </div>
@@ -207,7 +219,7 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-[var(--muted)] leading-relaxed font-normal mt-1 pl-4">
+                    <p className="anime-feature-description">
                       {item.description}
                     </p>
                   </div>
@@ -220,17 +232,22 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
           {otherItems.length > 0 && (
             <div className="anime-section">
               <div className="anime-section-header">
-                <span className="anime-section-icon fix">◆</span>
-                <span className="anime-section-title">机体调校 & 修复 · ADJUSTMENTS</span>
+                <span className="anime-section-index">02</span>
+                <span className="anime-section-icon fix">
+                  <Wrench aria-hidden="true" size={13} strokeWidth={1.9} />
+                </span>
+                <span className="anime-section-title">
+                  机体调校 &amp; 修复 <span>ADJUSTMENTS</span>
+                </span>
                 <div className="anime-section-line" />
               </div>
               <div className="anime-feature-cards">
                 {otherItems.map((item, idx) => (
                   <div key={idx} className="anime-feature-card sub">
                     <div className="anime-feature-card-header">
-                      <div className="flex items-center gap-1.5">
-                        <span className="anime-star sub">◆</span>
-                        <strong className="text-xs font-bold text-[var(--ink)]">
+                      <div className="anime-feature-title">
+                        <Wrench aria-hidden="true" size={14} strokeWidth={1.8} />
+                        <strong>
                           {item.title}
                         </strong>
                       </div>
@@ -240,7 +257,7 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-[var(--muted)] leading-relaxed font-normal mt-1 pl-4">
+                    <p className="anime-feature-description">
                       {item.description}
                     </p>
                   </div>
@@ -250,15 +267,16 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
           )}
         </div>
 
-        {/* 底部按钮栏：二次元萌系交互 */}
+        {/* 底部操作栏 */}
         <DialogFooter className="anime-release-footer">
           <button
             type="button"
             onClick={() => window.open("https://github.com/harrithy/AIDraw", "_blank", "noopener,noreferrer")}
             className="anime-footer-link"
           >
-            <ExternalLink size={12} className="text-pink-400" />
-            <span>GitHub 开源仓 🐾</span>
+            <Github aria-hidden="true" size={14} strokeWidth={1.8} />
+            <span>GitHub 开源仓</span>
+            <ExternalLink aria-hidden="true" size={11} strokeWidth={1.8} />
           </button>
 
           <Button
@@ -266,7 +284,8 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
             onClick={handleAcknowledge}
             className="anime-primary-cta"
           >
-            <span>我知道了喵～ (๑•̀ㅂ•́)و✧</span>
+            <CheckCheck aria-hidden="true" size={15} strokeWidth={2} />
+            <span>我知道了喵～</span>
           </Button>
         </DialogFooter>
       </DialogContent>

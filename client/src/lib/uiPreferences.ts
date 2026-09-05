@@ -23,9 +23,10 @@ export type AttachmentSide = "left" | "right" | "bottom";
 export type AttachmentMode = "list" | "stack" | "summary";
 export type AttachmentThumbnailSize = 44 | 58 | 72;
 export type AttachmentMaxVisible = 1 | 3 | 5 | "all";
+export type UiTheme = "light" | "dark" | "anime";
 
 export type AppearancePreferences = {
-  theme: "light" | "dark";
+  theme: UiTheme;
   petEnabled: boolean;
 };
 
@@ -191,7 +192,7 @@ export const createDefaultUiPreferences = (
     version: 1,
     preset: "standard",
     appearance: {
-      theme: savedTheme === "light" ? "light" : "dark",
+      theme: isOneOf(savedTheme, ["light", "dark", "anime"] as const) ? savedTheme : "dark",
       petEnabled: savedPet !== "off"
     },
     page: {
@@ -221,7 +222,7 @@ export const normalizeUiPreferences = (
       ? value.preset
       : fallback.preset,
     appearance: {
-      theme: isOneOf(appearance.theme, ["light", "dark"] as const)
+      theme: isOneOf(appearance.theme, ["light", "dark", "anime"] as const)
         ? appearance.theme
         : fallback.appearance.theme,
       petEnabled: readBoolean(appearance.petEnabled, fallback.appearance.petEnabled)
@@ -350,4 +351,21 @@ export const getAttachmentVisibleLimit = (preferences: CardLayoutPreferences) =>
   return preferences.attachmentMaxVisible === "all"
     ? Number.POSITIVE_INFINITY
     : preferences.attachmentMaxVisible;
+};
+
+/**
+ * 获取附件收起状态下的数量提示。
+ * 单张参考图不重复显示“1 张”；堆叠模式仅在多图时提示总数或剩余数量。
+ */
+export const getCollapsedAttachmentIndicator = (
+  mode: AttachmentMode,
+  totalCount: number,
+  visibleCount: number
+) => {
+  const hiddenCount = Math.max(0, totalCount - visibleCount);
+  if (mode === "stack") {
+    if (totalCount <= 1) return null;
+    return hiddenCount > 0 ? `+${hiddenCount}` : `${totalCount}张`;
+  }
+  return hiddenCount > 0 ? `+${hiddenCount}` : null;
 };

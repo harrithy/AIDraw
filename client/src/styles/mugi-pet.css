@@ -1,0 +1,117 @@
+.mugi-pet-anchor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.mugi-pet-bubble {
+  --bubble-surface: color-mix(in srgb, var(--panel-strong) 94%, var(--green));
+  --bubble-outline: color-mix(in srgb, var(--green) 32%, var(--line));
+  position: absolute;
+  left: var(--mugi-bubble-left, -22px);
+  bottom: calc(100% + 12px);
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
+  border: 1px solid var(--bubble-outline);
+  border-radius: 19px 19px 17px 8px;
+  padding: 10px 14px 12px;
+  background: var(--bubble-surface);
+  color: var(--ink);
+  box-shadow:
+    0 3px 0 color-mix(in srgb, var(--green) 12%, transparent),
+    0 12px 26px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 color-mix(in srgb, var(--ink) 5%, transparent);
+  transform-origin: calc(66px - var(--mugi-bubble-left, -22px)) bottom;
+  animation:
+    mugi-bubble-hello 360ms cubic-bezier(0.2, 0.8, 0.25, 1.2) both,
+    mugi-bubble-goodbye 180ms ease-in 2820ms forwards;
+  pointer-events: none;
+}
+
+.mugi-pet-bubble::after {
+  position: absolute;
+  bottom: -6px;
+  left: calc(66px - var(--mugi-bubble-left, -22px));
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid var(--bubble-outline);
+  border-bottom: 1px solid var(--bubble-outline);
+  border-radius: 0 0 3px 0;
+  background: var(--bubble-surface);
+  transform: translateX(-50%) rotate(45deg);
+  content: "";
+}
+
+.mugi-pet-bubble-signature {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+  color: var(--green-dark);
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 12px;
+  letter-spacing: 0.14em;
+}
+
+.mugi-pet-bubble-dots {
+  display: flex;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+.mugi-pet-bubble-dots i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+}
+
+.mugi-pet-bubble-dots i:nth-child(2) { opacity: 0.55; }
+.mugi-pet-bubble-dots i:nth-child(3) { opacity: 0.8; }
+
+.mugi-pet-bubble-message {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: 0.015em;
+  overflow-wrap: anywhere;
+}
+
+.mugi-pet-bubble-heart {
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--red) 25%, var(--line));
+  border-radius: 9px 9px 10px 10px;
+  background: color-mix(in srgb, var(--panel-strong) 92%, var(--red));
+  color: var(--red);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+  transform: rotate(11deg);
+}
+
+.mugi-pet-bubble-heart svg {
+  fill: color-mix(in srgb, var(--red) 15%, transparent);
+}
+
+@keyframes mugi-bubble-hello {
+  from { opacity: 0; transform: translateY(9px) scale(0.86) rotate(-3deg); }
+  70% { opacity: 1; transform: translateY(-2px) scale(1.025) rotate(1deg); }
+  to { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
+@keyframes mugi-bubble-goodbye {
+  to { opacity: 0; transform: translateY(4px) scale(0.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mugi-pet-bubble {
+    animation: none;
+  }
+}

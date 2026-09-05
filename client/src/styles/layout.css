@@ -383,8 +383,8 @@ button.search-clear-btn {
   cursor: pointer;
   padding: 0;
   opacity: 0.55;
-  transition: 
-    background-color 160ms ease, 
+  transition:
+    background-color 160ms ease,
     color 160ms ease,
     opacity 160ms ease;
 }
@@ -579,8 +579,8 @@ button.search-clear-btn {
   cursor: pointer;
   padding: 0;
   opacity: 0.55;
-  transition: 
-    background-color 160ms ease, 
+  transition:
+    background-color 160ms ease,
     color 160ms ease,
     opacity 160ms ease;
 }

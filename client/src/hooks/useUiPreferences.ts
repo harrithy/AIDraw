@@ -27,6 +27,8 @@ export function useUiPreferences(onSaveError?: (error: unknown) => void) {
   const [isPreviewing, setIsPreviewing] = useState(false);
   // 最后一次成功持久化的配置，作为取消预览时的回退基线。
   const persistedRef = useRef<UiPreferences>(preferences);
+  // 已保存或从其他标签页接收的快照不再写回；null 保留首次加载时的旧配置迁移。
+  const lastSyncedPreferencesRef = useRef<UiPreferences | null>(null);
   // 始终指向最新渲染的配置，供 commitPreview 读取，避免闭包过期。
   const preferencesRef = useRef<UiPreferences>(preferences);
 
@@ -38,8 +40,11 @@ export function useUiPreferences(onSaveError?: (error: unknown) => void) {
     try {
       saveUiPreferences(next);
       persistedRef.current = next;
+      lastSyncedPreferencesRef.current = next;
+      return true;
     } catch (error) {
       onSaveError?.(error);
+      return false;
     }
   }, [onSaveError]);
 
@@ -64,30 +69,43 @@ export function useUiPreferences(onSaveError?: (error: unknown) => void) {
 
   /** 确认应用：把当前预览结果一次性写入存储并结束预览。 */
   const commitPreview = useCallback(() => {
-    persist(preferencesRef.current);
+    if (!persist(preferencesRef.current)) return false;
     setIsPreviewing(false);
+    return true;
   }, [persist]);
 
   /** 放弃更改：恢复为上次保存的配置并结束预览。 */
   const cancelPreview = useCallback(() => {
+    // storage 事件可能尚未送达，取消时直接读取最新保存值；读取失败仍可安全放弃草稿。
+    try {
+      const raw = window.localStorage.getItem(UI_PREFERENCES_STORAGE_KEY);
+      if (raw !== null) {
+        persistedRef.current = normalizeUiPreferences(JSON.parse(raw), persistedRef.current);
+      }
+    } catch {
+      // 保留最后一个有效的已保存快照。
+    }
+    lastSyncedPreferencesRef.current = persistedRef.current;
     setPreferencesState(persistedRef.current);
     setIsPreviewing(false);
   }, []);
 
   // 预览会话期间挂起自动保存；其余情况与旧行为一致：改动即持久化。
   useEffect(() => {
-    if (isPreviewing) return;
+    if (isPreviewing || preferences === lastSyncedPreferencesRef.current) return;
     persist(preferences);
   }, [isPreviewing, persist, preferences]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      // 预览期间忽略其他标签页写入，避免覆盖未确认的调整。
-      if (isPreviewing) return;
       if (event.key !== UI_PREFERENCES_STORAGE_KEY || event.newValue === null) return;
       const rawPreferences = event.newValue;
       try {
-        setPreferencesState((current) => normalizeUiPreferences(JSON.parse(rawPreferences), current));
+        const next = normalizeUiPreferences(JSON.parse(rawPreferences), persistedRef.current);
+        persistedRef.current = next;
+        lastSyncedPreferencesRef.current = next;
+        // 预览期间仅更新取消时的回退基线，不覆盖当前草稿。
+        if (!isPreviewing) setPreferencesState(next);
       } catch {
         // 其他标签页写入损坏数据时保留当前有效配置。
       }

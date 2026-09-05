@@ -1,9 +1,10 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   LEGACY_THEME_STORAGE_KEY,
   loadUiPreferences,
+  saveUiPreferences,
   UI_PREFERENCES_STORAGE_KEY
 } from "../lib/uiPreferences";
 import { useUiPreferences } from "./useUiPreferences";
@@ -13,10 +14,11 @@ type UiPreferencesApi = ReturnType<typeof useUiPreferences>;
 let api: UiPreferencesApi | null = null;
 let root: Root | null = null;
 let container: HTMLElement | null = null;
+const onSaveError = vi.fn();
 
 /** 挂载 useUiPreferences 的最小宿主组件。 */
 function Harness() {
-  api = useUiPreferences();
+  api = useUiPreferences(onSaveError);
   return null;
 }
 
@@ -30,6 +32,7 @@ const storedPreferences = () => loadUiPreferences();
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
+  onSaveError.mockClear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -46,6 +49,7 @@ afterEach(() => {
   api = null;
   root = null;
   container = null;
+  vi.restoreAllMocks();
 });
 
 describe("useUiPreferences 预览会话", () => {
@@ -162,5 +166,102 @@ describe("useUiPreferences 预览会话", () => {
       current().commitPreview();
     });
     expect(storedPreferences().page.sidebarWidth).toBe(320);
+  });
+
+  it.each([
+    { editDraft: false, deliverEvent: true },
+    { editDraft: true, deliverEvent: true },
+    { editDraft: true, deliverEvent: false }
+  ])("取消预览保留其他标签页的最新设置：%j", ({ editDraft, deliverEvent }) => {
+    beginPreview();
+    if (editDraft) {
+      act(() => current().updatePreferences((prefs) => ({
+        ...prefs,
+        appearance: { ...prefs.appearance, theme: "light" }
+      }), false));
+    }
+
+    const otherTabPreferences = storedPreferences();
+    otherTabPreferences.appearance.theme = "anime";
+    otherTabPreferences.page.sidebarWidth = 340;
+    saveUiPreferences(otherTabPreferences);
+    if (deliverEvent) {
+      act(() => window.dispatchEvent(new StorageEvent("storage", {
+        key: UI_PREFERENCES_STORAGE_KEY,
+        newValue: JSON.stringify(otherTabPreferences)
+      })));
+    }
+    expect(current().preferences.appearance.theme).toBe(editDraft ? "light" : "dark");
+    const write = vi.spyOn(window.localStorage, "setItem");
+
+    act(() => current().cancelPreview());
+
+    expect(current().preferences).toEqual(otherTabPreferences);
+    expect(storedPreferences()).toEqual(otherTabPreferences);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("接收其他标签页的设置后只更新界面，不重复写回", () => {
+    const otherTabPreferences = storedPreferences();
+    otherTabPreferences.appearance.theme = "anime";
+    saveUiPreferences(otherTabPreferences);
+    const write = vi.spyOn(window.localStorage, "setItem");
+
+    act(() => window.dispatchEvent(new StorageEvent("storage", {
+      key: UI_PREFERENCES_STORAGE_KEY,
+      newValue: JSON.stringify(otherTabPreferences)
+    })));
+
+    expect(current().preferences).toEqual(otherTabPreferences);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("保存失败保留预览，可继续编辑并重试，成功后只保存一次", () => {
+    beginPreview();
+    act(() => current().updatePreferences((prefs) => ({
+      ...prefs,
+      appearance: { ...prefs.appearance, theme: "anime" }
+    }), false));
+    const failure = new DOMException("存储空间不足", "QuotaExceededError");
+    const write = vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw failure;
+    });
+    let committed: boolean | undefined;
+
+    act(() => { committed = current().commitPreview(); });
+
+    expect(committed).toBe(false);
+    expect(onSaveError).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(current().preferences.appearance.theme).toBe("anime");
+    expect(storedPreferences().appearance.theme).toBe("dark");
+    act(() => current().updatePreferences((prefs) => ({
+      ...prefs,
+      page: { ...prefs.page, sidebarWidth: 330 }
+    })));
+    expect(write).toHaveBeenCalledTimes(1);
+
+    write.mockRestore();
+    const successfulWrite = vi.spyOn(window.localStorage, "setItem");
+    act(() => { committed = current().commitPreview(); });
+
+    expect(committed).toBe(true);
+    expect(storedPreferences()).toEqual(current().preferences);
+    expect(storedPreferences().page.sidebarWidth).toBe(330);
+    expect(successfulWrite.mock.calls.filter(([key]) => key === UI_PREFERENCES_STORAGE_KEY)).toHaveLength(1);
+  });
+
+  it("保存失败后仍可取消，不重复写入或报告错误", () => {
+    const original = storedPreferences();
+    beginPreview();
+    act(() => current().applyPreset("focus"));
+    const write = vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("存储不可用", "QuotaExceededError");
+    });
+    act(() => { current().commitPreview(); });
+    act(() => current().cancelPreview());
+
+    expect(current().preferences).toEqual(original);
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(onSaveError).toHaveBeenCalledTimes(1);
   });
 });

@@ -145,18 +145,6 @@
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
 }
 
-.dark .anime-mark-read-btn {
-  color: #f472b6;
-}
-
-.dark .anime-tag-badge.feature {
-  color: #34d399;
-}
-
-.dark .anime-tag-badge.sub {
-  color: #f472b6;
-}
-
 /*---break---
  */
 
@@ -238,6 +226,62 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* 二次元主题：柔粉纸面、青空点缀与偏漫画感的清晰描边。 */
+:root.anime-theme,
+.app-shell.anime-theme {
+  color-scheme: light;
+  --page-bg: #fff8fb;
+  --ink: #342630;
+  --muted: #776873;
+  --panel: rgba(255, 251, 253, 0.95);
+  --panel-strong: #fffdfd;
+  --line: #eadce4;
+  --line-strong: #d9c3d0;
+  --subtle: #fff2f7;
+  --subtle-strong: #fff6fa;
+  --hover: #fbeaf2;
+  --card-bg: #fffafd;
+  --input-bg: #fffdfd;
+  --preview-backdrop: rgba(255, 246, 251, 0.82);
+  --strong-button-bg: #3f2b38;
+  --strong-button-text: #ffffff;
+  --green: #b94672;
+  --green-dark: #ad3f68;
+  --red: #c95064;
+  --blue: #667bd0;
+  --grid: rgba(187, 85, 127, 0.07);
+  --canvas-bg: #fff9fc;
+  --shadow: 0 14px 34px rgba(132, 63, 96, 0.12);
+  --background: oklch(0.985 0.012 345);
+  --foreground: oklch(0.28 0.035 340);
+  --card: oklch(0.995 0.007 345);
+  --card-foreground: oklch(0.28 0.035 340);
+  --popover: oklch(0.995 0.007 345);
+  --popover-foreground: oklch(0.28 0.035 340);
+  --primary: oklch(0.56 0.15 350);
+  --primary-foreground: oklch(0.99 0.005 345);
+  --secondary: oklch(0.96 0.025 345);
+  --secondary-foreground: oklch(0.34 0.05 340);
+  --muted-foreground: oklch(0.52 0.035 340);
+  --accent: oklch(0.95 0.035 345);
+  --accent-foreground: oklch(0.36 0.07 345);
+  --border: oklch(0.9 0.026 345);
+  --input: oklch(0.9 0.026 345);
+  --ring: oklch(0.64 0.13 350);
+  --sidebar: oklch(0.99 0.01 345);
+  --sidebar-foreground: oklch(0.28 0.035 340);
+  --sidebar-primary: oklch(0.56 0.15 350);
+  --sidebar-primary-foreground: oklch(0.99 0.005 345);
+  --sidebar-accent: oklch(0.95 0.035 345);
+  --sidebar-accent-foreground: oklch(0.36 0.07 345);
+  --sidebar-border: oklch(0.9 0.026 345);
+  --sidebar-ring: oklch(0.64 0.13 350);
+}
+
+:root.anime-theme {
+  background: var(--page-bg);
 }
 
 /*---break---

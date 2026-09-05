@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { DrawFolder, DrawJob, UploadedImage } from "../types";
 import {
+  buildEmergencyBackup,
   buildFolderBackup,
+  EMERGENCY_BACKUP_FORMAT,
   FOLDER_BACKUP_FORMAT,
   FOLDER_BACKUP_VERSION,
   parseFolderBackup,
+  parseImportBackups,
   prepareFolderImport
 } from "./folderBackup";
 
@@ -155,5 +158,43 @@ describe("文件夹导入预处理", () => {
     expect(prepareFolderImport(backup, ["测试文件夹", "测试文件夹 (导入1)"]).folder.name).toBe(
       "测试文件夹 (导入2)"
     );
+  });
+});
+
+describe("紧急救灾备份恢复", () => {
+  it("会按文件夹拆分全量备份，并只恢复各自的任务和素材", () => {
+    const secondFolder = makeFolder({ id: "folder-2", name: "第二个文件夹" });
+    const emergencyBackup = buildEmergencyBackup({
+      folders: [makeFolder(), secondFolder],
+      jobs: [
+        makeJob({ credentialId: "credential-secret" }),
+        makeJob({ id: "job-2", folderId: secondFolder.id, prompt: "第二个提示词" })
+      ],
+      uploadedImages: [makeImage(), makeImage({ id: "image-2", folderId: secondFolder.id })],
+      settings: [{ apiKey: "", savedApiKeys: [] }],
+      error: "render crashed"
+    });
+
+    expect(emergencyBackup.format).toBe(EMERGENCY_BACKUP_FORMAT);
+    expect(emergencyBackup.jobs[0]?.credentialId).toBeUndefined();
+
+    const backups = parseImportBackups(emergencyBackup);
+    expect(backups).toHaveLength(2);
+    expect(backups[0]?.folder.name).toBe("测试文件夹");
+    expect(backups[0]?.jobs.map((job) => job.id)).toEqual(["job-1"]);
+    expect(backups[0]?.uploadedImages.map((image) => image.id)).toEqual(["image-1"]);
+    expect(backups[1]?.jobs.map((job) => job.id)).toEqual(["job-2"]);
+    expect(backups[1]?.uploadedImages.map((image) => image.id)).toEqual(["image-2"]);
+  });
+
+  it("普通文件夹备份仍通过同一导入解析入口", () => {
+    const backup = buildFolderBackup(makeFolder(), [makeJob()], [makeImage()]);
+    expect(parseImportBackups(backup)).toEqual([backup]);
+  });
+
+  it("拒绝没有有效文件夹的紧急备份", () => {
+    expect(() =>
+      parseImportBackups({ format: EMERGENCY_BACKUP_FORMAT, version: 1, folders: [] })
+    ).toThrow("没有有效的文件夹");
   });
 });

@@ -5,6 +5,9 @@ import { createId, nowIso } from "./storage/helpers";
 export const FOLDER_BACKUP_FORMAT = "aidraw-folder-backup";
 /** 当前备份格式版本；结构变更时递增并保留旧版本兼容。 */
 export const FOLDER_BACKUP_VERSION = 1;
+/** 崩溃页导出的全量救灾备份格式标识。 */
+export const EMERGENCY_BACKUP_FORMAT = "aidraw-emergency-backup";
+export const EMERGENCY_BACKUP_VERSION = 1;
 
 /** 导出/导入的文件夹备份数据结构（JSON 序列化后落盘为 .json 文件）。 */
 export type FolderBackup = {
@@ -34,6 +37,20 @@ export type ImportedFolderPackage = {
   folder: DrawFolder;
   jobs: DrawJob[];
   uploadedImages: UploadedImage[];
+};
+
+/** 崩溃保护页导出的全量数据包；导入时按文件夹拆分并保留现有数据。 */
+export type EmergencyBackup = {
+  format: typeof EMERGENCY_BACKUP_FORMAT;
+  version: typeof EMERGENCY_BACKUP_VERSION;
+  exportedAt: string;
+  reason: "crash-rescue";
+  securityNotice: string;
+  error: string;
+  folders: DrawFolder[];
+  jobs: DrawJob[];
+  uploadedImages: UploadedImage[];
+  settings: unknown[];
 };
 
 const stripCredentialFields = (job: DrawJob): DrawJob => {
@@ -68,6 +85,32 @@ export const buildFolderBackup = (
   folder,
   jobs: jobs.map(stripCredentialFields),
   uploadedImages
+});
+
+/** 构建可由普通导入入口恢复的全量救灾备份。 */
+export const buildEmergencyBackup = ({
+  folders,
+  jobs,
+  uploadedImages,
+  settings,
+  error
+}: {
+  folders: DrawFolder[];
+  jobs: DrawJob[];
+  uploadedImages: UploadedImage[];
+  settings: unknown[];
+  error: string;
+}): EmergencyBackup => ({
+  format: EMERGENCY_BACKUP_FORMAT,
+  version: EMERGENCY_BACKUP_VERSION,
+  exportedAt: nowIso(),
+  reason: "crash-rescue",
+  securityNotice: "Sensitive API credentials (apiKey / savedApiKeys) have been automatically stripped for security.",
+  error,
+  folders,
+  jobs: jobs.map(stripCredentialFields),
+  uploadedImages,
+  settings
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -113,6 +156,55 @@ export const parseFolderBackup = (raw: unknown): FolderBackup => {
     jobs,
     uploadedImages
   };
+};
+
+/**
+ * 解析普通单文件夹备份或崩溃页全量备份，统一转换为可逐个导入的文件夹备份列表。
+ * 全量备份中的设置已脱敏且不会覆盖当前设置，仅恢复文件夹、任务和素材记录。
+ */
+export const parseImportBackups = (raw: unknown): FolderBackup[] => {
+  if (isRecord(raw) && raw.format === FOLDER_BACKUP_FORMAT) {
+    return [parseFolderBackup(raw)];
+  }
+  if (!isRecord(raw) || raw.format !== EMERGENCY_BACKUP_FORMAT) {
+    throw new Error("导入失败：不是 AIDraw 文件夹或紧急救灾备份文件");
+  }
+  if (raw.version !== EMERGENCY_BACKUP_VERSION) {
+    throw new Error(`导入失败：紧急备份版本不受支持（当前仅支持 v${EMERGENCY_BACKUP_VERSION}）`);
+  }
+
+  const folders = Array.isArray(raw.folders)
+    ? raw.folders.filter(
+        (folder): folder is DrawFolder =>
+          isRecord(folder) && typeof folder.id === "string" && typeof folder.name === "string" && Boolean(folder.name.trim())
+      )
+    : [];
+  if (folders.length === 0) throw new Error("导入失败：紧急备份中没有有效的文件夹");
+
+  const jobs = Array.isArray(raw.jobs)
+    ? raw.jobs.filter(
+        (job): job is DrawJob =>
+          isRecord(job) && typeof job.folderId === "string" && typeof job.prompt === "string"
+      )
+    : [];
+  const uploadedImages = Array.isArray(raw.uploadedImages)
+    ? raw.uploadedImages.filter(
+        (image): image is UploadedImage =>
+          isRecord(image) && typeof image.folderId === "string" && typeof image.url === "string"
+      )
+    : [];
+  const exportedAt = typeof raw.exportedAt === "string" ? raw.exportedAt : nowIso();
+
+  return folders.map((folder) => ({
+    format: FOLDER_BACKUP_FORMAT,
+    version: FOLDER_BACKUP_VERSION,
+    exportedAt,
+    appName: "AIDraw",
+    media: { binariesIncluded: false, mode: "remote-urls-only" },
+    folder,
+    jobs: jobs.filter((job) => job.folderId === folder.id).map(stripCredentialFields),
+    uploadedImages: uploadedImages.filter((image) => image.folderId === folder.id)
+  }));
 };
 
 /** 为导入的文件夹生成不与现有文件夹重名的名称。 */

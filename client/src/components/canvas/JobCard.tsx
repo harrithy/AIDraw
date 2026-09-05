@@ -32,6 +32,7 @@ import { formatModelPrice, getModelPrice } from "../../lib/modelPricing";
 import { prefersReducedMotion } from "../../lib/motion";
 import {
   getAttachmentVisibleLimit,
+  getCollapsedAttachmentIndicator,
   getVisibleCardActionOrder,
   type CardActionId,
   type CardLayoutPreferences
@@ -169,18 +170,27 @@ export const JobCard = memo(function JobCard({
   const attachmentVisibleLimit = Number.isFinite(configuredAttachmentLimit)
     ? configuredAttachmentLimit
     : Math.max(1, referenceImages.length);
-  const stackThumbnailCount =
-    referenceImages.length > attachmentVisibleLimit
-      ? Math.max(0, attachmentVisibleLimit - 1)
-      : referenceImages.length;
+  const stackThumbnailCount = Math.min(
+    referenceImages.length,
+    Number.isFinite(attachmentVisibleLimit) ? Math.max(1, Math.min(3, attachmentVisibleLimit)) : 3
+  );
+  const listThumbnailCount = Number.isFinite(attachmentVisibleLimit)
+    ? Math.max(1, attachmentVisibleLimit)
+    : referenceImages.length;
   const collapsedReferenceImages =
     cardPreferences.attachmentMode === "summary"
       ? referenceImages.slice(0, 1)
       : cardPreferences.attachmentMode === "stack"
         ? referenceImages.slice(0, stackThumbnailCount)
-        : referenceImages;
+        : referenceImages.slice(0, listThumbnailCount);
   const displayedReferenceImages = attachmentsExpanded ? referenceImages : collapsedReferenceImages;
-  const hiddenReferenceCount = Math.max(0, referenceImages.length - displayedReferenceImages.length);
+  const collapsedAttachmentIndicator = attachmentsExpanded
+    ? null
+    : getCollapsedAttachmentIndicator(
+        cardPreferences.attachmentMode,
+        referenceImages.length,
+        displayedReferenceImages.length
+      );
   const availableActionIds = new Set<CardActionId>([
     ...(canRetry ? (["retry"] as CardActionId[]) : []),
     "movePrevious",
@@ -576,7 +586,12 @@ export const JobCard = memo(function JobCard({
       style={cardStyle}
     >
       {cardPreferences.attachmentVisible && referenceImages.length > 0 ? (
-        <div className="job-reference-strip" aria-label="参考图片" onPointerDown={(event) => event.stopPropagation()}>
+        <div
+          className="job-reference-strip"
+          aria-label="参考图片"
+          data-reference-count={referenceImages.length}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
           {displayedReferenceImages.map((imageUrl, imageIndex) => (
             <button
               key={`${imageUrl}-${imageIndex}`}
@@ -585,7 +600,7 @@ export const JobCard = memo(function JobCard({
               onClick={() => setReferencePreviewUrl(imageUrl)}
               title="放大参考图"
             >
-              <img
+              <RetryingImage
                 src={imageUrl}
                 alt={`参考图片 ${imageIndex + 1}`}
                 loading="lazy"
@@ -593,25 +608,15 @@ export const JobCard = memo(function JobCard({
               />
             </button>
           ))}
-          {!attachmentsExpanded && cardPreferences.attachmentMode === "stack" ? (
+          {collapsedAttachmentIndicator ? (
             <button
               type="button"
-              className="job-reference-count"
+              className={`job-reference-count${cardPreferences.attachmentMode === "stack" ? " is-stack-count" : ""}`}
               onClick={() => setAttachmentsExpanded(true)}
               aria-label={`展开全部 ${referenceImages.length} 张参考图片`}
               title="展开全部参考图片"
             >
-              {hiddenReferenceCount > 0 ? `+${hiddenReferenceCount}` : `${referenceImages.length}张`}
-            </button>
-          ) : hiddenReferenceCount > 0 ? (
-            <button
-              type="button"
-              className="job-reference-count"
-              onClick={() => setAttachmentsExpanded(true)}
-              aria-label={`展开其余 ${hiddenReferenceCount} 张参考图片`}
-              title="展开全部参考图片"
-            >
-              +{hiddenReferenceCount}
+              {collapsedAttachmentIndicator}
             </button>
           ) : attachmentsExpanded && referenceImages.length > 1 ? (
             <button

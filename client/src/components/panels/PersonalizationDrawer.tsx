@@ -4,7 +4,6 @@ import {
   ArrowRight,
   ArrowUp,
   Check,
-  ChevronLeft,
   ChevronRight,
   CloudUpload,
   Download,
@@ -28,10 +27,12 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import {
   CARD_ACTION_IDS,
+  type AttachmentMode,
   type AttachmentMaxVisible,
   type CardActionId,
   type UiLayoutPreset,
-  type UiPreferences
+  type UiPreferences,
+  type UiTheme
 } from "../../lib/uiPreferences";
 import { Button } from "../ui/button";
 import { DialogDescription, DialogTitle } from "../ui/dialog";
@@ -53,16 +54,54 @@ type PersonalizationDrawerProps = {
   onPreviewPreset: (preset: Exclude<UiLayoutPreset, "custom">) => void;
   onPreviewReset: () => void;
   /** 确认应用当前预览结果并保存。 */
-  onCommit: () => void;
+  onCommit: () => boolean;
   /** 放弃预览，恢复为上次保存的设置。 */
   onCancel: () => void;
 };
 
-const SECTIONS: Array<{ id: PersonalizationSection; label: string; icon: ReactNode }> = [
-  { id: "presets", label: "布局预设", icon: <LayoutGrid size={15} /> },
-  { id: "page", label: "页面布局", icon: <PanelLeft size={15} /> },
-  { id: "card", label: "图片盒子", icon: <ImageIcon size={15} /> },
-  { id: "appearance", label: "外观主题", icon: <Palette size={15} /> }
+const SECTIONS: Array<{
+  id: PersonalizationSection;
+  label: string;
+  description: string;
+  icon: ReactNode;
+}> = [
+  { id: "presets", label: "布局预设", description: "一键切换空间节奏", icon: <LayoutGrid size={16} /> },
+  { id: "page", label: "页面布局", description: "控制面板与创作框", icon: <PanelLeft size={16} /> },
+  { id: "card", label: "图片盒子", description: "管理工具与参考图", icon: <ImageIcon size={16} /> },
+  { id: "appearance", label: "外观主题", description: "主题与陪伴体验", icon: <Palette size={16} /> }
+];
+
+const PRESET_LABELS: Record<UiLayoutPreset, string> = {
+  standard: "标准布局",
+  focus: "专注画布",
+  compact: "紧凑分屏",
+  custom: "自定义布局"
+};
+
+const THEME_OPTIONS: Array<{
+  id: UiTheme;
+  title: string;
+  description: string;
+}> = [
+  { id: "light", title: "明亮浅色", description: "清爽纸面与墨绿强调" },
+  { id: "dark", title: "极夜深色", description: "低照度沉浸创作" },
+  { id: "anime", title: "樱落漫绘", description: "二次元 · 柔粉与青空" }
+];
+
+function ThemeGlyph({ theme, size = 20 }: { theme: UiTheme; size?: number }) {
+  if (theme === "dark") return <Moon size={size} />;
+  if (theme === "anime") return <Sparkles size={size} />;
+  return <Sun size={size} />;
+}
+
+const ATTACHMENT_MODES: Array<{
+  value: AttachmentMode;
+  label: string;
+  description: string;
+}> = [
+  { value: "list", label: "平铺浏览", description: "每张参考图完整露出" },
+  { value: "stack", label: "卡叠收纳", description: "多图错层，点击展开" },
+  { value: "summary", label: "首图摘要", description: "只看首图与剩余数量" }
 ];
 
 const PRESETS: Array<{
@@ -130,14 +169,16 @@ function SettingGroup({
 function SettingRow({
   title,
   description,
+  fullWidth = false,
   children
 }: {
   title: string;
   description?: string;
+  fullWidth?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="personalization-setting-row">
+    <div className={`personalization-setting-row${fullWidth ? " full-width" : ""}`}>
       <div className="personalization-setting-copy">
         <span className="personalization-setting-title">{title}</span>
         {description ? <small className="personalization-setting-desc">{description}</small> : null}
@@ -172,6 +213,46 @@ function ChoiceGroup<T extends string>({
           <span>{option.label}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+function AttachmentModePicker({
+  value,
+  onChange
+}: {
+  value: AttachmentMode;
+  onChange: (value: AttachmentMode) => void;
+}) {
+  return (
+    <div className="personalization-attachment-modes" role="radiogroup" aria-label="附件图片展示方式">
+      {ATTACHMENT_MODES.map((mode) => {
+        const active = value === mode.value;
+        return (
+          <button
+            key={mode.value}
+            type="button"
+            className={`personalization-attachment-mode${active ? " active" : ""}`}
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(mode.value)}
+          >
+            <span className="attachment-mode-visual" data-mode={mode.value} aria-hidden="true">
+              <span className="attachment-preview-card first" />
+              <span className="attachment-preview-card second" />
+              <span className="attachment-preview-card third" />
+              <span className="attachment-preview-count">+2</span>
+            </span>
+            <span className="attachment-mode-copy">
+              <strong>{mode.label}</strong>
+              <small>{mode.description}</small>
+            </span>
+            <span className="attachment-mode-check" aria-hidden="true">
+              <Check size={12} />
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -230,30 +311,76 @@ export function PersonalizationDrawer({
   const [draggedAction, setDraggedAction] = useState<CardActionId | null>(null);
   const [dirty, setDirty] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const currentSectionIndex = SECTIONS.findIndex((item) => item.id === section);
+  const currentSection = SECTIONS[currentSectionIndex] ?? SECTIONS[0];
+  const visibleActionCount = CARD_ACTION_IDS.length - preferences.card.hiddenActions.length;
+  const currentTheme = THEME_OPTIONS.find((theme) => theme.id === preferences.appearance.theme) ?? THEME_OPTIONS[0];
+
+  useGSAP(
+    () => {
+      if (!open || !shellRef.current) return;
+      const media = gsap.matchMedia();
+      media.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap
+          .timeline({ defaults: { ease: "power3.out" } })
+          .fromTo(
+            ".personalization-header-copy > *",
+            { autoAlpha: 0, x: 18 },
+            { autoAlpha: 1, x: 0, duration: 0.42, stagger: 0.055, clearProps: "transform,opacity,visibility" }
+          )
+          .fromTo(
+            ".personalization-nav-tab",
+            { autoAlpha: 0, x: 12 },
+            { autoAlpha: 1, x: 0, duration: 0.32, stagger: 0.045, clearProps: "transform,opacity,visibility" },
+            "<0.08"
+          )
+          .fromTo(
+            ".personalization-footer",
+            { autoAlpha: 0, y: 10 },
+            { autoAlpha: 1, y: 0, duration: 0.3, clearProps: "transform,opacity,visibility" },
+            "<0.12"
+          );
+      });
+      return () => media.revert();
+    },
+    { dependencies: [open], scope: shellRef, revertOnUpdate: true }
+  );
 
   useGSAP(
     () => {
       if (!contentRef.current) return;
-      const items = contentRef.current.querySelectorAll(
-        ".personalization-section-intro, .personalization-preset-card, .personalization-group-card, .personalization-custom-tip"
-      );
-      if (items.length > 0) {
-        gsap.fromTo(
-          items,
-          { opacity: 0, y: 14 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.35,
-            stagger: 0.035,
-            ease: "power2.out",
-            clearProps: "transform,opacity"
-          }
+      const media = gsap.matchMedia();
+      media.add("(prefers-reduced-motion: no-preference)", () => {
+        const items = contentRef.current?.querySelectorAll(
+          ".personalization-preset-card, .personalization-group-card, .personalization-custom-tip"
         );
-      }
+        const timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
+        timeline.fromTo(
+          ".personalization-section-context",
+          { autoAlpha: 0, x: 18 },
+          { autoAlpha: 1, x: 0, duration: 0.28, clearProps: "transform,opacity,visibility" }
+        );
+        if (items?.length) {
+          timeline.fromTo(
+            items,
+            { autoAlpha: 0, y: 16, scale: 0.985 },
+            {
+              autoAlpha: 1,
+              y: 0,
+              scale: 1,
+              duration: 0.38,
+              stagger: 0.045,
+              clearProps: "transform,opacity,visibility"
+            },
+            "<0.04"
+          );
+        }
+      });
+      return () => media.revert();
     },
-    { dependencies: [section], scope: contentRef }
+    { dependencies: [section], scope: contentRef, revertOnUpdate: true }
   );
 
   useEffect(() => {
@@ -318,8 +445,14 @@ export function PersonalizationDrawer({
     updateCard({ hiddenActions: CARD_ACTION_IDS.filter((item) => hidden.has(item)) });
   };
 
+  const changeSection = (nextSection: PersonalizationSection) => {
+    if (nextSection === section) return;
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+    setSection(nextSection);
+  };
+
   const handleCommit = () => {
-    onCommit();
+    if (!onCommit()) return;
     setDirty(false);
     Message.success("已应用个性化设置");
   };
@@ -356,68 +489,97 @@ export function PersonalizationDrawer({
         </span>
       </button>
 
-      {/* 抽屉头部 */}
-      <header className="personalization-header">
-        <div className="personalization-header-copy">
-          <div className="personalization-eyebrow-row">
-            <span className="personalization-icon-pill">
-              <SlidersHorizontal size={13} />
-            </span>
-            <span className="personalization-preview-badge">
-              <span className="personalization-preview-pulse" />
-              实时预览模式
-            </span>
+      <div ref={shellRef} className="personalization-shell">
+        {/* 抽屉头部 */}
+        <header className="personalization-header">
+          <div className="personalization-header-copy">
+            <div className="personalization-eyebrow-row">
+              <span className="personalization-icon-pill">
+                <SlidersHorizontal size={14} />
+              </span>
+              <span className="personalization-kicker">SPACE STUDIO</span>
+              <span className="personalization-preview-badge">
+                <span className="personalization-preview-pulse" />
+                实时预览
+              </span>
+            </div>
+            <div className="personalization-title-row">
+              <DialogTitle>把创作空间调成顺手的样子</DialogTitle>
+            </div>
+            <DialogDescription>
+              每一次选择都会立即映射到画布；满意后应用，不满意就安全退回。
+            </DialogDescription>
+            <div className="personalization-header-facts" aria-label="当前个性化设置摘要">
+              <span><LayoutGrid size={13} />{PRESET_LABELS[preferences.preset]}</span>
+              <span><Sparkles size={13} />{visibleActionCount} 个卡片动作</span>
+              <span><ThemeGlyph theme={currentTheme.id} size={13} />{currentTheme.title}</span>
+            </div>
           </div>
-          <div className="personalization-title-row">
-            <DialogTitle>个性化与布局</DialogTitle>
-          </div>
-          <DialogDescription>
-            调整将即时反映在画布上，确认无误后点击「保存应用」持久保存。
-          </DialogDescription>
-        </div>
 
-        <div className="personalization-header-actions">
-          <button
-            type="button"
-            className="personalization-action-btn"
-            onClick={handleReset}
-            title="恢复默认布局"
-            aria-label="恢复默认布局"
-          >
-            <RotateCcw size={15} />
-          </button>
-          <button
-            type="button"
-            className="personalization-action-btn close"
-            onClick={() => onOpenChange(false)}
-            title="关闭抽屉并取消"
-            aria-label="关闭个性化设置"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      </header>
-
-      {/* 分段药丸导航 */}
-      <nav className="personalization-nav" aria-label="个性化设置分区">
-        <div className="personalization-nav-track">
-          {SECTIONS.map((item) => (
+          <div className="personalization-header-actions">
             <button
-              key={item.id}
               type="button"
-              className={`personalization-nav-tab${section === item.id ? " active" : ""}`}
-              aria-current={section === item.id ? "page" : undefined}
-              onClick={() => setSection(item.id)}
+              className="personalization-action-btn"
+              onClick={handleReset}
+              title="恢复默认布局"
+              aria-label="恢复默认布局"
             >
-              {item.icon}
-              <span>{item.label}</span>
+              <RotateCcw size={16} />
             </button>
-          ))}
-        </div>
-      </nav>
+            <button
+              type="button"
+              className="personalization-action-btn close"
+              onClick={() => onOpenChange(false)}
+              title="关闭抽屉并取消"
+              aria-label="关闭个性化设置"
+            >
+              <X size={17} />
+            </button>
+          </div>
+        </header>
 
-      {/* 滚动内容区 */}
-      <div ref={contentRef} className="personalization-content">
+        <div className="personalization-workbench">
+          {/* 工作台分区导航 */}
+          <nav className="personalization-nav" aria-label="个性化设置分区">
+            <div className="personalization-nav-heading">
+              <span>CONTROL MAP</span>
+              <strong>调节分区</strong>
+            </div>
+            <div className="personalization-nav-track">
+              {SECTIONS.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`personalization-nav-tab${section === item.id ? " active" : ""}`}
+                  aria-current={section === item.id ? "page" : undefined}
+                  onClick={() => changeSection(item.id)}
+                >
+                  <span className="personalization-nav-index">0{index + 1}</span>
+                  <span className="personalization-nav-icon">{item.icon}</span>
+                  <span className="personalization-nav-copy">
+                    <strong>{item.label}</strong>
+                    <small>{item.description}</small>
+                  </span>
+                  <ChevronRight className="personalization-nav-arrow" size={15} />
+                </button>
+              ))}
+            </div>
+            <div className="personalization-nav-note">
+              <span className={`status-indicator-dot${dirty ? " dirty" : ""}`} />
+              <span>{dirty ? "预览正在等待应用" : "当前设置已同步"}</span>
+            </div>
+          </nav>
+
+          {/* 滚动内容区 */}
+          <div ref={contentRef} className="personalization-content">
+            <div className="personalization-section-context">
+              <span className="personalization-section-number">0{currentSectionIndex + 1}</span>
+              <span className="personalization-section-divider" />
+              <div>
+                <strong>{currentSection.label}</strong>
+                <small>{currentSection.description}</small>
+              </div>
+            </div>
         {/* TAB 1: 布局预设 */}
         {section === "presets" ? (
           <section className="personalization-section" aria-labelledby="personalization-presets-title">
@@ -614,7 +776,7 @@ export function PersonalizationDrawer({
             <SettingGroup
               title="卡片动作按钮"
               icon={<Sparkles size={16} />}
-              badge="可拖拽排序"
+              badge="拖动或按箭头排序"
             >
               <div className="personalization-action-editor">
                 <div className="personalization-action-list">
@@ -642,6 +804,7 @@ export function PersonalizationDrawer({
                         </span>
 
                         <div className="action-identity">
+                          <span className="action-position">{String(index + 1).padStart(2, "0")}</span>
                           <span className="action-icon">{meta.icon}</span>
                           <span className="action-label">{meta.label}</span>
                           {!visible ? <span className="action-hidden-badge">已隐藏</span> : null}
@@ -702,15 +865,13 @@ export function PersonalizationDrawer({
                   onChange={(attachmentSide) => updateCard({ attachmentSide })}
                 />
               </SettingRow>
-              <SettingRow title="排列展示方式">
-                <ChoiceGroup
+              <SettingRow
+                title="排列展示方式"
+                description="直接看预览选择，不再靠抽象名称猜效果"
+                fullWidth
+              >
+                <AttachmentModePicker
                   value={preferences.card.attachmentMode}
-                  ariaLabel="附件图片展示方式"
-                  options={[
-                    { value: "list", label: "列表" },
-                    { value: "stack", label: "堆叠" },
-                    { value: "summary", label: "首图+N" }
-                  ]}
                   onChange={(attachmentMode) => updateCard({ attachmentMode })}
                 />
               </SettingRow>
@@ -761,54 +922,62 @@ export function PersonalizationDrawer({
 
             {/* 主题选择卡片 */}
             <SettingGroup title="界面主题配色" icon={<Palette size={16} />}>
-              <div className="personalization-theme-cards">
-                <button
-                  type="button"
-                  className={`personalization-theme-card light${
-                    preferences.appearance.theme === "light" ? " active" : ""
-                  }`}
-                  onClick={() => updateAppearance({ theme: "light" })}
-                >
-                  <div className="theme-card-preview">
-                    <Sun size={20} className="theme-card-icon" />
-                    <div className="theme-card-mockup light">
-                      <span className="mock-bar" />
-                      <span className="mock-box" />
-                    </div>
-                  </div>
-                  <div className="theme-card-footer">
-                    <strong>明亮浅色</strong>
-                    {preferences.appearance.theme === "light" ? (
-                      <span className="theme-check">
-                        <Check size={12} />
-                      </span>
-                    ) : null}
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className={`personalization-theme-card dark${
-                    preferences.appearance.theme === "dark" ? " active" : ""
-                  }`}
-                  onClick={() => updateAppearance({ theme: "dark" })}
-                >
-                  <div className="theme-card-preview">
-                    <Moon size={20} className="theme-card-icon" />
-                    <div className="theme-card-mockup dark">
-                      <span className="mock-bar" />
-                      <span className="mock-box" />
-                    </div>
-                  </div>
-                  <div className="theme-card-footer">
-                    <strong>极夜深色</strong>
-                    {preferences.appearance.theme === "dark" ? (
-                      <span className="theme-check">
-                        <Check size={12} />
-                      </span>
-                    ) : null}
-                  </div>
-                </button>
+              <div className="personalization-theme-cards" role="radiogroup" aria-label="界面主题">
+                {THEME_OPTIONS.map((theme, themeIndex) => {
+                  const active = preferences.appearance.theme === theme.id;
+                  return (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      className={`personalization-theme-card theme-${theme.id}${active ? " active" : ""}`}
+                      role="radio"
+                      aria-checked={active}
+                      tabIndex={active ? 0 : -1}
+                      onClick={() => updateAppearance({ theme: theme.id })}
+                      onKeyDown={(event) => {
+                        let nextIndex = themeIndex;
+                        if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex += 1;
+                        else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex -= 1;
+                        else if (event.key === "Home") nextIndex = 0;
+                        else if (event.key === "End") nextIndex = THEME_OPTIONS.length - 1;
+                        else return;
+                        event.preventDefault();
+                        nextIndex = (nextIndex + THEME_OPTIONS.length) % THEME_OPTIONS.length;
+                        updateAppearance({ theme: THEME_OPTIONS[nextIndex].id });
+                        event.currentTarget.parentElement
+                          ?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[nextIndex]?.focus();
+                      }}
+                    >
+                      <div className="theme-card-preview">
+                        <span className="theme-card-icon" aria-hidden="true">
+                          <ThemeGlyph theme={theme.id} />
+                        </span>
+                        <div className={`theme-card-mockup theme-${theme.id}`} aria-hidden="true">
+                          <span className="mock-bar" />
+                          <span className="mock-box" />
+                          {theme.id === "anime" ? (
+                            <span className="mock-sparkles">
+                              <i />
+                              <i />
+                              <i />
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="theme-card-footer">
+                        <span className="theme-card-footer-copy">
+                          <strong>{theme.title}</strong>
+                          <small>{theme.description}</small>
+                        </span>
+                        {active ? (
+                          <span className="theme-check" aria-hidden="true">
+                            <Check size={12} />
+                          </span>
+                        ) : null}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </SettingGroup>
 
@@ -827,26 +996,28 @@ export function PersonalizationDrawer({
             </SettingGroup>
           </section>
         ) : null}
-      </div>
+          </div>
+        </div>
 
-      {/* 抽屉底部操作栏 */}
-      <footer className="personalization-footer">
-        <div className="personalization-footer-status">
-          <span className={`status-indicator-dot${dirty ? " dirty" : ""}`} />
-          <span className="status-text">
-            {dirty ? "有未保存的调整 · 预览中" : "所有调整已实时反映在画布上"}
-          </span>
-        </div>
-        <div className="personalization-footer-actions">
-          <Button variant="outline" onClick={handleCancel}>
-            放弃更改
-          </Button>
-          <Button onClick={handleCommit} disabled={!dirty} className="personalization-commit-btn">
-            <Check size={14} />
-            <span>应用设置</span>
-          </Button>
-        </div>
-      </footer>
+        {/* 抽屉底部操作栏 */}
+        <footer className="personalization-footer">
+          <div className="personalization-footer-status" role="status" aria-live="polite">
+            <span className={`status-indicator-dot${dirty ? " dirty" : ""}`} />
+            <span className="status-text">
+              {dirty ? "有未保存的调整 · 预览中" : "所有调整已实时反映在画布上"}
+            </span>
+          </div>
+          <div className="personalization-footer-actions">
+            <Button variant="outline" onClick={handleCancel}>
+              放弃更改
+            </Button>
+            <Button onClick={handleCommit} disabled={!dirty} className="personalization-commit-btn">
+              <Check size={14} />
+              <span>应用设置</span>
+            </Button>
+          </div>
+        </footer>
+      </div>
     </Drawer>
   );
 }

@@ -59,6 +59,29 @@
     transition-duration: 1ms !important;
   }
 
+  .personalization-drawer,
+  .personalization-shell,
+  .personalization-preview-pulse::after,
+  .personalization-nav-tab,
+  .personalization-nav-icon,
+  .personalization-preset-card,
+  .personalization-preset-active-indicator,
+  .personalization-custom-tip .tip-dot,
+  .status-indicator-dot.dirty,
+  .personalization-attachment-mode,
+  .attachment-preview-card,
+  .attachment-mode-check,
+  .personalization-theme-card,
+  .theme-card-icon,
+  .theme-card-preview,
+  .theme-card-mockup .mock-bar,
+  .theme-card-mockup .mock-box,
+  .theme-check,
+  .personalization-commit-btn::after {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+
   .uploaded-image-preview-button img {
     transition-duration: 1ms !important;
   }
@@ -318,6 +341,12 @@
   .personalization-preset-grid {
     grid-template-columns: 1fr;
   }
+
+  .personalization-preset-card:last-child {
+    display: flex;
+    min-height: 190px;
+    grid-column: auto;
+  }
 }
 
 @media (min-width: 1121px) and (max-width: 1500px) {
@@ -482,18 +511,12 @@
     overflow-y: hidden;
   }
 
-  .job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-thumb,
-  .job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-thumb + .job-reference-count {
-    margin-top: 0;
-    margin-left: calc(var(--job-reference-thumb-size, 58px) * -0.42);
-  }
-
   .job-card.toolbar-behavior-always:not(.tools-manually-open) .job-actions > :not(.job-tools-toggle) {
     display: none;
   }
 
   .personalization-drawer {
-    width: min(460px, 100vw);
+    width: min(600px, 100vw);
     border-left: 0;
   }
 
@@ -502,7 +525,52 @@
   }
 
   .personalization-nav {
-    padding: 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 8px 10px;
+  }
+
+  .personalization-workbench {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .personalization-nav-heading,
+  .personalization-nav-note {
+    display: none;
+  }
+
+  .personalization-nav-track {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .personalization-nav-tab {
+    display: flex;
+    min-height: 44px;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 10px;
+    padding: 6px;
+    text-align: center;
+  }
+
+  .personalization-nav-tab::before,
+  .personalization-nav-index,
+  .personalization-nav-copy small,
+  .personalization-nav-arrow {
+    display: none;
+  }
+
+  .personalization-nav-icon {
+    width: 27px;
+    height: 27px;
+    flex: 0 0 27px;
+  }
+
+  .personalization-nav-copy strong {
+    font-size: 11px;
   }
 
   .personalization-content {
@@ -515,6 +583,95 @@
 
   .personalization-footer {
     padding: 10px 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  .personalization-header {
+    padding: 16px 14px 14px;
+  }
+
+  .personalization-header [data-slot="dialog-title"] {
+    font-size: 20px;
+  }
+
+  .personalization-header-facts > span:nth-child(2) {
+    display: none;
+  }
+
+  .personalization-content {
+    padding: 14px 12px 20px;
+  }
+
+  .personalization-nav-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .personalization-nav-tab {
+    justify-content: flex-start;
+    padding-inline: 10px;
+  }
+
+  .personalization-nav-copy {
+    padding-right: 0;
+  }
+
+  .personalization-nav-copy strong {
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .personalization-setting-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .personalization-setting-control {
+    width: 100%;
+  }
+
+  .personalization-choice-group,
+  .personalization-slider-wrapper {
+    width: 100%;
+  }
+
+  .personalization-choice-group button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .personalization-slider-bar {
+    flex: 1;
+    width: auto;
+  }
+
+  .personalization-action-list,
+  .personalization-attachment-modes,
+  .personalization-theme-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .personalization-attachment-mode {
+    min-height: 112px;
+    grid-template-columns: 118px minmax(0, 1fr);
+    grid-template-rows: auto;
+    align-items: center;
+  }
+
+  .attachment-mode-visual {
+    height: 76px;
+  }
+
+  .personalization-footer-status {
+    display: none;
+  }
+
+  .personalization-footer-actions {
+    width: 100%;
+  }
+
+  .personalization-footer-actions button {
+    flex: 1;
   }
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Heart, PawPrint } from "lucide-react";
 
 /** Mugi 桌宠动作帧（GIF 静态资源）。 */
 const FRAMES = {
@@ -16,6 +17,7 @@ const FRAMES = {
   lookA: "/mugi/look-a.gif",
   lookB: "/mugi/look-b.gif"
 } as const;
+const STATIC_IDLE_FRAME = "/mugi/idle.png";
 
 type FrameKey = keyof typeof FRAMES;
 
@@ -52,9 +54,11 @@ const BUBBLE_LINES = [
 
 const PET_WIDTH = 132;
 const PET_HEIGHT = 132;
+const BUBBLE_WIDTH = 176;
+const BUBBLE_DURATION_MS = 3000;
 const WALK_SPEED_PX_PER_MS = 0.045;
 const EDGE_PADDING = 8;
-const TOP_PADDING = 64;
+const TOP_PADDING = 100;
 
 const prefersReducedMotion = () =>
   typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -83,10 +87,11 @@ export function MugiPet() {
   const posRef = useRef({ x: window.innerWidth - PET_WIDTH - 24, y: window.innerHeight - PET_HEIGHT - 110 });
   const dirRef = useRef(-1);
   const behaviorRef = useRef<"idle" | "walk" | "special">("idle");
-  const stateUntilRef = useRef(0);
   const pausedRef = useRef(false);
   const rafRef = useRef(0);
+  const stateTimerRef = useRef(0);
   const lastTsRef = useRef(0);
+  const reducedMotionRef = useRef(prefersReducedMotion());
   const dragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -98,12 +103,19 @@ export function MugiPet() {
   const bubbleTimerRef = useRef(0);
 
   const [frame, setFrame] = useState<FrameKey>("idle");
-  const [bubble, setBubble] = useState<string | null>(null);
+  const [bubble, setBubble] = useState<{ text: string; id: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [isReducedMotion, setIsReducedMotion] = useState(reducedMotionRef.current);
 
   const applyPosition = () => {
     const root = rootRef.current;
-    if (root) root.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`;
+    if (!root) return;
+    root.style.transform = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`;
+    // 气泡独立于角色布局；贴近边缘时移动气泡，尾巴仍指向角色。
+    const centeredLeft = posRef.current.x + (PET_WIDTH - BUBBLE_WIDTH) / 2;
+    const maxLeft = Math.max(EDGE_PADDING, window.innerWidth - BUBBLE_WIDTH - EDGE_PADDING);
+    const bubbleLeft = Math.min(Math.max(centeredLeft, EDGE_PADDING), maxLeft);
+    root.style.setProperty("--mugi-bubble-left", `${bubbleLeft - posRef.current.x}px`);
   };
 
   const clampPosition = () => {
@@ -114,49 +126,66 @@ export function MugiPet() {
   };
 
   const scheduleNextState = () => {
-    const now = Date.now();
-    if (prefersReducedMotion()) {
-      behaviorRef.current = "idle";
-      setFrame("idle");
-      stateUntilRef.current = now + 3000;
+    window.clearTimeout(stateTimerRef.current);
+    cancelAnimationFrame(rafRef.current);
+
+    if (dragRef.current) {
+      stateTimerRef.current = window.setTimeout(scheduleNextState, 250);
       return;
     }
+    if (reducedMotionRef.current) {
+      behaviorRef.current = "idle";
+      setFrame("idle");
+      return;
+    }
+
     const roll = Math.random();
+    let durationMs: number;
     if (roll < 0.42) {
       behaviorRef.current = "idle";
       setFrame("idle");
-      stateUntilRef.current = now + rand(2600, 6500);
-      return;
-    }
-    if (roll < 0.76) {
+      durationMs = rand(2600, 6500);
+    } else if (roll < 0.76) {
       behaviorRef.current = "walk";
       dirRef.current = Math.random() < 0.5 ? -1 : 1;
       setFrame(dirRef.current < 0 ? "walkLeft" : "walkRight");
-      stateUntilRef.current = now + rand(2500, 5600);
-      return;
+      durationMs = rand(2500, 5600);
+      lastTsRef.current = performance.now();
+      rafRef.current = requestAnimationFrame(tick);
+    } else {
+      const action = pickSpecialAction();
+      behaviorRef.current = "special";
+      setFrame(action.key);
+      durationMs = rand(action.minMs, action.maxMs);
     }
-    const action = pickSpecialAction();
-    behaviorRef.current = "special";
-    setFrame(action.key);
-    stateUntilRef.current = now + rand(action.minMs, action.maxMs);
+    stateTimerRef.current = window.setTimeout(scheduleNextState, durationMs);
   };
 
   const triggerInteraction = () => {
-    if (prefersReducedMotion() && dragRef.current) return;
+    const line = BUBBLE_LINES[Math.floor(Math.random() * BUBBLE_LINES.length)];
+    setBubble((current) => ({ text: line, id: (current?.id ?? 0) + 1 }));
+    window.clearTimeout(bubbleTimerRef.current);
+    bubbleTimerRef.current = window.setTimeout(() => setBubble(null), BUBBLE_DURATION_MS);
+
+    if (reducedMotionRef.current) {
+      behaviorRef.current = "idle";
+      setFrame("idle");
+      return;
+    }
+
+    window.clearTimeout(stateTimerRef.current);
+    cancelAnimationFrame(rafRef.current);
     const action = pickSpecialAction();
     behaviorRef.current = "special";
     setFrame(action.key);
-    stateUntilRef.current = Date.now() + rand(1800, 3000);
-    const line = BUBBLE_LINES[Math.floor(Math.random() * BUBBLE_LINES.length)];
-    setBubble(line);
-    window.clearTimeout(bubbleTimerRef.current);
-    bubbleTimerRef.current = window.setTimeout(() => setBubble(null), 2600);
+    stateTimerRef.current = window.setTimeout(scheduleNextState, rand(1800, 3000));
   };
 
   const tick = (ts: number) => {
     const dt = Math.min(64, ts - lastTsRef.current);
     lastTsRef.current = ts;
-    if (!pausedRef.current && behaviorRef.current === "walk") {
+    if (behaviorRef.current !== "walk") return;
+    if (!pausedRef.current) {
       posRef.current.x += dirRef.current * WALK_SPEED_PX_PER_MS * dt;
       const minX = EDGE_PADDING;
       const maxX = window.innerWidth - PET_WIDTH - EDGE_PADDING;
@@ -171,30 +200,46 @@ export function MugiPet() {
       }
       applyPosition();
     }
-    if (Date.now() > stateUntilRef.current && dragRef.current === null) {
-      scheduleNextState();
-    }
     rafRef.current = requestAnimationFrame(tick);
   };
 
   useEffect(() => {
-    // 预先加载全部动作帧，避免切换时闪白。
-    const seen = new Set<string>();
-    for (const value of Object.values(FRAMES)) {
-      if (!seen.has(value)) {
-        seen.add(value);
-        const image = new Image();
-        image.src = value;
+    const motionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    const preloadFrames = () => {
+      if (reducedMotionRef.current) return;
+      // 预先加载全部动作帧，避免切换时闪白。
+      const seen = new Set<string>();
+      for (const value of Object.values(FRAMES)) {
+        if (!seen.has(value)) {
+          seen.add(value);
+          const image = new Image();
+          image.src = value;
+        }
       }
-    }
+    };
+    const handleMotionChange = (event: MediaQueryListEvent) => {
+      reducedMotionRef.current = event.matches;
+      setIsReducedMotion(event.matches);
+      preloadFrames();
+      scheduleNextState();
+    };
+    const handleResize = () => {
+      clampPosition();
+      applyPosition();
+    };
+
+    preloadFrames();
     clampPosition();
     applyPosition();
     scheduleNextState();
-    lastTsRef.current = performance.now();
-    rafRef.current = requestAnimationFrame(tick);
+    motionQuery?.addEventListener("change", handleMotionChange);
+    window.addEventListener("resize", handleResize);
     return () => {
       cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(stateTimerRef.current);
       window.clearTimeout(bubbleTimerRef.current);
+      motionQuery?.removeEventListener("change", handleMotionChange);
+      window.removeEventListener("resize", handleResize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -235,11 +280,14 @@ export function MugiPet() {
     if (!drag.moved) {
       triggerInteraction();
     } else {
+      cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(stateTimerRef.current);
       behaviorRef.current = "idle";
       setFrame("idle");
-      stateUntilRef.current = Date.now() + 1200;
+      if (!reducedMotionRef.current) {
+        stateTimerRef.current = window.setTimeout(scheduleNextState, 1200);
+      }
     }
-    lastTsRef.current = performance.now();
   };
 
   return (
@@ -250,19 +298,31 @@ export function MugiPet() {
         position: "fixed",
         left: 0,
         top: 0,
+        width: PET_WIDTH,
+        height: PET_HEIGHT,
         zIndex: 45,
         pointerEvents: "none",
         transform: `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`
       }}
       aria-label="Mugi 桌宠"
     >
-      <div className="flex flex-col items-center">
+      <div className="mugi-pet-anchor">
         {bubble ? (
           <div
-            className="mugi-pet-bubble mb-1 max-w-[180px] rounded-xl border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1 text-xs font-medium text-[var(--ink)] shadow-lg"
+            key={bubble.id}
+            className="mugi-pet-bubble"
+            style={{ width: BUBBLE_WIDTH }}
             role="status"
           >
-            {bubble}
+            <span className="mugi-pet-bubble-signature" aria-hidden="true">
+              <PawPrint size={12} strokeWidth={2.3} />
+              MUGI
+              <span className="mugi-pet-bubble-dots"><i /><i /><i /></span>
+            </span>
+            <span className="mugi-pet-bubble-message">{bubble.text}</span>
+            <span className="mugi-pet-bubble-heart" aria-hidden="true">
+              <Heart size={12} strokeWidth={2} />
+            </span>
           </div>
         ) : null}
         <button
@@ -276,7 +336,14 @@ export function MugiPet() {
           title="Mugi 桌宠：拖动移动，点击互动"
           aria-label="Mugi 桌宠（拖动移动，点击互动）"
         >
-          <img src={FRAMES[frame]} alt="Mugi 桌宠动画" draggable={false} width={PET_WIDTH} height={PET_HEIGHT} className="h-auto w-[132px] select-none object-contain drop-shadow-md" />
+          <img
+            src={isReducedMotion ? STATIC_IDLE_FRAME : FRAMES[frame]}
+            alt={isReducedMotion ? "Mugi 桌宠" : "Mugi 桌宠动画"}
+            draggable={false}
+            width={PET_WIDTH}
+            height={PET_HEIGHT}
+            className="h-auto w-[132px] select-none object-contain drop-shadow-md"
+          />
         </button>
       </div>
     </div>

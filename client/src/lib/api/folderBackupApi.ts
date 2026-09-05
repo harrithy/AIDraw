@@ -1,6 +1,6 @@
 import type { DrawFolder, DrawJob, UploadedImage } from "../../types";
 import type { FolderBackup, ImportedFolderPackage } from "../folderBackup";
-import { buildFolderBackup, parseFolderBackup, prepareFolderImport } from "../folderBackup";
+import { buildFolderBackup, parseImportBackups, prepareFolderImport } from "../folderBackup";
 import {
   FOLDER_STORE,
   JOB_STORE,
@@ -76,10 +76,10 @@ export const folderBackupApi = {
    * 导入文件夹备份：生成全新 ID 和防重名文件夹名，写入 IndexedDB 并广播刷新。
    * 不会覆盖任何现有数据。
    * @param raw - 备份 JSON 解析后的对象
-   * @returns 新创建的文件夹
+   * @returns 新创建的文件夹列表；普通备份返回一项，紧急备份可返回多项
    */
-  importFolderBackup: async (raw: unknown): Promise<DrawFolder> => {
-    const backup = parseFolderBackup(raw);
+  importFolderBackup: async (raw: unknown): Promise<DrawFolder[]> => {
+    const backups = parseImportBackups(raw);
     const db = await openDb();
 
     const existingFolders = await new Promise<DrawFolder[]>((resolve, reject) => {
@@ -89,10 +89,12 @@ export const folderBackupApi = {
       req.onerror = () => reject(req.error);
     });
 
-    const pkg = prepareFolderImport(
-      backup,
-      existingFolders.map((folder) => folder.name)
-    );
+    const reservedNames = existingFolders.map((folder) => folder.name);
+    const packages = backups.map((backup) => {
+      const pkg = prepareFolderImport(backup, reservedNames);
+      reservedNames.push(pkg.folder.name);
+      return pkg;
+    });
 
     await new Promise<void>((resolve, reject) => {
       const transaction = db.transaction(
@@ -103,9 +105,11 @@ export const folderBackupApi = {
       const jobStore = transaction.objectStore(JOB_STORE);
       const imageStore = transaction.objectStore(UPLOADED_IMAGE_STORE);
 
-      folderStore.put(pkg.folder);
-      for (const job of pkg.jobs) jobStore.put(job);
-      for (const image of pkg.uploadedImages) imageStore.put(image);
+      for (const pkg of packages) {
+        folderStore.put(pkg.folder);
+        for (const job of pkg.jobs) jobStore.put(job);
+        for (const image of pkg.uploadedImages) imageStore.put(image);
+      }
 
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
@@ -113,6 +117,6 @@ export const folderBackupApi = {
     });
 
     broadcastStateUpdate("");
-    return pkg.folder;
+    return packages.map((pkg) => pkg.folder);
   }
 };
