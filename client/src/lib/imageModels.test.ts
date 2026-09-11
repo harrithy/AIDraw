@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  GPT_IMAGE_FLARE_MODEL,
+  GPT_IMAGE_MODEL,
+  GPT_IMAGE_SUNBURST_MODEL,
   getImageModelGroups,
+  isImageModelAvailableForProvider,
   isKlingVideoModel,
+  isNanoBananaModel,
   isSupportedImageModel,
   isVideoModel
 } from "./imageModels";
@@ -57,5 +62,41 @@ describe("isSupportedImageModel", () => {
     for (const model of ["kling-v1", "kling-v1-5", "kling-v1-6", "kling-v3"]) {
       expect(isSupportedImageModel(model)).toBe(true);
     }
+  });
+});
+
+describe("GPT Image 2.5 系列模型", () => {
+  it("duomi 的 ChatGPT 分组同时提供 gpt-image-2 与 2.5 两个新模型", () => {
+    const groups = getImageModelGroups("duomi");
+    const groupLabels: string[] = groups.map((group) => group.label);
+    expect(groupLabels).not.toContain("GPT Image 2.5");
+    const chatGptGroup = groups.find((group) => group.label === "ChatGPT");
+    expect(chatGptGroup?.options.map((option) => option.value)).toEqual([
+      GPT_IMAGE_MODEL,
+      GPT_IMAGE_FLARE_MODEL,
+      GPT_IMAGE_SUNBURST_MODEL
+    ]);
+    // 选项标签保持纯模型 ID，不附加中文说明
+    expect(chatGptGroup?.options.map((option) => option.label)).toEqual([
+      GPT_IMAGE_MODEL,
+      GPT_IMAGE_FLARE_MODEL,
+      GPT_IMAGE_SUNBURST_MODEL
+    ]);
+  });
+
+  it("两个新模型都是受支持且 duomi 可用的图片模型", () => {
+    for (const model of [GPT_IMAGE_FLARE_MODEL, GPT_IMAGE_SUNBURST_MODEL]) {
+      expect(isSupportedImageModel(model)).toBe(true);
+      expect(isImageModelAvailableForProvider(model, "duomi")).toBe(true);
+      // 不是视频、也不属于 NANO-BANANA，因此继续走 GPT Image 的 size 参数
+      expect(isVideoModel(model)).toBe(false);
+      expect(isNanoBananaModel(model)).toBe(false);
+    }
+  });
+
+  it("grsai 模型池不包含 GPT Image 2.5 系列", () => {
+    expect(isImageModelAvailableForProvider(GPT_IMAGE_FLARE_MODEL, "grsai")).toBe(false);
+    expect(isImageModelAvailableForProvider(GPT_IMAGE_SUNBURST_MODEL, "grsai")).toBe(false);
+    expect(isImageModelAvailableForProvider(GPT_IMAGE_MODEL, "grsai")).toBe(true);
   });
 });

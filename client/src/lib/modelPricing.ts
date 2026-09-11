@@ -3,7 +3,7 @@
  * 价格数据来自多米API官方文档，按模型类型区分计费方式：
  * - Kling 视频：委托给 klingPricing（按固定时长查表或按秒计费）
  * - GROK 视频：按秒计费（720p），grok-video=0.04 元/秒、grok-video-1.5=0.05 元/秒
- * - 图片模型（gpt-image-2 / nano-banana 系列）：固定单价，按张计费
+ * - 图片模型（gpt-image-2 / gpt-image-2.5 系列 / nano-banana 系列）：固定单价，按张计费
  */
 import {
   formatKlingPrice,
@@ -15,6 +15,9 @@ import {
 /** 图片模型固定单价（元/张），数据来自多米API官网 */
 const FIXED_IMAGE_PRICES: Record<string, number> = {
   "gpt-image-2": 0.06,
+  "gpt-image-2.5-flare": 0.06,
+  // Sunburst 当前为暂定单价，官方后续可能调整
+  "gpt-image-2.5-sunburst": 0.06,
   "gemini-2.5-flash-image": 0.05,
   "gemini-3-pro-image-preview": 0.15,
   "gemini-3.1-flash-image-preview": 0.1,

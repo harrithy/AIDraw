@@ -7,6 +7,11 @@ describe("getModelPrice", () => {
       expect(getModelPrice("gpt-image-2", "std", 0, "off")).toBe(0.06);
     });
 
+    it("gpt-image-2.5 系列（flare / sunburst）均为 0.06 元", () => {
+      expect(getModelPrice("gpt-image-2.5-flare", "std", 0, "off")).toBe(0.06);
+      expect(getModelPrice("gpt-image-2.5-sunburst", "std", 0, "off")).toBe(0.06);
+    });
+
     it("nano-banana（gemini）系列单价", () => {
       expect(getModelPrice("gemini-2.5-flash-image", "std", 0, "off")).toBe(0.05);
       expect(getModelPrice("gemini-3-pro-image-preview", "std", 0, "off")).toBe(0.15);

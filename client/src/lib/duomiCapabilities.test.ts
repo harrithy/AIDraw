@@ -194,6 +194,17 @@ describe("多米能力注册表", () => {
     expect(gptSize?.defaultValue).toBe("auto");
     expect(gptSize?.options?.map((option) => option.value)).toContain("1024x1024");
 
+    const gptModel = getDuomiCapability("image.gpt-image-2")?.fields.find(
+      (field) => field.key === "model"
+    );
+    expect(gptModel?.type).toBe("select");
+    expect(gptModel?.defaultValue).toBe("gpt-image-2");
+    expect(gptModel?.options?.map((option) => option.value)).toEqual([
+      "gpt-image-2",
+      "gpt-image-2.5-flare",
+      "gpt-image-2.5-sunburst"
+    ]);
+
     const pixSpeaker = getDuomiCapability("video.pix.generate")?.fields.find(
       (field) => field.key === "lip_sync_tts_speaker_id"
     );

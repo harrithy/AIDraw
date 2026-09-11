@@ -27,6 +27,43 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.11",
+    title: "新增 GPT Image 2.5 生图模型",
+    date: "2026-09-09",
+    badge: "✨ 最新版本",
+    summary:
+      "v1.4.11 接入多米API 最新发布的 GPT Image 2.5 生图模型：ChatGPT 模型分组下新增 gpt-image-2.5-flare（gpt-image-2 的替代品，出图速度约快一倍）与 gpt-image-2.5-sunburst（更高质量生图）两个可选项；「多米能力」文档模式下的 GPT Image 2 接口模型下拉同步开放这两个新模型，尺寸、参考图与思考深度参数保持不变。",
+    highlights: [
+      "🖼️ ChatGPT 分组新增 gpt-image-2.5-flare 与 gpt-image-2.5-sunburst，一键切换",
+      "⚡ gpt-image-2.5-flare：替代 gpt-image-2，出图速度约快一倍",
+      "✨ gpt-image-2.5-sunburst：面向更高质量要求的生图场景",
+      "🧩 沿用 GPT Image 的 size / 参考图 / 思考深度参数，老任务与草稿完全兼容"
+    ],
+    items: [
+      {
+        category: "feature",
+        title: "ChatGPT 分组新增 GPT Image 2.5 模型",
+        description:
+          "在创作面板的模型选择器 ChatGPT 分组中新增 gpt-image-2.5-flare 与 gpt-image-2.5-sunburst 两个选项，选择后直接走多米API 的 /v1/images/generations 异步生图链路，无需额外配置。",
+        tag: "模型接入"
+      },
+      {
+        category: "feature",
+        title: "多米能力文档模式同步开放新模型",
+        description:
+          "「多米能力」模式下的 GPT Image 2 接口，其模型字段下拉同步开放 gpt-image-2、gpt-image-2.5-flare、gpt-image-2.5-sunburst 三个选项，默认值仍为 gpt-image-2，历史草稿中的模型值保持可用。",
+        tag: "多米能力"
+      },
+      {
+        category: "improvement",
+        title: "同步 2.5 系列计费单价",
+        description:
+          "按官方计费表补全 gpt-image-2.5-flare 与 gpt-image-2.5-sunburst 的固定单价（均为 0.06 元/次），模型选择器会正常显示预计价格；Sunburst 为官方暂定单价，后续如有调整会同步更新。",
+        tag: "计费说明"
+      }
+    ]
+  },
+  {
     version: "v1.4.10",
     title: "安全恢复闭环、凭据生命周期与画布防重渲染",
     date: "2026-09-04",
