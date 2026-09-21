@@ -681,11 +681,11 @@ export function PersonalizationDrawer({
                   aria-label="显示任务统计"
                 />
               </SettingRow>
-              <SettingRow title="素材库面板" description="开启后可快速浏览并复用已收集的参考图像">
+              <SettingRow title="文件夹素材库" description="在顶部栏右侧显示当前文件夹专属素材库">
                 <Switch
                   checked={preferences.page.showAssetLibrary}
                   onCheckedChange={(checked) => updatePage({ showAssetLibrary: checked })}
-                  aria-label="显示素材库"
+                  aria-label="显示文件夹素材库"
                 />
               </SettingRow>
               <SettingRow title="默认折叠底部创作框" description="启动后最小化提示词输入框以腾出更大画布">

@@ -69,6 +69,20 @@ export const uploadedImagesApi = {
     });
   },
 
+  /**
+   * 列出所有已上传素材（跨文件夹共通），按创建时间倒序。
+   * @returns 排序后的全部已上传素材数组
+   */
+  listAllUploadedImages: async (): Promise<UploadedImage[]> => {
+    const db = await openDb();
+    return new Promise<UploadedImage[]>((resolve, reject) => {
+      const transaction = db.transaction(UPLOADED_IMAGE_STORE, "readonly");
+      const req = transaction.objectStore(UPLOADED_IMAGE_STORE).getAll();
+      req.onsuccess = () => resolve(sortUploadedImages((req.result || []) as UploadedImage[]));
+      req.onerror = () => reject(req.error);
+    });
+  },
+
   uploadImage,
 
   /**

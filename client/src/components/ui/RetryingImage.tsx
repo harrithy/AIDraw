@@ -50,15 +50,17 @@ export const RetryingImage = memo(function RetryingImage({
       {!isLoaded && (
         <div className="image-skeleton-placeholder">
           {hasFailed ? (
-            <>
-              <ImageOff size={22} className="image-skeleton-error-icon" />
-              <span className="image-skeleton-text">图片加载失败</span>
-            </>
+            <div className="image-skeleton-status-pill error">
+              <ImageOff size={14} className="image-skeleton-error-icon" />
+              <span className="image-skeleton-text">加载失败</span>
+            </div>
           ) : (
-            <>
-              <Loader2 size={16} className="spin image-skeleton-spinner" />
-              <span className="image-skeleton-text image-skeleton-loading-text">加载中</span>
-            </>
+            <div className="image-skeleton-status-pill">
+              <Loader2 size={13} className="spin image-skeleton-spinner" />
+              <span className="image-skeleton-text image-skeleton-loading-text">
+                加载中<span className="image-skeleton-dots">...</span>
+              </span>
+            </div>
           )}
         </div>
       )}

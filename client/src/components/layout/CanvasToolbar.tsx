@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowRight, Cat, Check, CircleHelp, Clock, Copy, Github, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowDown, ArrowRight, Cat, Check, CircleHelp, Clock, Copy, Github, Images, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { LayoutDirection } from "../../lib/canvas";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
-import type { DrawJob } from "../../types";
+import type { DrawJob, UploadedImage } from "../../types";
+import { GlobalAssetLibrary } from "../panels/GlobalAssetLibrary";
 
 /** CanvasToolbar 组件的 Props 类型 */
 type CanvasToolbarProps = {
@@ -42,6 +43,18 @@ type CanvasToolbarProps = {
   onSearchQueryChange: (query: string) => void;
   /** 当前画布上的所有任务，用于搜索过滤 */
   jobs: DrawJob[];
+  /** 全局所有素材列表（跨文件夹共通） */
+  allUploadedImages?: UploadedImage[];
+  /** 全局素材是否正在加载 */
+  isAllImagesLoading?: boolean;
+  /** 使用素材作为参考图回调 */
+  onUseImage?: (url: string) => void;
+  /** 删除素材记录回调 */
+  onDeleteImage?: (imageId: string) => Promise<void>;
+  /** 直接上传新素材到素材库回调 */
+  onUploadImage?: (file: File) => Promise<UploadedImage>;
+  /** 是否展示素材库入口（遵循偏好设置） */
+  showAssetLibrary?: boolean;
   /** 渲染在工具栏最左端的自定义内容（如文件夹导入/导出按钮） */
   children?: React.ReactNode;
 };
@@ -64,7 +77,7 @@ const fuzzyMatch = (str: string, pattern: string) => {
 /**
  * 画布工具栏组件。
  * 提供缩放控制、画布重置、排序模式切换、深色模式切换、
- * API 设置入口、新手引导入口及任务模糊搜索功能。
+ * API 设置入口、新手引导入口、总素材库及任务模糊搜索功能。
  */
 export function CanvasToolbar({
   zoom,
@@ -90,11 +103,18 @@ export function CanvasToolbar({
   searchQuery,
   onSearchQueryChange,
   jobs,
+  allUploadedImages = [],
+  isAllImagesLoading = false,
+  onUseImage,
+  onDeleteImage,
+  onUploadImage,
+  showAssetLibrary = true,
   children
 }: CanvasToolbarProps) {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
+  const [assetLibraryOpen, setAssetLibraryOpen] = useState(false);
   const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>(() => {
     return (window.localStorage.getItem("aidraw-layout-direction") as LayoutDirection) || "horizontal";
   });
@@ -420,12 +440,46 @@ export function CanvasToolbar({
                   className="layout-apply-btn"
                   onClick={() => {
                     setLayoutMenuOpen(false);
-                    onApplyLayout(layoutDirection, gridCols);
+                    onApplyLayout?.(layoutDirection, gridCols);
                   }}
                 >
                   一键重置排版
                 </button>
               </div>
+            )}
+          </div>
+        )}
+
+        {showAssetLibrary && (
+          <div className="global-asset-wrapper">
+            <button
+              type="button"
+              className={`toolbar-asset-btn ${assetLibraryOpen ? "is-open" : ""}`}
+              onClick={() => setAssetLibraryOpen((v) => !v)}
+              title="总素材库 (全部素材共通)"
+              aria-label="总素材库 (全部素材共通)"
+              aria-expanded={assetLibraryOpen}
+            >
+              <Images size={17} />
+              {allUploadedImages.length > 0 && (
+                <span className="toolbar-badge-count">
+                  {allUploadedImages.length > 99 ? "99+" : allUploadedImages.length}
+                </span>
+              )}
+            </button>
+
+            {assetLibraryOpen && (
+              <GlobalAssetLibrary
+                isOpen={assetLibraryOpen}
+                onClose={() => setAssetLibraryOpen(false)}
+                images={allUploadedImages}
+                isLoading={Boolean(isAllImagesLoading)}
+                onUseImage={(url) => {
+                  onUseImage?.(url);
+                }}
+                onDeleteImage={onDeleteImage || (async () => {})}
+                onUploadImage={onUploadImage}
+              />
             )}
           </div>
         )}

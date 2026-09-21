@@ -238,7 +238,7 @@
   min-width: 104px;
 }
 
-.floating-toolbar button,
+.floating-toolbar button:not(.global-asset-library-popover button):not(.layout-menu-popover button),
 .job-actions button:not(.job-retry-menu-item),
 .folder-form button {
   display: grid;
@@ -253,7 +253,7 @@
     color 160ms ease;
 }
 
-.floating-toolbar button,
+.floating-toolbar button:not(.global-asset-library-popover button):not(.layout-menu-popover button),
 .job-actions button:not(.job-retry-menu-item) {
   width: 34px;
   height: 34px;

@@ -25,7 +25,7 @@ const isBlockedIpv4 = (address: string) => {
     (first === 192 && second === 0 && third === 0) ||
     (first === 192 && second === 0 && third === 2) ||
     (first === 192 && second === 168) ||
-    (first === 198 && (second === 18 || second === 19)) ||
+    // 放行 198.18.0.0/15：Clash / Sing-box / Mihomo 等代理在 TUN 模式下使用该保留网段作为 Fake-IP 映射池
     (first === 198 && second === 51 && third === 100) ||
     (first === 203 && second === 0 && third === 113) ||
     first >= 224

@@ -121,6 +121,8 @@ function App() {
   const [jobs, setJobs] = useState<DrawJob[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isImageLibraryLoading, setIsImageLibraryLoading] = useState(false);
+  const [allUploadedImages, setAllUploadedImages] = useState<UploadedImage[]>([]);
+  const [isAllImageLibraryLoading, setIsAllImageLibraryLoading] = useState(false);
   const [queue, setQueue] = useState<QueueStats>(emptyQueue);
   const [providerSettings, setProviderSettings] = useState<ImageProviderSettings>(emptyProviderSettings);
   const [folderName, setFolderName] = useState("");
@@ -314,6 +316,21 @@ function App() {
   }, []);
 
   /**
+   * 加载所有已上传素材列表（跨文件夹共通）。
+   */
+  const loadAllUploadedImages = useCallback(async () => {
+    try {
+      setIsAllImageLibraryLoading(true);
+      const allImages = await api.listAllUploadedImages();
+      setAllUploadedImages(allImages);
+    } catch (error) {
+      console.error("加载全局素材失败:", error);
+    } finally {
+      setIsAllImageLibraryLoading(false);
+    }
+  }, []);
+
+  /**
    * 轮询或刷新当前系统的后台队列并发状况，以及当前的 API 提供商配置信息。
    */
   const loadQueue = useCallback(async () => {
@@ -351,14 +368,14 @@ function App() {
     void (async () => {
       try {
         setIsLoading(true);
-        await Promise.all([loadFolders(), loadQueue()]);
+        await Promise.all([loadFolders(), loadQueue(), loadAllUploadedImages()]);
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "加载失败");
       } finally {
         setIsLoading(false);
       }
     })();
-  }, [loadFolders, loadQueue]);
+  }, [loadAllUploadedImages, loadFolders, loadQueue]);
 
   useEffect(() => {
     if (!activeFolderId) {
@@ -433,7 +450,7 @@ function App() {
           ) {
             await Promise.all([loadJobs(activeFolderId), loadUploadedImages(activeFolderId)]);
           }
-          await loadQueue();
+          await Promise.all([loadQueue(), loadAllUploadedImages()]);
         } catch (error) {
           setNotice(error instanceof Error ? error.message : "状态同步失败");
         }
@@ -442,7 +459,7 @@ function App() {
 
     window.addEventListener("aidraw-state-update", handleStateUpdate);
     return () => window.removeEventListener("aidraw-state-update", handleStateUpdate);
-  }, [activeFolderId, loadFolders, loadJobs, loadQueue, loadUploadedImages]);
+  }, [activeFolderId, loadAllUploadedImages, loadFolders, loadJobs, loadQueue, loadUploadedImages]);
 
   /**
    * 创建文件夹并自动选中
@@ -605,23 +622,30 @@ function App() {
   }, [loadQueue]);
 
   /**
-   * 上传本地参考图片到图床并记录到当前文件夹中。
+   * 上传本地参考图片到图床并记录（若无激活文件夹，则保存到首个文件夹）。
    * @param file - 本地图片文件
    */
   const uploadImage = async (file: File) => {
-    if (!activeFolderId) throw new Error("请先选择文件夹");
-    return api.uploadImage(activeFolderId, file);
+    const targetFolderId = activeFolderId || folders[0]?.id;
+    if (!targetFolderId) throw new Error("请先创建或选择一个文件夹");
+    const uploaded = await api.uploadImage(targetFolderId, file);
+    if (activeFolderId && targetFolderId === activeFolderId) {
+      setUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
+    }
+    setAllUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
+    return uploaded;
   };
 
-  /** 将任务的最新图片或视频上传到图床，并同步到当前文件夹的素材库。 */
+  /** 将任务的最新图片或视频上传到图床，并同步到素材库。 */
   const uploadLatestJobMedia = useCallback(async (jobId: string) => {
     const folderId = jobsRef.current.find((job) => job.id === jobId)?.folderId;
     try {
       const uploaded = await api.uploadLatestJobMedia(jobId);
       if (folderId && activeFolderIdRef.current === folderId) {
         setUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
-        setNotice("最新结果已上传到图床和素材库");
       }
+      setAllUploadedImages((current) => [uploaded, ...current.filter((image) => image.id !== uploaded.id)]);
+      setNotice("最新结果已上传到图床和素材库");
     } catch (error) {
       if (!folderId || activeFolderIdRef.current === folderId) {
         setNotice(error instanceof Error ? error.message : "上传媒体失败");
@@ -631,12 +655,14 @@ function App() {
   }, []);
 
   /**
-   * 从当前文件夹的素材库中移除指定记录。
+   * 从素材库中移除指定记录。
    * @param imageId - 素材 ID
    */
   const deleteUploadedImage = async (imageId: string) => {
     try {
       await api.deleteUploadedImage(imageId);
+      setUploadedImages((current) => current.filter((image) => image.id !== imageId));
+      setAllUploadedImages((current) => current.filter((image) => image.id !== imageId));
       setNotice("已从素材列表移除");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "素材移除失败");
@@ -905,6 +931,12 @@ function App() {
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         jobs={jobs}
+        allUploadedImages={allUploadedImages}
+        isAllImagesLoading={isAllImageLibraryLoading}
+        onUseImage={useUploadedImage}
+        onDeleteImage={deleteUploadedImage}
+        onUploadImage={uploadImage}
+        showAssetLibrary={true}
       >
         <FolderTransferControls
           folder={activeFolder}
