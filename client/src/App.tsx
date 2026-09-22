@@ -123,6 +123,9 @@ function App() {
   const [isImageLibraryLoading, setIsImageLibraryLoading] = useState(false);
   const [allUploadedImages, setAllUploadedImages] = useState<UploadedImage[]>([]);
   const [isAllImageLibraryLoading, setIsAllImageLibraryLoading] = useState(false);
+  const [allJobs, setAllJobs] = useState<DrawJob[]>([]);
+  // 跨文件夹搜索定位时，记录待定位的任务及其所属文件夹；文件夹被手动切换时据此丢弃残留定位。
+  const [pendingFocusJob, setPendingFocusJob] = useState<{ jobId: string; folderId: string } | null>(null);
   const [queue, setQueue] = useState<QueueStats>(emptyQueue);
   const [providerSettings, setProviderSettings] = useState<ImageProviderSettings>(emptyProviderSettings);
   const [folderName, setFolderName] = useState("");
@@ -331,6 +334,18 @@ function App() {
   }, []);
 
   /**
+   * 加载所有文件夹下的所有任务（用于跨文件夹全局搜索）。
+   */
+  const loadAllJobs = useCallback(async () => {
+    try {
+      const all = await api.listAllJobs();
+      setAllJobs(all);
+    } catch (error) {
+      console.error("加载全局任务失败:", error);
+    }
+  }, []);
+
+  /**
    * 轮询或刷新当前系统的后台队列并发状况，以及当前的 API 提供商配置信息。
    */
   const loadQueue = useCallback(async () => {
@@ -368,14 +383,14 @@ function App() {
     void (async () => {
       try {
         setIsLoading(true);
-        await Promise.all([loadFolders(), loadQueue(), loadAllUploadedImages()]);
+        await Promise.all([loadFolders(), loadQueue(), loadAllUploadedImages(), loadAllJobs()]);
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "加载失败");
       } finally {
         setIsLoading(false);
       }
     })();
-  }, [loadAllUploadedImages, loadFolders, loadQueue]);
+  }, [loadAllJobs, loadAllUploadedImages, loadFolders, loadQueue]);
 
   useEffect(() => {
     if (!activeFolderId) {
@@ -412,7 +427,7 @@ function App() {
 
     const refresh = () => {
       if (document.visibilityState === "hidden") return;
-      void Promise.all([loadJobs(activeFolderId), loadQueue()]).catch((error) => {
+      void Promise.all([loadJobs(activeFolderId), loadQueue(), loadAllJobs()]).catch((error) => {
         if (activeFolderIdRef.current === activeFolderId) {
           setNotice(error instanceof Error ? error.message : "状态同步失败");
         }
@@ -428,7 +443,7 @@ function App() {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activeFolderId, loadJobs, loadQueue]);
+  }, [activeFolderId, loadAllJobs, loadJobs, loadQueue]);
 
   // 监听跨标签页状态变更，即时刷新本地界面
   useEffect(() => {
@@ -450,7 +465,7 @@ function App() {
           ) {
             await Promise.all([loadJobs(activeFolderId), loadUploadedImages(activeFolderId)]);
           }
-          await Promise.all([loadQueue(), loadAllUploadedImages()]);
+          await Promise.all([loadQueue(), loadAllUploadedImages(), loadAllJobs()]);
         } catch (error) {
           setNotice(error instanceof Error ? error.message : "状态同步失败");
         }
@@ -459,7 +474,7 @@ function App() {
 
     window.addEventListener("aidraw-state-update", handleStateUpdate);
     return () => window.removeEventListener("aidraw-state-update", handleStateUpdate);
-  }, [activeFolderId, loadAllUploadedImages, loadFolders, loadJobs, loadQueue, loadUploadedImages]);
+  }, [activeFolderId, loadAllJobs, loadAllUploadedImages, loadFolders, loadJobs, loadQueue, loadUploadedImages]);
 
   /**
    * 创建文件夹并自动选中
@@ -540,6 +555,41 @@ function App() {
   };
 
   /**
+   * 全局搜索结果点击：如果是当前文件夹直接居中定位，如果是其它文件夹则切换过去并定位。
+   */
+  const handleSelectSearchJob = useCallback((job: DrawJob) => {
+    if (job.folderId === activeFolderId) {
+      const target = positionedJobs.find((item) => item.job.id === job.id);
+      if (target) {
+        focusCanvasOnJob(target);
+        setNotice(`已定位到任务：${job.prompt.slice(0, 20)}...`);
+      }
+    } else {
+      setPendingFocusJob({ jobId: job.id, folderId: job.folderId });
+      selectActiveFolder(job.folderId);
+    }
+  }, [activeFolderId, positionedJobs, focusCanvasOnJob, selectActiveFolder]);
+
+  // 跨文件夹搜索定位处理：切换文件夹后，待目标文件夹的卡片布局计算完成，自动平移居中定位。
+  // 若期间用户又手动切到了别的文件夹，则直接丢弃本次待定位，避免稍后返回时画布意外平移。
+  useEffect(() => {
+    if (!pendingFocusJob) return;
+    if (pendingFocusJob.folderId !== activeFolderId) {
+      setPendingFocusJob(null);
+      return;
+    }
+    const target = positionedJobs.find((item) => item.job.id === pendingFocusJob.jobId);
+    if (target) {
+      const timer = window.setTimeout(() => {
+        focusCanvasOnJob(target);
+        setNotice(`已切换文件夹并定位到任务：${target.job.prompt.slice(0, 20)}...`);
+        setPendingFocusJob(null);
+      }, 100);
+      return () => window.clearTimeout(timer);
+    }
+  }, [positionedJobs, pendingFocusJob, activeFolderId, focusCanvasOnJob]);
+
+  /**
    * 持久化任务顺序到服务器
    * 乐观更新本地 state -> 发请求保存 -> 失败时回滚
    * @param orderedJobs - 按新顺序排列的任务列表
@@ -590,10 +640,12 @@ function App() {
       setJobs((current) => current.filter((j) => j.id !== jobId));
       setPreviewJob((current) => (current?.id === jobId ? null : current));
       setNotice("盒子已删除");
+      // 同标签页的状态广播只刷新当前文件夹，这里主动同步全局列表，避免搜索结果仍指向已删除的盒子。
+      void loadAllJobs();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "删除盒子失败");
     }
-  }, []);
+  }, [loadAllJobs]);
 
   /**
    * 提交绘图任务
@@ -695,6 +747,7 @@ function App() {
       setShowClearFailedConfirm(false);
       setNotice(`已清理 ${count} 个生成失败的盒子`);
       Message.success(`已清理 ${count} 个生成失败的盒子喵！`);
+      void loadAllJobs();
     } catch (error) {
       if (activeFolderIdRef.current === folderId) {
         setNotice(error instanceof Error ? error.message : "清理失败盒子出错");
@@ -931,6 +984,9 @@ function App() {
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         jobs={jobs}
+        allJobs={allJobs}
+        folders={folders}
+        onSelectJob={handleSelectSearchJob}
         allUploadedImages={allUploadedImages}
         isAllImagesLoading={isAllImageLibraryLoading}
         onUseImage={useUploadedImage}

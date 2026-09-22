@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowRight, Cat, Check, CircleHelp, Clock, Copy, Github, Images, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowDown, ArrowRight, Cat, Check, CircleHelp, Clock, Copy, Folder, Github, Images, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { LayoutDirection } from "../../lib/canvas";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
-import type { DrawJob, UploadedImage } from "../../types";
+import type { DrawFolder, DrawJob, UploadedImage } from "../../types";
 import { GlobalAssetLibrary } from "../panels/GlobalAssetLibrary";
 
 /** CanvasToolbar 组件的 Props 类型 */
@@ -43,6 +43,12 @@ type CanvasToolbarProps = {
   onSearchQueryChange: (query: string) => void;
   /** 当前画布上的所有任务，用于搜索过滤 */
   jobs: DrawJob[];
+  /** 全局所有任务列表（跨文件夹），用于全局搜索 */
+  allJobs?: DrawJob[];
+  /** 文件夹列表，用于展示任务归属与跨文件夹跳转 */
+  folders?: DrawFolder[];
+  /** 点击搜索结果项的回调（跳转定位） */
+  onSelectJob?: (job: DrawJob) => void;
   /** 全局所有素材列表（跨文件夹共通） */
   allUploadedImages?: UploadedImage[];
   /** 全局素材是否正在加载 */
@@ -103,6 +109,9 @@ export function CanvasToolbar({
   searchQuery,
   onSearchQueryChange,
   jobs,
+  allJobs = [],
+  folders = [],
+  onSelectJob,
   allUploadedImages = [],
   isAllImagesLoading = false,
   onUseImage,
@@ -173,6 +182,9 @@ export function CanvasToolbar({
     if (e.key === "Escape") {
       setIsSearchExpanded(false);
       onSearchQueryChange("");
+    } else if (e.key === "Enter" && matchingJobs.length > 0) {
+      onSelectJob?.(matchingJobs[0]);
+      setIsSearchExpanded(false);
     }
   };
 
@@ -185,6 +197,18 @@ export function CanvasToolbar({
     }
   };
 
+  const folderNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    folders?.forEach((folder) => {
+      map[folder.id] = folder.name;
+    });
+    return map;
+  }, [folders]);
+
+  const searchJobs = useMemo(() => {
+    return allJobs && allJobs.length > 0 ? allJobs : jobs;
+  }, [allJobs, jobs]);
+
   const matchingJobs = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase().trim();
@@ -192,18 +216,20 @@ export function CanvasToolbar({
     // 如果包含空格，则按空格分割，检查是否所有关键词都模糊匹配上，或者整体模糊匹配上
     const keywords = q.split(/\s+/).filter(Boolean);
     
-    return jobs.filter(
+    return searchJobs.filter(
       (job) => {
+        const folderName = folderNameMap[job.folderId] || "";
         const checkFuzzy = (query: string) => 
           fuzzyMatch(job.prompt, query) ||
           fuzzyMatch(job.negativePrompt || "", query) ||
           fuzzyMatch(job.status, query) ||
-          fuzzyMatch(job.id, query);
+          fuzzyMatch(job.id, query) ||
+          fuzzyMatch(folderName, query);
           
-        return keywords.every(kw => checkFuzzy(kw)) || checkFuzzy(q);
+        return keywords.every((kw) => checkFuzzy(kw)) || checkFuzzy(q);
       }
     );
-  }, [jobs, searchQuery]);
+  }, [searchJobs, searchQuery, folderNameMap]);
 
   return (
     <div className="canvas-toolbar floating-toolbar" data-layout-obstacle="toolbar">
@@ -238,13 +264,13 @@ export function CanvasToolbar({
         onBlur={handleBlur}
         tabIndex={-1} // 允许容器及子代接收 FocusEvent 的 relatedTarget 检测
       >
-        <div className="search-icon" title={!isSearchExpanded ? "搜索提示词" : undefined}>
+        <div className="search-icon" title={!isSearchExpanded ? "全局搜索提示词" : undefined}>
           <Search size={17} />
         </div>
         <input
           ref={inputRef}
           type="text"
-          placeholder="搜索提示词喵..."
+          placeholder="全局搜索提示词喵..."
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -272,42 +298,58 @@ export function CanvasToolbar({
               <div className="search-dropdown-empty">没有匹配结果喵...</div>
             ) : (
               <ul className="search-dropdown-list">
-                {matchingJobs.map((job) => (
-                  <li key={job.id} className="search-dropdown-item">
-                    <div className="search-dropdown-image">
-                      {(() => {
-                        const resultUrl = getJobOutputImages(job).at(-1);
-                        if (!resultUrl) return <div className="search-dropdown-placeholder" />;
-                        return getJobVisualKind(job, resultUrl) === "video" ? (
-                          <video src={resultUrl} muted playsInline preload="metadata" aria-label="视频结果" />
-                        ) : (
-                          <img src={resultUrl} alt="图片结果" />
-                        );
-                      })()}
-                    </div>
-                    <div className="search-dropdown-content">
-                      <div className="search-dropdown-prompt" title={job.prompt}>
-                        {job.prompt}
-                      </div>
-                      <div className="search-dropdown-time">
-                        {new Date(job.createdAt).toLocaleString()}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="search-dropdown-copy"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(job.prompt);
-                        setCopiedId(job.id);
-                        setTimeout(() => setCopiedId(null), 2000);
+                {matchingJobs.map((job) => {
+                  const folderName = folderNameMap[job.folderId] || "默认文件夹";
+                  return (
+                    <li
+                      key={job.id}
+                      className="search-dropdown-item"
+                      onClick={() => {
+                        onSelectJob?.(job);
+                        setIsSearchExpanded(false);
                       }}
-                      title="复制提示词"
                     >
-                      {copiedId === job.id ? <Check size={14} style={{ color: "var(--green)" }} /> : <Copy size={14} />}
-                    </button>
-                  </li>
-                ))}
+                      <div className="search-dropdown-image">
+                        {(() => {
+                          const resultUrl = getJobOutputImages(job).at(-1);
+                          if (!resultUrl) return <div className="search-dropdown-placeholder" />;
+                          return getJobVisualKind(job, resultUrl) === "video" ? (
+                            <video src={resultUrl} muted playsInline preload="metadata" aria-label="视频结果" />
+                          ) : (
+                            <img src={resultUrl} alt="图片结果" />
+                          );
+                        })()}
+                      </div>
+                      <div className="search-dropdown-content">
+                        <div className="search-dropdown-prompt" title={job.prompt}>
+                          {job.prompt}
+                        </div>
+                        <div className="search-dropdown-meta">
+                          <span className="search-dropdown-folder" title={`所在文件夹: ${folderName}`}>
+                            <Folder size={11} />
+                            <span>{folderName}</span>
+                          </span>
+                          <span className="search-dropdown-time">
+                            {new Date(job.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="search-dropdown-copy"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(job.prompt);
+                          setCopiedId(job.id);
+                          setTimeout(() => setCopiedId(null), 2000);
+                        }}
+                        title="复制提示词"
+                      >
+                        {copiedId === job.id ? <Check size={14} style={{ color: "var(--green)" }} /> : <Copy size={14} />}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

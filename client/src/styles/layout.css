@@ -492,9 +492,39 @@ button.search-clear-btn:hover {
   font-weight: 500;
 }
 
+.search-dropdown-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-dropdown-folder {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--subtle-strong);
+  color: var(--blue);
+  border: 1px solid var(--line);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.search-dropdown-folder svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
 .search-dropdown-time {
   font-size: 11px;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .search-dropdown-copy {
@@ -511,6 +541,8 @@ button.search-clear-btn:hover {
 }
 
 .search-dropdown-copy:hover {
+  background-color: var(--line);
+  color: var(--ink);
 }
 
 .search-group:not(.expanded):hover {
@@ -589,126 +621,6 @@ button.search-clear-btn:hover {
   background-color: var(--hover);
   color: var(--ink);
   opacity: 1;
-}
-
-/* ─── 搜索下拉悬浮窗样式 ─── */
-.search-dropdown {
-  position: absolute;
-  top: 100%;
-  margin-top: 16px;
-  left: 0;
-  width: 320px;
-  max-height: 400px;
-  overflow-y: auto;
-  background: var(--panel-strong);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-  
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-8px);
-  transition: opacity 200ms ease, transform 200ms ease, visibility 200ms;
-}
-
-.search-dropdown.open {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-.search-dropdown-empty {
-  padding: 16px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.search-dropdown-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.search-dropdown-item {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  gap: 12px;
-  border-bottom: 1px solid var(--line);
-  cursor: pointer;
-  transition: background-color 160ms ease;
-}
-
-.search-dropdown-item:last-child {
-  border-bottom: none;
-}
-
-.search-dropdown-item:hover {
-  background-color: var(--hover);
-}
-
-.search-dropdown-image {
-  width: 40px;
-  height: 40px;
-  border-radius: 6px;
-  overflow: hidden;
-  flex-shrink: 0;
-  background-color: var(--line);
-}
-
-.search-dropdown-image img,
-.search-dropdown-image video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.search-dropdown-placeholder {
-  width: 100%;
-  height: 100%;
-  background: var(--line);
-}
-
-.search-dropdown-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.search-dropdown-prompt {
-  font-size: 13px;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 500;
-}
-
-.search-dropdown-time {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.search-dropdown-copy {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: all 160ms ease;
-}
-
-.search-dropdown-copy:hover {
-  background-color: var(--line);
-  color: var(--ink);
 }
 
 .copy-toast {

@@ -43,6 +43,27 @@ export const jobsApi = {
   },
 
   /**
+   * 列出所有文件夹下的所有任务，按创建时间倒序（最新的在前）。
+   * 用于跨文件夹全局搜索。
+   */
+  listAllJobs: async (): Promise<DrawJob[]> => {
+    const db = await openDb();
+    return new Promise<DrawJob[]>((resolve, reject) => {
+      const transaction = db.transaction(JOB_STORE, "readonly");
+      const req = transaction.objectStore(JOB_STORE).getAll();
+      req.onsuccess = () => {
+        const allJobs = (req.result || []) as DrawJob[];
+        resolve(
+          [...allJobs].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+        );
+      };
+      req.onerror = () => reject(req.error);
+    });
+  },
+
+  /**
    * 批量创建绘图任务（1~8 个），自动校验参数且首个任务排在画布最前。
    * @param folderId - 目标文件夹 ID
    * @param payload - 创建参数（提示词、模式、尺寸、参考图等）
