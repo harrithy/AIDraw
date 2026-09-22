@@ -94,6 +94,7 @@ const DuomiApiDocDialog = lazy(() =>
 
 /** 文件上传结果 */
 type UploadResult = {
+  id?: string;
   url: string;
   originalName: string;
   uploadKey?: string;
@@ -591,6 +592,7 @@ export function CreateJobPanel({
       uploadRegistry.registerUpload(uploadKey, uploadPromise);
 
       return {
+        id: uploadKey,
         url: previewUrl,
         originalName: file.name || "参考图片",
         uploadKey,
@@ -673,9 +675,9 @@ export function CreateJobPanel({
     void uploadFiles(imageFiles);
   };
 
-  const removeImage = (url: string) => {
+  const removeImage = (idOrUrl: string) => {
     setInputImages((current) => {
-      const target = current.find((image) => image.url === url);
+      const target = current.find((image) => (image.id ? image.id === idOrUrl : image.url === idOrUrl));
       if (target?.uploadKey) {
         uploadRegistry.clearUpload(target.uploadKey);
         if (target.isPendingUpload) {
@@ -683,10 +685,10 @@ export function CreateJobPanel({
         }
       }
       // 本地预览用的 object URL 需要主动释放，避免面板长期使用时累积内存占用。
-      if (url.startsWith("blob:")) {
-        URL.revokeObjectURL(url);
+      if (target?.url.startsWith("blob:")) {
+        URL.revokeObjectURL(target.url);
       }
-      return current.filter((image) => image.url !== url);
+      return current.filter((image) => (image.id ? image.id !== idOrUrl : image.url !== idOrUrl));
     });
   };
 
@@ -705,12 +707,14 @@ export function CreateJobPanel({
     }
 
     const hostname = new URL(url).hostname;
+    const refId = `url-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setInputImages((current) =>
       current.some((image) => image.url === url)
         ? current
         : [
             ...current,
             {
+              id: refId,
               url,
               originalName: hostname || "参考图片 URL"
             }
@@ -781,9 +785,13 @@ export function CreateJobPanel({
     }
 
     const inputImageUrls = inputImages.map((image) => image.url);
-    const pendingUploadKeys = inputImages
-      .map((img) => img.uploadKey)
-      .filter((k): k is string => Boolean(k && uploadRegistry.isUploadPending(k)));
+    const pendingUploads = inputImages
+      .filter((img) => img.uploadKey && uploadRegistry.isUploadPending(img.uploadKey))
+      .map((img) => ({
+        placeholderUrl: img.url,
+        uploadKey: img.uploadKey!
+      }));
+    const pendingUploadKeys = pendingUploads.map((item) => item.uploadKey);
 
     const resolvedSizeMode = currentSizeOptions.some((option) => option.value === sizeMode) ? sizeMode : "auto";
     const width = parseCustomDimension(customWidth);
@@ -821,6 +829,7 @@ export function CreateJobPanel({
       inputImageUrl: inputImageUrls[0],
       inputImageUrls,
       pendingUploadKeys: pendingUploadKeys.length > 0 ? pendingUploadKeys : undefined,
+      pendingUploads: pendingUploads.length > 0 ? pendingUploads : undefined,
       width: 1024,
       height: 1024,
       size: requestSize,
@@ -836,21 +845,24 @@ export function CreateJobPanel({
 
   const imageAttachments = inputImages.length ? (
     <div className="composer-attachments mode-sensitive" aria-label="参考图片">
-      {inputImages.map((image) => (
-        <div className="composer-attachment" key={image.url}>
-          <button type="button" className="composer-attachment-preview" onClick={() => setPreviewImage(image)} title="放大预览" aria-label={`预览 ${image.originalName}`}>
-            <img src={image.url} alt={image.originalName} />
-            {image.isPendingUpload ? (
-              <span className="composer-attachment-uploading" title="后台上传中...">
-                <Loader2 className="spin" size={12} />
-              </span>
-            ) : null}
-          </button>
-          <Button type="button" variant="secondary" size="icon-xs" onClick={() => removeImage(image.url)} aria-label={`移除 ${image.originalName}`}>
-            <X />
-          </Button>
-        </div>
-      ))}
+      {inputImages.map((image) => {
+        const attachmentKey = image.id || image.uploadKey || image.url;
+        return (
+          <div className="composer-attachment" key={attachmentKey}>
+            <button type="button" className="composer-attachment-preview" onClick={() => setPreviewImage(image)} title="放大预览" aria-label={`预览 ${image.originalName}`}>
+              <img src={image.url} alt={image.originalName} />
+              {image.isPendingUpload ? (
+                <span className="composer-attachment-uploading" title="后台上传中...">
+                  <Loader2 className="spin" size={12} />
+                </span>
+              ) : null}
+            </button>
+            <Button type="button" variant="secondary" size="icon-xs" onClick={() => removeImage(image.id || image.url)} aria-label={`移除 ${image.originalName}`}>
+              <X />
+            </Button>
+          </div>
+        );
+      })}
     </div>
   ) : null;
 

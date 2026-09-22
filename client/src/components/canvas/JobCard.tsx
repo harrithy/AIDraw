@@ -158,13 +158,9 @@ export const JobCard = memo(function JobCard({
       : "high";
   const referenceImages =
     job.mode === "image-to-image"
-      ? Array.from(
-          new Set(
-            (job.inputImageUrls?.length ? job.inputImageUrls : job.inputImageUrl ? [job.inputImageUrl] : [])
-              .map((url) => url.trim())
-              .filter(Boolean)
-          )
-        )
+      ? (job.inputImageUrls?.length ? job.inputImageUrls : job.inputImageUrl ? [job.inputImageUrl] : [])
+          .map((url) => url.trim())
+          .filter(Boolean)
       : [];
   const configuredAttachmentLimit = getAttachmentVisibleLimit(cardPreferences);
   const attachmentVisibleLimit = Number.isFinite(configuredAttachmentLimit)

@@ -35,6 +35,12 @@ export type GeneratedAsset = {
   data?: unknown;
 };
 
+/** 异步上传中参考图的占位符 URL 与注册池 Key 映射 */
+export type PendingUploadItem = {
+  placeholderUrl: string;
+  uploadKey: string;
+};
+
 /**
  * 预设的图像尺寸选项
  * 包含固定像素尺寸（如 1024x1024）和宽高比（如 16:9）
@@ -200,6 +206,8 @@ export type DrawJob = {
   remoteStatus?: string;
   /** 后台正在异步上传中的参考图任务 Key 列表，上传成功后回填真实 URL 并移除 */
   pendingUploadKeys?: string[];
+  /** 后台正在异步上传中的参考图占位地址与任务 Key 映射列表 */
+  pendingUploads?: PendingUploadItem[];
   /** 提交时间 */
   submitTime?: string;
   /** 查询 URL */
@@ -294,6 +302,8 @@ export type CreateJobPayload = {
   inputImageUrls?: string[];
   /** 后台正在异步上传中的参考图任务 Key 列表 */
   pendingUploadKeys?: string[];
+  /** 后台正在异步上传中的参考图占位地址与任务 Key 映射列表 */
+  pendingUploads?: PendingUploadItem[];
   /** 图像宽度 */
   width: number;
   /** 图像高度 */

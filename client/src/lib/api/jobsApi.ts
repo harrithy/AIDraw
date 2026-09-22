@@ -77,7 +77,10 @@ export const jobsApi = {
         ? [payload.inputImageUrl]
         : [];
 
-    const hasPendingUploads = Boolean(payload.pendingUploadKeys && payload.pendingUploadKeys.length > 0);
+    const hasPendingUploads = Boolean(
+      (payload.pendingUploads && payload.pendingUploads.length > 0) ||
+      (payload.pendingUploadKeys && payload.pendingUploadKeys.length > 0)
+    );
     const settings = await getSettings();
     if (!hasPendingUploads && settings.apiKey && settings.providerId === "duomi" && inputImageUrls.length > 0) {
       assertRemoteImageUrls(inputImageUrls);
@@ -145,6 +148,7 @@ export const jobsApi = {
               status: "pending",
               remoteStatus: hasPendingUploads ? "uploading_reference" : undefined,
               pendingUploadKeys: hasPendingUploads ? payload.pendingUploadKeys : undefined,
+              pendingUploads: hasPendingUploads ? payload.pendingUploads : undefined,
               prompt,
               negativePrompt: "",
               inputImageUrl: inputImageUrls[0],

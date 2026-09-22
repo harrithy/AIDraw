@@ -3,6 +3,12 @@ import { getDuomiCapability } from "./duomiCapabilities";
 import { resolveJobSettings } from "./jobCredentials";
 import { getJobAssetKind, getJobOutputImages } from "./jobImages";
 import { getJobFailureDisposition, getTaskTimeoutMinutes } from "./jobQueuePolicy";
+import {
+  hasPendingReferenceUploads,
+  resolveJobInputImageUrls,
+  resolvePendingReferenceKeys,
+  resolvePendingReferenceUrls
+} from "./pendingReferenceUploads";
 import { getProviderForJob, getRequiredApiProvider } from "./providers/providerRegistry";
 import type { ProviderTaskResult } from "./providers/types";
 import { JOB_STORE, openDb } from "./storage/database";
@@ -10,7 +16,6 @@ import { ensureJob, updateOwnedJob } from "./storage/entities";
 import { nowIso, sortJobs } from "./storage/helpers";
 import { getSettings } from "./storage/settings";
 import { broadcastStateUpdate } from "./storage/stateSync";
-import { uploadRegistry } from "./uploadRegistry";
 
 export const MAX_CONCURRENT_JOBS = 30;
 const TASK_POLL_INTERVAL_MS = 10 * 1000;
@@ -101,8 +106,10 @@ export const executeJobBackground = async (job: DrawJob) => {
       let taskId = freshJob.remoteTaskId;
       let immediateResult: ProviderTaskResult | undefined;
       if (!taskId) {
+        const pendingUploads = freshJob.pendingUploads;
         const pendingUploadKeys = freshJob.pendingUploadKeys;
-        if (pendingUploadKeys && pendingUploadKeys.length > 0) {
+
+        if (hasPendingReferenceUploads(pendingUploads, pendingUploadKeys)) {
           const uploadingJob = await updateOwnedJob(
             job.id,
             queueOwnerId,
@@ -115,14 +122,21 @@ export const executeJobBackground = async (job: DrawJob) => {
           if (!uploadingJob) return;
           freshJob = uploadingJob;
 
-          const resolvedUrls = await uploadRegistry.waitForAll(pendingUploadKeys);
+          const currentUrls = resolveJobInputImageUrls(freshJob.inputImageUrls, freshJob.inputImageUrl);
+          const updatedInputImageUrls =
+            pendingUploads && pendingUploads.length > 0
+              ? await resolvePendingReferenceUrls(currentUrls, pendingUploads)
+              : await resolvePendingReferenceKeys(pendingUploadKeys ?? [], currentUrls);
+          const updatedInputImageUrl = updatedInputImageUrls[0] || freshJob.inputImageUrl;
+
           const updatedWithUrls = await updateOwnedJob(
             job.id,
             queueOwnerId,
             {
-              inputImageUrl: resolvedUrls[0] || freshJob.inputImageUrl,
-              inputImageUrls: resolvedUrls.length > 0 ? resolvedUrls : freshJob.inputImageUrls,
+              inputImageUrl: updatedInputImageUrl,
+              inputImageUrls: updatedInputImageUrls,
               pendingUploadKeys: undefined,
+              pendingUploads: undefined,
               remoteStatus: "submitting",
               leaseExpiresAt: leaseExpiryIso()
             },
@@ -385,7 +399,8 @@ const runQueueLocked = async () => {
 
         if (!job.remoteTaskId && !job.remoteTaskIds?.length) {
           const isUploadingRef =
-            job.remoteStatus === "uploading_reference" || Boolean(job.pendingUploadKeys?.length);
+            job.remoteStatus === "uploading_reference" ||
+            hasPendingReferenceUploads(job.pendingUploads, job.pendingUploadKeys);
           store.put({
             ...job,
             status: "failed",
