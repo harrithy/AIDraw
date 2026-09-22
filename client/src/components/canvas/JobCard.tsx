@@ -724,8 +724,17 @@ export const JobCard = memo(function JobCard({
           )
         ) : (
           <div className="job-placeholder">
-            {statusIcon(job.status)}
-            <span>{statusLabel[job.status]}</span>
+            {job.remoteStatus === "uploading_reference" ? (
+              <>
+                <Loader2 className="spin" size={16} />
+                <span>上传参考图中...</span>
+              </>
+            ) : (
+              <>
+                {statusIcon(job.status)}
+                <span>{statusLabel[job.status]}</span>
+              </>
+            )}
           </div>
         )}
         {isRegenerating ? (

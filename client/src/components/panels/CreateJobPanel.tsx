@@ -38,6 +38,7 @@ import {
   isVideoModel,
   type SupportedImageModel
 } from "../../lib/imageModels";
+import { uploadRegistry } from "../../lib/uploadRegistry";
 
 const grokVideoSizeOptions: Array<{ label: string; value: SizeMode }> = [
   { label: "16:9", value: "16:9" },
@@ -95,6 +96,8 @@ const DuomiApiDocDialog = lazy(() =>
 type UploadResult = {
   url: string;
   originalName: string;
+  uploadKey?: string;
+  isPendingUpload?: boolean;
 };
 
 type CreateJobPanelProps = {
@@ -319,7 +322,8 @@ export function CreateJobPanel({
   const [capabilityId, setCapabilityId] = useState("image.gpt-image-2");
   const [capabilityValues, setCapabilityValues] = useState<Record<string, unknown>>({});
   const [previewImage, setPreviewImage] = useState<UploadResult | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [pendingUploadCount, setPendingUploadCount] = useState(0);
+  const isUploading = pendingUploadCount > 0;
   const [isDragActive, setIsDragActive] = useState(false);
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = collapsed ?? internalCollapsed;
@@ -509,6 +513,21 @@ export function CreateJobPanel({
     }
   }, [usedImage, onImageUsed]);
 
+  // 卸载时释放仍停留在面板内的本地预览 object URL，避免画布会话切换过程中泄漏。
+  useEffect(
+    () => () => {
+      setInputImages((current) => {
+        current.forEach((image) => {
+          if (image.url.startsWith("blob:")) {
+            URL.revokeObjectURL(image.url);
+          }
+        });
+        return current;
+      });
+    },
+    []
+  );
+
   useGSAP(
     () => {
       if (prefersReducedMotion()) return;
@@ -527,7 +546,7 @@ export function CreateJobPanel({
     { dependencies: [currentMode, inputImages.length], scope: panelRef }
   );
 
-  const uploadFiles = async (files: File[]) => {
+  const uploadFiles = (files: File[]) => {
     const imageFiles = getImageFiles(files);
     if (imageFiles.length === 0) return;
 
@@ -544,15 +563,42 @@ export function CreateJobPanel({
       }
     }
 
-    try {
-      setIsUploading(true);
-      const uploadedImages = await Promise.all(filesToUpload.map((file) => onUploadImage(file)));
-      setInputImages((current) => [...current, ...uploadedImages]);
-    } catch (error) {
-      Message.error(error instanceof Error ? error.message : "图片添加失败");
-    } finally {
-      setIsUploading(false);
-    }
+    setPendingUploadCount((c) => c + filesToUpload.length);
+
+    const newItems: UploadResult[] = filesToUpload.map((file) => {
+      const uploadKey = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const previewUrl = URL.createObjectURL(file);
+
+      const uploadPromise = onUploadImage(file)
+        .then((uploaded) => {
+          setInputImages((current) =>
+            current.map((item) =>
+              item.uploadKey === uploadKey
+                ? { ...item, url: uploaded.url, isPendingUpload: false }
+                : item
+            )
+          );
+          return uploaded.url;
+        })
+        .catch((err) => {
+          Message.error(err instanceof Error ? err.message : "图片添加失败");
+          throw err;
+        })
+        .finally(() => {
+          setPendingUploadCount((c) => Math.max(0, c - 1));
+        });
+
+      uploadRegistry.registerUpload(uploadKey, uploadPromise);
+
+      return {
+        url: previewUrl,
+        originalName: file.name || "参考图片",
+        uploadKey,
+        isPendingUpload: true
+      };
+    });
+
+    setInputImages((current) => [...current, ...newItems]);
   };
 
   const uploadImage = (event: ChangeEvent<HTMLInputElement>) => {
@@ -628,7 +674,20 @@ export function CreateJobPanel({
   };
 
   const removeImage = (url: string) => {
-    setInputImages((current) => current.filter((image) => image.url !== url));
+    setInputImages((current) => {
+      const target = current.find((image) => image.url === url);
+      if (target?.uploadKey) {
+        uploadRegistry.clearUpload(target.uploadKey);
+        if (target.isPendingUpload) {
+          setPendingUploadCount((c) => Math.max(0, c - 1));
+        }
+      }
+      // 本地预览用的 object URL 需要主动释放，避免面板长期使用时累积内存占用。
+      if (url.startsWith("blob:")) {
+        URL.revokeObjectURL(url);
+      }
+      return current.filter((image) => image.url !== url);
+    });
   };
 
   const addReferenceImageUrl = (rawValue: string) => {
@@ -676,10 +735,6 @@ export function CreateJobPanel({
       return;
     }
 
-    if (isUploading) {
-      Message.error("正在上传图片，请稍后再试");
-      return;
-    }
     if (isDuomiNanoBanana && inputImages.length > MAX_NANO_BANANA_REFERENCE_IMAGES) {
       Message.error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
       return;
@@ -726,6 +781,10 @@ export function CreateJobPanel({
     }
 
     const inputImageUrls = inputImages.map((image) => image.url);
+    const pendingUploadKeys = inputImages
+      .map((img) => img.uploadKey)
+      .filter((k): k is string => Boolean(k && uploadRegistry.isUploadPending(k)));
+
     const resolvedSizeMode = currentSizeOptions.some((option) => option.value === sizeMode) ? sizeMode : "auto";
     const width = parseCustomDimension(customWidth);
     const height = parseCustomDimension(customHeight);
@@ -761,6 +820,7 @@ export function CreateJobPanel({
       prompt: nextPrompt,
       inputImageUrl: inputImageUrls[0],
       inputImageUrls,
+      pendingUploadKeys: pendingUploadKeys.length > 0 ? pendingUploadKeys : undefined,
       width: 1024,
       height: 1024,
       size: requestSize,
@@ -780,6 +840,11 @@ export function CreateJobPanel({
         <div className="composer-attachment" key={image.url}>
           <button type="button" className="composer-attachment-preview" onClick={() => setPreviewImage(image)} title="放大预览" aria-label={`预览 ${image.originalName}`}>
             <img src={image.url} alt={image.originalName} />
+            {image.isPendingUpload ? (
+              <span className="composer-attachment-uploading" title="后台上传中...">
+                <Loader2 className="spin" size={12} />
+              </span>
+            ) : null}
           </button>
           <Button type="button" variant="secondary" size="icon-xs" onClick={() => removeImage(image.url)} aria-label={`移除 ${image.originalName}`}>
             <X />
@@ -1166,7 +1231,7 @@ export function CreateJobPanel({
                     {isUploading ? <Loader2 className="spin" /> : <ImagePlus />}
                   </label>
                 </Button>
-                <Button className="composer-submit" type="submit" disabled={isSubmitting || isUploading}>
+                <Button className="composer-submit" type="submit" disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <ImageUp data-icon="inline-start" />}
                   <span>{isSubmitting ? "加入中" : "加入队列"}</span>
                 </Button>
@@ -1351,7 +1416,7 @@ export function CreateJobPanel({
 
 
 
-      <Button type="submit" disabled={isSubmitting || isUploading}>
+      <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <ImageUp data-icon="inline-start" />}
         {isSubmitting ? "加入中" : "加入绘制队列"}
       </Button>

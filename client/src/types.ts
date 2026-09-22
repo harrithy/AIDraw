@@ -198,6 +198,8 @@ export type DrawJob = {
   remoteTaskIds?: string[];
   /** 远程状态 */
   remoteStatus?: string;
+  /** 后台正在异步上传中的参考图任务 Key 列表，上传成功后回填真实 URL 并移除 */
+  pendingUploadKeys?: string[];
   /** 提交时间 */
   submitTime?: string;
   /** 查询 URL */
@@ -290,6 +292,8 @@ export type CreateJobPayload = {
   inputImageUrl?: string;
   /** 多张参考图 URL（批量图生图） */
   inputImageUrls?: string[];
+  /** 后台正在异步上传中的参考图任务 Key 列表 */
+  pendingUploadKeys?: string[];
   /** 图像宽度 */
   width: number;
   /** 图像高度 */

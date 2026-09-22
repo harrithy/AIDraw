@@ -10,6 +10,7 @@ import { ensureJob, updateOwnedJob } from "./storage/entities";
 import { nowIso, sortJobs } from "./storage/helpers";
 import { getSettings } from "./storage/settings";
 import { broadcastStateUpdate } from "./storage/stateSync";
+import { uploadRegistry } from "./uploadRegistry";
 
 export const MAX_CONCURRENT_JOBS = 30;
 const TASK_POLL_INTERVAL_MS = 10 * 1000;
@@ -100,6 +101,37 @@ export const executeJobBackground = async (job: DrawJob) => {
       let taskId = freshJob.remoteTaskId;
       let immediateResult: ProviderTaskResult | undefined;
       if (!taskId) {
+        const pendingUploadKeys = freshJob.pendingUploadKeys;
+        if (pendingUploadKeys && pendingUploadKeys.length > 0) {
+          const uploadingJob = await updateOwnedJob(
+            job.id,
+            queueOwnerId,
+            {
+              remoteStatus: "uploading_reference",
+              leaseExpiresAt: leaseExpiryIso()
+            },
+            true
+          );
+          if (!uploadingJob) return;
+          freshJob = uploadingJob;
+
+          const resolvedUrls = await uploadRegistry.waitForAll(pendingUploadKeys);
+          const updatedWithUrls = await updateOwnedJob(
+            job.id,
+            queueOwnerId,
+            {
+              inputImageUrl: resolvedUrls[0] || freshJob.inputImageUrl,
+              inputImageUrls: resolvedUrls.length > 0 ? resolvedUrls : freshJob.inputImageUrls,
+              pendingUploadKeys: undefined,
+              remoteStatus: "submitting",
+              leaseExpiresAt: leaseExpiryIso()
+            },
+            true
+          );
+          if (!updatedWithUrls) return;
+          freshJob = updatedWithUrls;
+        }
+
         const preparedJob = await updateOwnedJob(job.id, queueOwnerId, {
           provider: providerId,
           remoteStatus: "submitting",
@@ -352,11 +384,15 @@ const runQueueLocked = async () => {
         }
 
         if (!job.remoteTaskId && !job.remoteTaskIds?.length) {
+          const isUploadingRef =
+            job.remoteStatus === "uploading_reference" || Boolean(job.pendingUploadKeys?.length);
           store.put({
             ...job,
             status: "failed",
-            remoteStatus: "error",
-            errorMessage: "任务提交状态未知，为避免重复计费未自动重试",
+            remoteStatus: isUploadingRef ? "upload_interrupted" : "error",
+            errorMessage: isUploadingRef
+              ? "页面已刷新或网络连接中断，参考图上传未能完成，请重试"
+              : "任务提交状态未知，为避免重复计费未自动重试",
             completedAt: timestamp,
             queueOwnerId: undefined,
             leaseExpiresAt: undefined,
