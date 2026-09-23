@@ -317,7 +317,7 @@ button:disabled {
   z-index: 20;
   display: grid;
   place-items: center;
-  padding: 32px;
+  padding: min(20px, 2.5vw);
   isolation: isolate;
 }
 
@@ -335,10 +335,10 @@ button:disabled {
   z-index: 1;
   display: grid;
   width: auto;
-  min-width: min(480px, calc(100vw - 48px));
-  min-height: min(420px, calc(100vh - 48px));
-  max-width: min(960px, calc(100vw - 64px));
-  max-height: calc(100vh - 64px);
+  min-width: min(640px, calc(100vw - 32px));
+  min-height: min(480px, calc(100vh - 32px));
+  max-width: min(1440px, calc(100vw - 40px));
+  max-height: calc(100vh - 40px);
   gap: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -532,13 +532,13 @@ button:disabled {
 .image-preview-panel video {
   display: block;
   max-width: 100%;
-  max-height: min(76vh, 820px);
+  max-height: min(86vh, 1080px);
   border-radius: 7px;
   object-fit: contain;
 }
 
 .comparison-preview-panel {
-  width: min(1180px, calc(100vw - 48px));
+  width: min(1500px, calc(100vw - 40px));
   grid-template-rows: minmax(0, 1fr) auto auto;
 }
 
@@ -607,7 +607,8 @@ button:disabled {
 }
 
 .reference-preview-panel {
-  min-width: min(520px, calc(100vw - 64px));
+  min-width: min(760px, calc(100vw - 40px));
+  max-width: min(1360px, calc(100vw - 40px));
 }
 
 .image-preview-actions {
