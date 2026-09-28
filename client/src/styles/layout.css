@@ -498,6 +498,56 @@ button.search-clear-btn:hover {
   gap: 8px;
 }
 
+/* 搜索命中高亮：标记命中的字符，帮助用户理解"为什么这条会出现在结果里" */
+.search-hit {
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+  font-weight: 600;
+}
+
+/* 提示词未命中时，明确标注真正命中的字段 */
+.search-hit-source {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1.4;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--green);
+  border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.search-dropdown-negative {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.search-dropdown-negative-label {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--subtle-strong);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.search-dropdown-negative-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .search-dropdown-folder {
   display: inline-flex;
   align-items: center;

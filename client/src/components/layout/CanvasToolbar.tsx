@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ArrowDown, ArrowRight, Cat, Check, CircleHelp, Clock, Copy, Folder, Github, Images, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { LayoutDirection } from "../../lib/canvas";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
+import { matchJobSearch, splitHighlight, type JobSearchMatch } from "../../lib/jobSearch";
 import type { DrawFolder, DrawJob, UploadedImage } from "../../types";
 import { GlobalAssetLibrary } from "../panels/GlobalAssetLibrary";
 
@@ -65,20 +66,31 @@ type CanvasToolbarProps = {
   children?: React.ReactNode;
 };
 
-const fuzzyMatch = (str: string, pattern: string) => {
-  if (!str) return false;
-  pattern = pattern.toLowerCase();
-  str = str.toLowerCase();
-  let patternIdx = 0;
-  let strIdx = 0;
-  while (patternIdx < pattern.length && strIdx < str.length) {
-    if (pattern[patternIdx] === str[strIdx]) {
-      patternIdx++;
-    }
-    strIdx++;
-  }
-  return patternIdx === pattern.length;
-};
+/** 未归属任何文件夹时展示的默认文件夹名（同时参与搜索匹配）。 */
+const DEFAULT_FOLDER_LABEL = "默认文件夹";
+
+/** 命中来源字段对应的展示文案。 */
+const SEARCH_SOURCE_LABELS = {
+  negativePrompt: "反向提示词",
+  folder: "文件夹名"
+} as const;
+
+/** 按搜索命中下标渲染文本，命中字符包裹为高亮标记。 */
+function HighlightedText({ text, indices }: { text: string; indices: number[] | null | undefined }) {
+  return (
+    <>
+      {splitHighlight(text, indices).map((segment, index) =>
+        segment.hit ? (
+          <mark key={index} className="search-hit">
+            {segment.text}
+          </mark>
+        ) : (
+          <span key={index}>{segment.text}</span>
+        )
+      )}
+    </>
+  );
+}
 
 /**
  * 画布工具栏组件。
@@ -209,27 +221,18 @@ export function CanvasToolbar({
     return allJobs && allJobs.length > 0 ? allJobs : jobs;
   }, [allJobs, jobs]);
 
-  const matchingJobs = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    const q = searchQuery.toLowerCase().trim();
-    
-    // 如果包含空格，则按空格分割，检查是否所有关键词都模糊匹配上，或者整体模糊匹配上
-    const keywords = q.split(/\s+/).filter(Boolean);
-    
-    return searchJobs.filter(
-      (job) => {
-        const folderName = folderNameMap[job.folderId] || "";
-        const checkFuzzy = (query: string) => 
-          fuzzyMatch(job.prompt, query) ||
-          fuzzyMatch(job.negativePrompt || "", query) ||
-          fuzzyMatch(job.status, query) ||
-          fuzzyMatch(job.id, query) ||
-          fuzzyMatch(folderName, query);
-          
-        return keywords.every((kw) => checkFuzzy(kw)) || checkFuzzy(q);
-      }
-    );
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [] as { job: DrawJob; match: JobSearchMatch }[];
+
+    return searchJobs
+      .map((job) => ({
+        job,
+        match: matchJobSearch(job, folderNameMap[job.folderId] || DEFAULT_FOLDER_LABEL, searchQuery)
+      }))
+      .filter((result): result is { job: DrawJob; match: JobSearchMatch } => result.match !== null);
   }, [searchJobs, searchQuery, folderNameMap]);
+
+  const matchingJobs = useMemo(() => searchResults.map((result) => result.job), [searchResults]);
 
   return (
     <div className="canvas-toolbar floating-toolbar" data-layout-obstacle="toolbar">
@@ -294,12 +297,20 @@ export function CanvasToolbar({
           className={`search-dropdown ${isSearchExpanded && searchQuery.trim() ? "open" : ""}`} 
           onMouseDown={(e) => e.preventDefault()}
         >
-            {matchingJobs.length === 0 ? (
+            {searchResults.length === 0 ? (
               <div className="search-dropdown-empty">没有匹配结果喵...</div>
             ) : (
               <ul className="search-dropdown-list">
-                {matchingJobs.map((job) => {
-                  const folderName = folderNameMap[job.folderId] || "默认文件夹";
+                {searchResults.map(({ job, match }) => {
+                  const folderName = folderNameMap[job.folderId] || DEFAULT_FOLDER_LABEL;
+                  // 提示词没有命中时，明确提示用户是哪一项命中的（反向提示词 / 文件夹名）
+                  const fallbackSource = !match.promptIndices
+                    ? match.negativePromptIndices
+                      ? SEARCH_SOURCE_LABELS.negativePrompt
+                      : match.folderIndices
+                        ? SEARCH_SOURCE_LABELS.folder
+                        : null
+                    : null;
                   return (
                     <li
                       key={job.id}
@@ -322,12 +333,33 @@ export function CanvasToolbar({
                       </div>
                       <div className="search-dropdown-content">
                         <div className="search-dropdown-prompt" title={job.prompt}>
-                          {job.prompt}
+                          <HighlightedText text={job.prompt} indices={match.promptIndices} />
                         </div>
+                        {match.negativePromptIndices ? (
+                          <div
+                            className="search-dropdown-negative"
+                            title={`反向提示词: ${job.negativePrompt}`}
+                          >
+                            <span className="search-dropdown-negative-label">反向</span>
+                            <span className="search-dropdown-negative-text">
+                              <HighlightedText
+                                text={job.negativePrompt}
+                                indices={match.negativePromptIndices}
+                              />
+                            </span>
+                          </div>
+                        ) : null}
                         <div className="search-dropdown-meta">
+                          {fallbackSource ? (
+                            <span className="search-hit-source" title={`命中${fallbackSource}`}>
+                              {fallbackSource}
+                            </span>
+                          ) : null}
                           <span className="search-dropdown-folder" title={`所在文件夹: ${folderName}`}>
                             <Folder size={11} />
-                            <span>{folderName}</span>
+                            <span>
+                              <HighlightedText text={folderName} indices={match.folderIndices} />
+                            </span>
                           </span>
                           <span className="search-dropdown-time">
                             {new Date(job.createdAt).toLocaleString()}
