@@ -27,10 +27,46 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.18",
+    title: "新增 gemini-nano-banana-2.1 模型与预计价格支持",
+    date: "2026-10-08",
+    badge: "✨ 最新版本",
+    summary:
+      "v1.4.18 在 NANO-BANANA 系列中新增了 gemini-nano-banana-2.1 模型。新模型支持 1K、2K、4K 分辨率生成与编辑，单价配置为 0.08 元/次并在创建面板与重绘弹窗中自动计算预计价格，全面优化了模型选项在触发器上的标签展示体验。",
+    highlights: [
+      "🍌 全新模型加入：NANO-BANANA 系列新增 gemini-nano-banana-2.1，支持文生图与图生图",
+      "💰 单价智能预估：单价固定为 0.08 元/张，界面实时展示预计花费（预计 ¥0.08）",
+      "📐 分辨率随心选：支持 1K、2K、4K 档位切换，默认推荐超清 4K 分辨率",
+      "✨ 触发器展示优化：下拉选择器及重新编辑弹窗统一规范模型名称呈现"
+    ],
+    items: [
+      {
+        category: "feature",
+        title: "新增 gemini-nano-banana-2.1 模型",
+        description:
+          "在 NANO-BANANA 分组下新增 gemini-nano-banana-2.1 模型选项，支持多米异步生成端点、多图参考图编辑及 1K/2K/4K 分辨率切换。",
+        tag: "模型扩充"
+      },
+      {
+        category: "improvement",
+        title: "模型定价与费用预估支持",
+        description:
+          "配置 gemini-nano-banana-2.1 模型单价为 ¥0.08/次，创作面板及重绘弹窗在选中该模型时将自动联动呈现预计价格 ¥0.08。",
+        tag: "价格计算"
+      },
+      {
+        category: "improvement",
+        title: "模型选择器标签呈现体验",
+        description:
+          "优化 Select 触发器的展示逻辑，选中模型后精准呈现对应选项的标签名称，保持交互一致性。",
+        tag: "界面交互"
+      }
+    ]
+  },
+  {
     version: "v1.4.17",
     title: "全局搜索精准命中、命中高亮与来源标注",
     date: "2026-09-28",
-    badge: "✨ 最新版本",
     summary:
       "v1.4.17 修复了全局搜索输入单个字符（如 4、a）时几乎命中全部任务的异常：由于任务 ID 是 crypto.randomUUID() 生成的 UUID v4，其 version 位恒为字符「4」，而旧版搜索把任务 ID 与任务状态一并纳入了子序列模糊匹配，导致输入 4 就等于「显示全部提示词」。现在搜索范围收窄为提示词、反向提示词与文件夹名，命中的字符会以高亮标记渲染，提示词本身没有命中时会明确标注真正的命中来源（反向提示词 / 文件夹名），让每一条结果都「来得明明白白」。",
     highlights: [

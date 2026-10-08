@@ -3,12 +3,14 @@ import {
   GPT_IMAGE_FLARE_MODEL,
   GPT_IMAGE_MODEL,
   GPT_IMAGE_SUNBURST_MODEL,
+  NANO_BANANA_2_1_MODEL,
   getImageModelGroups,
   isImageModelAvailableForProvider,
   isKlingVideoModel,
   isNanoBananaModel,
   isSupportedImageModel,
-  isVideoModel
+  isVideoModel,
+  supportsNanoBananaImageSize
 } from "./imageModels";
 
 describe("isKlingVideoModel", () => {
@@ -98,5 +100,27 @@ describe("GPT Image 2.5 系列模型", () => {
     expect(isImageModelAvailableForProvider(GPT_IMAGE_FLARE_MODEL, "grsai")).toBe(false);
     expect(isImageModelAvailableForProvider(GPT_IMAGE_SUNBURST_MODEL, "grsai")).toBe(false);
     expect(isImageModelAvailableForProvider(GPT_IMAGE_MODEL, "grsai")).toBe(true);
+  });
+});
+
+describe("nano banana 2.1 模型", () => {
+  it("duomi 的 NANO-BANANA 分组包含 nano banana 2.1 选项", () => {
+    const groups = getImageModelGroups("duomi");
+    const nanoGroup = groups.find((group) => group.label === "NANO-BANANA");
+    expect(nanoGroup).toBeDefined();
+    const option = nanoGroup?.options.find((opt) => opt.value === NANO_BANANA_2_1_MODEL);
+    expect(option).toEqual({
+      label: "gemini-nano-banana-2.1",
+      value: "gemini-nano-banana-2.1"
+    });
+  });
+
+  it("nano banana 2.1 是受支持且仅 duomi 可用的 NANO-BANANA 模型，支持 1K/2K/4K 分辨率", () => {
+    expect(isSupportedImageModel(NANO_BANANA_2_1_MODEL)).toBe(true);
+    expect(isImageModelAvailableForProvider(NANO_BANANA_2_1_MODEL, "duomi")).toBe(true);
+    expect(isImageModelAvailableForProvider(NANO_BANANA_2_1_MODEL, "grsai")).toBe(false);
+    expect(isNanoBananaModel(NANO_BANANA_2_1_MODEL)).toBe(true);
+    expect(supportsNanoBananaImageSize(NANO_BANANA_2_1_MODEL)).toBe(true);
+    expect(isVideoModel(NANO_BANANA_2_1_MODEL)).toBe(false);
   });
 });

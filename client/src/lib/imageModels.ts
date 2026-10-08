@@ -4,6 +4,7 @@ export const GPT_IMAGE_MODEL = "gpt-image-2";
 export const GPT_IMAGE_FLARE_MODEL = "gpt-image-2.5-flare";
 export const GPT_IMAGE_SUNBURST_MODEL = "gpt-image-2.5-sunburst";
 export const NANO_BANANA_MODEL = "gemini-3-pro-image-preview";
+export const NANO_BANANA_2_1_MODEL = "gemini-nano-banana-2.1";
 export const GROK_VIDEO_MODEL_1_5 = "grok-video-1.5";
 export const GROK_VIDEO_MODEL_BASE = "grok-video";
 export const GROK_VIDEO_MODEL = GROK_VIDEO_MODEL_1_5;
@@ -54,7 +55,8 @@ const duomiNanoBananaModelOptions = [
   { label: "gemini-3-pro-image-preview", value: "gemini-3-pro-image-preview" },
   { label: "gemini-2.5-flash-image", value: "gemini-2.5-flash-image" },
   { label: "gemini-3.1-flash-image-preview", value: "gemini-3.1-flash-image-preview" },
-  { label: "gemini-3.1-flash-lite-image-preview", value: "gemini-3.1-flash-lite-image-preview" }
+  { label: "gemini-3.1-flash-lite-image-preview", value: "gemini-3.1-flash-lite-image-preview" },
+  { label: "gemini-nano-banana-2.1", value: NANO_BANANA_2_1_MODEL }
 ] as const;
 
 const duomiImageModelGroups = [
@@ -78,6 +80,27 @@ const grsaiImageModelGroups = [
  */
 export const getImageModelGroups = (providerId: ApiProviderId) =>
   providerId === "grsai" ? grsaiImageModelGroups : duomiImageModelGroups;
+
+export type ImageModelOption = { readonly label: string; readonly value: string };
+
+/**
+ * 根据模型名和提供者查找对应的模型选项（用于获取展示名称 label）。
+ * @param model - 模型名称
+ * @param providerId - API 提供者标识
+ * @returns 匹配的选项或 null
+ */
+export const getImageModelOption = (
+  model: string,
+  providerId: ApiProviderId
+): ImageModelOption | null => {
+  for (const group of getImageModelGroups(providerId)) {
+    const match = (group.options as ReadonlyArray<ImageModelOption>).find(
+      (option) => option.value === model
+    );
+    if (match) return match;
+  }
+  return null;
+};
 
 /**
  * 项目中所有被认可的模型值联合类型，从各组模型选项中自动推导。

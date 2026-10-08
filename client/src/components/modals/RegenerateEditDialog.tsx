@@ -45,6 +45,7 @@ import {
   supportsExtendedNanoAspectRatios,
   supportsNanoBananaImageSize,
   isVideoModel,
+  getImageModelOption,
   type SupportedImageModel
 } from "../../lib/imageModels";
 
@@ -249,6 +250,7 @@ export function RegenerateEditDialog({
   const isDuomiNanoBanana = apiProviderId === "duomi" && isNanoBanana;
   const supportsNanoImageSize = supportsNanoBananaImageSize(model);
   const imageModelGroups = getImageModelGroups(apiProviderId);
+  const currentModelOption = getImageModelOption(model, apiProviderId);
   const currentSizeOptions = isKlingVideo
     ? klingVideoSizeOptions
     : isGrokVideo
@@ -587,7 +589,7 @@ export function RegenerateEditDialog({
   const renderModelSelect = () => (
     <Select value={model} onValueChange={(value) => setModel(value as SupportedImageModel)}>
       <SelectTrigger aria-label="模型" className="composer-select-trigger">
-        <SelectValue>{model}</SelectValue>
+        <SelectValue>{currentModelOption?.label ?? model}</SelectValue>
       </SelectTrigger>
       <SelectContent position="popper" align="start" className="composer-select-content model-select-content">
         {imageModelGroups.map((group) => (
