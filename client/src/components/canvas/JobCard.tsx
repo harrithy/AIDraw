@@ -17,8 +17,7 @@ import {
   Play,
   RotateCcw,
   Sparkles,
-  Trash2,
-  X
+  Trash2
 } from "lucide-react";
 import { memo, type CSSProperties, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -38,7 +37,7 @@ import {
   type CardLayoutPreferences
 } from "../../lib/uiPreferences";
 import type { DrawJob } from "../../types";
-import { AnimatedModal } from "../ui/AnimatedModal";
+import { MediaPreview } from "../modals/MediaPreview";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -766,7 +765,7 @@ export const JobCard = memo(function JobCard({
             <strong>{formatDate(job.createdAt)}</strong>
           </span>
           <span className="job-meta-item">
-            <em>{isVideoModel(job.model) ? "时长" : usesNanoBanana ? "分辨率" : "Quality"}</em>
+            <em>{isVideoModel(job.model) ? "时长" : usesNanoBanana ? "分辨率" : "质量"}</em>
             <strong>{isVideoModel(job.model) ? `${job.duration ?? (isKlingVideoModel(job.model) ? 5 : 10)}秒` : qualityLabel}</strong>
           </span>
           <span className="job-meta-item">
@@ -783,28 +782,11 @@ export const JobCard = memo(function JobCard({
         {job.errorMessage ? <small className="error-text">{job.errorMessage}</small> : null}
       </div>
 
-      <AnimatedModal
-        open={Boolean(referencePreviewUrl)}
+      <MediaPreview
+        items={referencePreviewUrl ? [{ url: referencePreviewUrl, alt: "参考图片" }] : []}
         onClose={() => setReferencePreviewUrl(null)}
         ariaLabel="参考图片预览"
-        panelClassName="reference-preview-panel"
-      >
-        {referencePreviewUrl ? (
-          <>
-            <div className="image-preview-actions">
-              <button
-                type="button"
-                className="image-preview-action image-preview-close"
-                onClick={() => setReferencePreviewUrl(null)}
-                title="关闭预览"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <img src={referencePreviewUrl} alt="参考图片" />
-          </>
-        ) : null}
-      </AnimatedModal>
+      />
 
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>

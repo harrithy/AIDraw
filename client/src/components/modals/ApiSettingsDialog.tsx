@@ -36,8 +36,8 @@ export function ApiSettingsDialog({
         <DialogHeader>
           <div className="dialog-title-row">
             <div>
-              <p className="eyebrow">接口设置</p>
-              <DialogTitle className="sr-only">API 接口设置</DialogTitle>
+              <p className="eyebrow">连接创作能力</p>
+              <DialogTitle>API 接口设置</DialogTitle>
             </div>
             <Settings size={22} />
           </div>

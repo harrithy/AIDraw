@@ -606,11 +606,6 @@ button:disabled {
   pointer-events: none;
 }
 
-.reference-preview-panel {
-  min-width: min(760px, calc(100vw - 40px));
-  max-width: min(1360px, calc(100vw - 40px));
-}
-
 .image-preview-actions {
   position: absolute;
   top: 14px;

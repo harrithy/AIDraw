@@ -1,0 +1,92 @@
+/* 工作台动效：入场负责引导视线，悬停和按压提供即时反馈。 */
+:root {
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 外层保留布局定位，由 GSAP 动画输入面板和参数栏各自的包裹层。 */
+.app-shell[class] .composer-panel:not(.composer-collapsed) { animation: none !important; }
+.composer-surface { transform-origin: 50% 100%; }
+
+.folder-item { transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease; }
+.folder-icon { transition: transform 300ms var(--motion-ease); }
+.folder-item.active .folder-icon { transform: rotate(-8deg); }
+.empty-start > svg { transition: transform 240ms var(--motion-ease); }
+.composer-submit, .composer-attach, .prompt-polish-trigger, .image-preview-action,
+.image-version-list button, .empty-start, .folder-form button {
+  transition: transform 220ms var(--motion-ease), background-color 180ms ease, color 180ms ease, box-shadow 220ms ease;
+}
+
+/* 点击后的回弹不用计时器，禁用控件不参与按压反馈。 */
+:is(.composer-submit, .prompt-polish-trigger, .image-preview-action, .empty-start, .folder-form button):not(:disabled):active {
+  transform: scale(0.95);
+}
+.composer-attach:active { transform: scale(0.92); }
+.image-version-list button:active { transform: scale(0.94); }
+.composer-floating-controls [data-slot="select-trigger"] > svg { transition: transform 240ms var(--motion-ease); }
+.composer-floating-controls [data-slot="select-trigger"][data-state="open"] > svg { transform: rotate(180deg); }
+
+@media (hover: hover) and (pointer: fine) {
+  .empty-start:hover:not(:active) { transform: translateY(-2px); box-shadow: 0 5px 14px color-mix(in srgb, var(--green) 18%, transparent); }
+  .empty-start:hover > svg { transform: translateX(4px); }
+  .composer-submit:not(:disabled):hover:not(:active) { transform: translateY(-2px); box-shadow: 0 5px 12px color-mix(in srgb, var(--green) 20%, transparent); }
+  .image-preview-action:not(:disabled):hover:not(:active), .folder-form button:hover:not(:active) { transform: translateY(-2px); }
+  .image-version-list button:hover:not(:active) { transform: translateY(-3px); }
+  .app-shell .floating-toolbar button:not(:disabled):hover > svg { transform: translateY(-1px); }
+}
+.floating-toolbar button > svg { transition: transform 200ms var(--motion-ease); }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 微幅漂浮只用于空画布装饰，创作内容与操作控件保持静止。 */
+  .empty-art { animation: studio-art-float 5s ease-in-out 1s infinite; }
+  .toolbar-menu[open] > .toolbar-menu-content,
+  .layout-popover-menu, .search-dropdown.open, .job-retry-menu {
+    transform-origin: 50% 0;
+    animation: studio-menu-enter 240ms var(--motion-ease) both;
+  }
+  .composer-attachment { animation: studio-attachment-enter 320ms var(--motion-ease) both; }
+  .media-preview-panel .image-preview-actions { animation: studio-content-enter 400ms var(--motion-ease) 90ms both; }
+  .media-preview-panel .image-preview-caption { animation: studio-content-enter 400ms var(--motion-ease) 150ms both; }
+  .media-preview-content .retrying-img.is-loaded { animation: studio-image-enter 440ms var(--motion-ease) both; }
+  .image-comparison-stage > .image-comparison-layer {
+    transform: translateY(8px) scale(0.985);
+    transition: opacity 300ms ease, visibility 300ms ease, transform 380ms var(--motion-ease);
+  }
+  .image-comparison-stage > .image-comparison-layer.is-selected { transform: translateY(0) scale(1); }
+  /* Radix 弹窗沿用居中坐标，不让入场动画覆盖 translate(-50%, -50%)。 */
+  [data-slot="dialog-content"][data-state="open"] { animation: studio-dialog-enter 360ms var(--motion-ease) both; }
+  [data-slot="dialog-content"][data-state="closed"] { animation: studio-dialog-exit 180ms ease-in both; }
+}
+
+@keyframes studio-art-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes studio-menu-enter {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes studio-attachment-enter {
+  from { opacity: 0; transform: translateY(10px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes studio-content-enter {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes studio-image-enter {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes studio-dialog-enter {
+  from { opacity: 0; transform: translate(-50%, -50%) translateY(24px) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
+}
+@keyframes studio-dialog-exit {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -50%) translateY(12px) scale(0.98); }
+}
+
+/* 系统减少动态效果时，入口、交互和预览均直接到达稳定状态。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

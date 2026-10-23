@@ -914,6 +914,13 @@ function App() {
         isDragging={Boolean(canvasDrag || cardDrag)}
         isCanvasDragging={Boolean(canvasDrag)}
         isLoading={isLoading}
+        onStartCreating={() => {
+          // 空工作区引导创建文件夹；有文件夹时展开面板并聚焦提示词。
+          updatePreferences((current) => ({ ...current, page: { ...current.page, sidebarOpen: activeFolder ? current.page.sidebarOpen : true, composerCollapsed: false } }));
+          window.requestAnimationFrame(() => {
+            document.querySelector<HTMLInputElement | HTMLTextAreaElement>(activeFolder ? "#composer-prompt" : ".folder-form input")?.focus();
+          });
+        }}
         positionedJobs={positionedJobs}
         draggingJobId={cardDrag?.jobId ?? null}
         onPointerDown={startCanvasDrag}
@@ -1046,7 +1053,7 @@ function App() {
           data-tour="composer"
           data-layout-obstacle="composer"
         >
-          先创建文件夹，再开始绘图任务。
+          <span className="connection-dot" />你的画布已准备好，创建文件夹即可开始。
         </div>
       )}
 

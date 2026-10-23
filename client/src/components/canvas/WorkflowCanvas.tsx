@@ -35,6 +35,7 @@ type WorkflowCanvasProps = {
   isDragging: boolean;
   isCanvasDragging: boolean;
   isLoading: boolean;
+  onStartCreating: () => void;
   positionedJobs: PositionedJob[];
   draggingJobId: string | null;
   onPointerDown: PointerEventHandler<HTMLDivElement>;
@@ -58,6 +59,7 @@ export const WorkflowCanvas = memo(function WorkflowCanvas({
   isDragging,
   isCanvasDragging,
   isLoading,
+  onStartCreating,
   positionedJobs,
   draggingJobId,
   onPointerDown,
@@ -107,7 +109,7 @@ export const WorkflowCanvas = memo(function WorkflowCanvas({
         onPointerCancel={onPointerCancel}
       >
         {positionedJobs.length === 0 ? (
-          <EmptyCanvas isLoading={isLoading} />
+          <EmptyCanvas isLoading={isLoading} hasFolder={Boolean(activeFolder)} onStart={onStartCreating} />
         ) : (
           <div
             className="canvas-board"

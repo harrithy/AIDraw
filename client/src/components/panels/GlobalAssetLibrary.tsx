@@ -5,7 +5,6 @@ import {
   Check,
   ChevronDown,
   Copy,
-  Download,
   ExternalLink,
   ImagePlus,
   Images,
@@ -17,9 +16,8 @@ import {
 } from "lucide-react";
 import { type ChangeEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { UploadedImage } from "../../types";
-import { downloadImage } from "../../lib/download";
 import { prefersReducedMotion } from "../../lib/motion";
-import { AnimatedModal } from "../ui/AnimatedModal";
+import { MediaPreview } from "../modals/MediaPreview";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -174,8 +172,8 @@ export function GlobalAssetLibrary({
         gsap.set(popover, { pointerEvents: "auto" });
         gsap.fromTo(
           popover,
-          { autoAlpha: 0, y: -8, scale: 0.985 },
-          { autoAlpha: 1, y: 0, scale: 1, duration: 0.24, ease: "power3.out", overwrite: "auto" }
+          { autoAlpha: 0, y: -14, scale: 0.96 },
+          { autoAlpha: 1, y: 0, scale: 1, duration: 0.38, ease: "power3.out", overwrite: "auto" }
         );
       } else {
         gsap.set(popover, { pointerEvents: "none" });
@@ -542,65 +540,27 @@ export function GlobalAssetLibrary({
       </div>
 
       {/* 大图预览模态框 */}
-      <AnimatedModal
-        open={Boolean(previewImage)}
+      <MediaPreview
+        items={previewImage ? [{ url: previewImage.url, alt: previewImage.originalName, kind: isUploadedVideo(previewImage) ? "video" : "image" }] : []}
         onClose={() => setPreviewImage(null)}
         ariaLabel={previewImage && isUploadedVideo(previewImage) ? "素材视频预览" : "素材图片预览"}
-        panelClassName="uploaded-image-preview-panel"
-      >
-        {previewImage ? (
-          <>
-            <div className="image-preview-actions">
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                onClick={() => void downloadImage(previewImage.url, previewImage.originalName, isUploadedVideo(previewImage) ? "video" : "image")}
-                title="下载原文件"
-                aria-label="下载原文件"
-              >
-                <Download />
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                onClick={() => handleCopyUrl(previewImage.url)}
-                title="复制链接"
-                aria-label="复制链接"
-              >
-                {copiedUrl === previewImage.url ? <Check className="text-[var(--green)]" /> : <Copy />}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                onClick={() => window.open(previewImage.url, "_blank", "noopener,noreferrer")}
-                title="在新标签页打开"
-                aria-label="在新标签页打开"
-              >
-                <ExternalLink />
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                onClick={() => setPreviewImage(null)}
-                title="关闭预览"
-                aria-label="关闭预览"
-              >
-                <X />
-              </Button>
-            </div>
-
-            {isUploadedVideo(previewImage) ? (
-              <video src={previewImage.url} controls autoPlay muted loop playsInline preload="metadata" />
-            ) : (
-              <RetryingImage src={previewImage.url} alt={previewImage.originalName} />
-            )}
-          </>
-        ) : null}
-      </AnimatedModal>
+        downloadName={previewImage?.originalName}
+        downloadLabel="下载原文件"
+        actions={previewImage ? [
+          {
+            id: "copy-url",
+            label: "复制链接",
+            icon: copiedUrl === previewImage.url ? <Check size={18} className="text-[var(--green)]" /> : <Copy size={18} />,
+            onClick: () => handleCopyUrl(previewImage.url)
+          },
+          {
+            id: "open-url",
+            label: "在新标签页打开",
+            icon: <ExternalLink size={18} />,
+            onClick: () => { window.open(previewImage.url, "_blank", "noopener,noreferrer"); }
+          }
+        ] : undefined}
+      />
 
       {/* 删除确认对话框 */}
       <Dialog

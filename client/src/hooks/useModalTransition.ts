@@ -4,7 +4,7 @@ import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import { prefersReducedMotion } from "../lib/motion";
 
 /** 模态框入场动画时长（秒） */
-export const MODAL_ENTER_DURATION = 0.28;
+export const MODAL_ENTER_DURATION = 0.38;
 /** 模态框退场动画时长（秒） */
 export const MODAL_EXIT_DURATION = 0.2;
 
@@ -26,7 +26,7 @@ type UseModalTransitionParams = {
  * 模态框入场/退场动画 Hook
  *
  * 处理弹出层的生命周期动画：
- * - 入场：遮罩淡入 + 面板从下方弹入（y: 10 -> 0, scale: 0.985 -> 1）
+ * - 入场：遮罩淡入 + 面板从下方展开（y: 24 -> 0, scale: 0.96 -> 1）
  * - 退场：面板收缩淡出 + 遮罩淡出 -> 动画完成后卸载 DOM
  * - `isPresent`：在退场动画播放期间保持 DOM 存在，动画结束后才卸载
  *
@@ -84,7 +84,7 @@ export function useModalTransition({
         // 首次入场：先 set 初始状态，再动画到目标
         if (!hasEnteredRef.current) {
           gsap.set(backdrop, { autoAlpha: 0 });
-          gsap.set(panel, { autoAlpha: 0, y: 10, scale: 0.985 });
+          gsap.set(panel, { autoAlpha: 0, y: 24, scale: 0.96 });
         }
 
         hasEnteredRef.current = true;
@@ -95,7 +95,7 @@ export function useModalTransition({
         });
         timeline
           .to(backdrop, { autoAlpha: 1, duration: 0.2, ease: "power1.out", overwrite: "auto" }, 0)
-          .to(panel, { autoAlpha: 1, y: 0, scale: 1, duration: MODAL_ENTER_DURATION, ease: "power2.out", overwrite: "auto" }, 0);
+          .to(panel, { autoAlpha: 1, y: 0, scale: 1, duration: MODAL_ENTER_DURATION, ease: "power3.out", overwrite: "auto" }, 0);
         animationRef.current = timeline;
         return cleanup;
       }
@@ -111,7 +111,7 @@ export function useModalTransition({
         }
       });
       timeline
-        .to(panel, { autoAlpha: 0, y: 8, scale: 0.99, duration: MODAL_EXIT_DURATION, ease: "power1.in", overwrite: "auto" }, 0)
+        .to(panel, { autoAlpha: 0, y: 14, scale: 0.975, duration: MODAL_EXIT_DURATION, ease: "power1.in", overwrite: "auto" }, 0)
         .to(backdrop, { autoAlpha: 0, duration: MODAL_EXIT_DURATION, ease: "power1.in", overwrite: "auto" }, 0);
       animationRef.current = timeline;
       return cleanup;

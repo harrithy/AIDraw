@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   CheckCheck,
   Calendar,
-  Cat,
   CircleCheckBig,
   ExternalLink,
   Github,
@@ -94,7 +93,7 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
               <div className="anime-release-heading">
                 <div className="anime-release-title-row">
                   <DialogTitle className="anime-release-title">
-                    <span>系统更新通报</span>
+                    <span>更新日志</span>
                     <span className="anime-release-kicker">
                       PATCH LOG
                     </span>
@@ -102,7 +101,7 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
                 </div>
                 <DialogDescription className="anime-release-description">
                   <Calendar aria-hidden="true" size={12} strokeWidth={1.8} />
-                  <span>雪奈核心指令集 · {activeRelease.date}</span>
+                  <span>版本记录 · {activeRelease.date}</span>
                 </DialogDescription>
               </div>
             </div>
@@ -175,17 +174,17 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
 
         {/* 内容主体 */}
         <div className="anime-release-content">
-          {/* 小雪更新导语 */}
+          {/* 版本摘要先于具体更新项展示，方便快速浏览。 */}
           <div className="anime-yuki-bubble">
             <div className="anime-yuki-tag">
               <span className="anime-yuki-badge">
-                <Cat aria-hidden="true" size={13} strokeWidth={1.9} />
-                小雪 Yuki
+                <Sparkles aria-hidden="true" size={13} strokeWidth={1.9} />
+                本次更新
               </span>
               <span className="anime-yuki-label">STUDIO DISPATCH</span>
             </div>
             <p className="anime-yuki-copy">
-              报告主人！本次 <strong>{activeRelease.version}</strong> 算力核心装填完毕：
+              <strong>{activeRelease.version}</strong>
               <span> {activeRelease.summary}</span>
             </p>
           </div>
@@ -199,7 +198,7 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
                   <Sparkles aria-hidden="true" size={13} strokeWidth={1.9} />
                 </span>
                 <span className="anime-section-title">
-                  核心机能实装 <span>NEW FEATURES</span>
+                  新增功能
                 </span>
                 <div className="anime-section-line" />
               </div>
@@ -237,7 +236,7 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
                   <Wrench aria-hidden="true" size={13} strokeWidth={1.9} />
                 </span>
                 <span className="anime-section-title">
-                  机体调校 &amp; 修复 <span>ADJUSTMENTS</span>
+                  优化与修复
                 </span>
                 <div className="anime-section-line" />
               </div>
@@ -285,7 +284,7 @@ export function ReleaseNotesDialog({ open, onOpenChange, onAcknowledge }: Releas
             className="anime-primary-cta"
           >
             <CheckCheck aria-hidden="true" size={15} strokeWidth={2} />
-            <span>我知道了喵～</span>
+            <span>知道了</span>
           </Button>
         </DialogFooter>
       </DialogContent>

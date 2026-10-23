@@ -1,4 +1,4 @@
-import { Edit2, FolderPlus, Layers, Palette, Trash2 } from "lucide-react";
+import { ArrowUpRight, Edit2, Folder, FolderPlus, HardDrive, Layers, Trash2 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { formatDate } from "../../lib/format";
 import type { DrawFolder } from "../../types";
@@ -49,36 +49,48 @@ export function LeftSidebar({
     <aside
       className={`floating-panel left-panel ${isOpen ? "open" : "closed"}`}
       data-layout-obstacle={isOpen ? "sidebar" : undefined}
+      aria-label="文件夹导航"
+      inert={!isOpen}
     >
       <div className="brand">
-        <div className="brand-mark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img src="/logo.png" alt="AIDraw Logo" style={{ width: '100%', height: '100%', borderRadius: '8px', objectFit: 'cover' }} />
+        <div className="brand-mark" aria-hidden="true">
+          <Layers size={23} strokeWidth={1.7} />
         </div>
         <div>
           <p>AIDraw</p>
-          <span>AI 绘图工作流</span>
+          <span>你的 AI 创作空间</span>
         </div>
       </div>
 
+      <div className="sidebar-section-heading">
+        <span>工作空间</span><span>{folders.length.toString().padStart(2, "0")}</span>
+      </div>
       <form className="folder-form" onSubmit={onCreateFolder} data-tour="folder-create">
         <input
           value={folderName}
           onChange={(event) => onFolderNameChange(event.target.value)}
           placeholder="新文件夹名称"
+          aria-label="新文件夹名称"
         />
-        <button type="submit" title="创建文件夹">
+        <button type="submit" title="创建文件夹" aria-label="创建文件夹">
           <FolderPlus size={18} />
         </button>
       </form>
 
-      <div className="folder-list">
+      <nav className="folder-list" aria-label="创作文件夹">
+        {folders.length === 0 ? (
+          <div className="sidebar-empty">
+            <Folder size={24} strokeWidth={1.3} />
+            <strong>给灵感一个位置</strong>
+            <p>创建文件夹，整理你的第一组作品。</p>
+          </div>
+        ) : null}
         {folders.map((folder) => (
           <div
             key={folder.id}
             className={`folder-item ${folder.id === activeFolderId ? "active" : ""}`}
-            onClick={() => onSelectFolder(folder.id)}
           >
-            <Layers size={17} className="folder-icon" />
+            <Folder size={17} className="folder-icon" />
             
             {editingFolderId === folder.id ? (
               <input
@@ -106,7 +118,14 @@ export function LeftSidebar({
                 }}
               />
             ) : (
-              <span className="folder-name">{folder.name}</span>
+              <button
+                type="button"
+                className="folder-name"
+                aria-current={folder.id === activeFolderId ? "page" : undefined}
+                onClick={() => onSelectFolder(folder.id)}
+              >
+                {folder.name}
+              </button>
             )}
 
             <small>{formatDate(folder.createdAt)}</small>
@@ -128,6 +147,17 @@ export function LeftSidebar({
             )}
           </div>
         ))}
+      </nav>
+
+      <div className="sidebar-footer">
+        <div className="sidebar-storage">
+          <HardDrive size={17} />
+          <div><strong>本地工作区</strong><span>创作记录保存在此浏览器</span></div>
+          <span className="connection-dot" />
+        </div>
+        <a href="https://github.com/harrithy/AIDraw" target="_blank" rel="noreferrer">
+          AIDraw · 为灵感而生<ArrowUpRight size={13} />
+        </a>
       </div>
 
       <Dialog open={!!deleteFolderId} onOpenChange={(open) => { if (!open) setDeleteFolderId(null); }}>

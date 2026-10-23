@@ -504,10 +504,10 @@ export function PersonalizationDrawer({
               </span>
             </div>
             <div className="personalization-title-row">
-              <DialogTitle>把创作空间调成顺手的样子</DialogTitle>
+              <DialogTitle>个性化设置</DialogTitle>
             </div>
             <DialogDescription>
-              每一次选择都会立即映射到画布；满意后应用，不满意就安全退回。
+              调整布局、任务卡片与外观，实时预览效果。
             </DialogDescription>
             <div className="personalization-header-facts" aria-label="当前个性化设置摘要">
               <span><LayoutGrid size={13} />{PRESET_LABELS[preferences.preset]}</span>

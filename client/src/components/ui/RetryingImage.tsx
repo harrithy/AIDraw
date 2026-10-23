@@ -16,7 +16,12 @@ type RetryingImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
  * 图片加载失败时自动重试（最多 5 次，间隔 1 秒），
  * 彻底失败后显示占位图标。适用于远程生成图片加载不稳定的场景。
  */
-export const RetryingImage = memo(function RetryingImage({
+export const RetryingImage = memo(function RetryingImage(props: RetryingImageProps) {
+  // URL 变化时重建加载状态，避免副作用覆盖缓存图片提前触发的 load 事件。
+  return <RetryingImageSource key={props.src} {...props} />;
+});
+
+function RetryingImageSource({
   src,
   onError,
   onLoad,
@@ -36,14 +41,8 @@ export const RetryingImage = memo(function RetryingImage({
     retryTimeoutRef.current = null;
   };
 
-  useEffect(() => {
-    clearRetryTimeout();
-    setAttempt(1);
-    setIsLoaded(false);
-    setHasFailed(false);
-
-    return clearRetryTimeout;
-  }, [src]);
+  // 切换地址或卸载时取消旧图片的重试，防止旧计时器影响新图片。
+  useEffect(() => clearRetryTimeout, []);
 
   return (
     <div className="retrying-image-wrapper">
@@ -92,4 +91,4 @@ export const RetryingImage = memo(function RetryingImage({
       />
     </div>
   );
-});
+}

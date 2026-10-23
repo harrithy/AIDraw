@@ -8,8 +8,8 @@ export const CARD_HEIGHT = 356;
 export const CARD_GAP_X = 300;
 /** 新建卡片默认 X 坐标 */
 export const DEFAULT_CARD_X = 318;
-/** 新建卡片默认 Y 坐标 */
-export const DEFAULT_CARD_Y = 150;
+/** 新建卡片默认 Y 坐标，为工作区标题与画布工具栏预留空间。 */
+export const DEFAULT_CARD_Y = 190;
 /** 画布内边距（防止卡片贴边） */
 export const BOARD_PADDING = 240;
 

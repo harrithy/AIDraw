@@ -1,0 +1,61 @@
+/* 所有大图入口使用同一套尺寸和媒体容器，缩略图不受影响。 */
+.media-preview-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: min(640px, calc(100vw - 40px));
+  min-height: 0;
+  max-height: calc(100dvh - 40px);
+  border-radius: 14px;
+}
+
+.media-preview-content {
+  display: grid;
+  flex: 1 1 auto;
+  place-items: center;
+  width: 100%;
+  height: min(70dvh, 800px);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.media-preview-content > .retrying-image-wrapper,
+.image-comparison-layer > .retrying-image-wrapper {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 0;
+}
+
+.media-preview-content img,
+.media-preview-content video,
+.image-comparison-layer img,
+.image-comparison-layer video {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.media-preview-panel .image-comparison-grid { flex: 1 1 auto; height: min(62dvh, 680px); }
+.media-preview-panel .image-comparison-stage,
+.media-preview-panel .image-comparison-pane .media-preview-content { height: 100%; min-height: 0; }
+.media-preview-panel .image-version-picker,
+.media-preview-panel .image-preview-caption { flex-shrink: 0; }
+/* 为操作栏保留独立空间，避免关闭按钮遮住图片或当前版本编号。 */
+.media-preview-panel .image-preview-actions { position: static; flex-shrink: 0; align-self: flex-end; }
+.media-preview-panel .image-preview-actions svg { width: 18px; height: 18px; }
+.media-preview-panel .image-version-list video { width: 100%; height: 100%; object-fit: cover; }
+
+/* 将淡入淡出放在包裹层上，加载重试不会重置当前选中的历史版本。 */
+.image-comparison-stage > .image-comparison-layer { transition: opacity 280ms ease, visibility 280ms ease; }
+
+@media (max-width: 720px) {
+  .media-preview-panel { min-width: 0; width: calc(100vw - 20px); max-width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
+  .media-preview-content { height: min(64dvh, 640px); }
+  .media-preview-panel .image-comparison-grid { height: min(56dvh, 520px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image-comparison-stage > .image-comparison-layer { transition: none; }
+}

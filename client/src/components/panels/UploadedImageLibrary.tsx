@@ -14,7 +14,7 @@ import { type CSSProperties, useEffect, useId, useMemo, useRef, useState } from 
 import type { UploadedImage } from "../../types";
 import { formatDate } from "../../lib/format";
 import { prefersReducedMotion } from "../../lib/motion";
-import { AnimatedModal } from "../ui/AnimatedModal";
+import { MediaPreview } from "../modals/MediaPreview";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import {
@@ -93,7 +93,8 @@ export function UploadedImageLibrary({
     if (!isOpen) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      // 公共预览已处理的 Escape 不再穿透关闭下面的素材列表。
+      if (event.key !== "Escape" || event.defaultPrevented) return;
       setIsOpen(false);
       triggerRef.current?.focus();
     };
@@ -126,8 +127,8 @@ export function UploadedImageLibrary({
         gsap.set(popover, { pointerEvents: "auto" });
         gsap.fromTo(
           popover,
-          { autoAlpha: 0, y: -8, scale: 0.985 },
-          { autoAlpha: 1, y: 0, scale: 1, duration: 0.28, ease: "power3.out", overwrite: "auto" }
+          { autoAlpha: 0, y: -14, scale: 0.96 },
+          { autoAlpha: 1, y: 0, scale: 1, duration: 0.38, ease: "power3.out", overwrite: "auto" }
         );
 
         const content = popover.querySelectorAll<HTMLElement>(
@@ -379,52 +380,17 @@ export function UploadedImageLibrary({
         </div>
       </div>
 
-      <AnimatedModal
-        open={Boolean(previewImage)}
+      <MediaPreview
+        items={previewImage ? [{ url: previewImage.url, alt: previewImage.originalName, kind: isUploadedVideo(previewImage) ? "video" : "image" }] : []}
         onClose={() => setPreviewImage(null)}
         ariaLabel={previewImage && isUploadedVideo(previewImage) ? "上传视频预览" : "上传图片预览"}
-        panelClassName="uploaded-image-preview-panel"
-      >
-        {previewImage ? (
-          <>
-            <div className="image-preview-actions">
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                onClick={() => setPreviewImage(null)}
-                title="关闭预览"
-                aria-label="关闭预览"
-              >
-                <X />
-              </Button>
-            </div>
-            {isUploadedVideo(previewImage) ? (
-              <video src={previewImage.url} controls autoPlay muted loop playsInline preload="metadata" />
-            ) : (
-              <RetryingImage src={previewImage.url} alt={previewImage.originalName} />
-            )}
-            <div className="image-preview-caption uploaded-image-preview-caption">
-              <div>
-                <strong>{previewImage.originalName}</strong>
-                <span>{formatDate(previewImage.createdAt)}</span>
-              </div>
-              {!isUploadedVideo(previewImage) ? (
-                <Button
-                  type="button"
-                  onClick={() => {
-                    onUseImage(previewImage.url);
-                    setPreviewImage(null);
-                  }}
-                >
-                  <ImagePlus data-icon="inline-start" />
-                  用作参考图
-                </Button>
-              ) : null}
-            </div>
-          </>
-        ) : null}
-      </AnimatedModal>
+        title={previewImage?.originalName}
+        description={previewImage ? formatDate(previewImage.createdAt) : undefined}
+        onUseImage={(url) => {
+          onUseImage(url);
+          setPreviewImage(null);
+        }}
+      />
 
       <Dialog open={Boolean(deleteImage)} onOpenChange={(open) => { if (!open && !isDeleting) setDeleteImage(null); }}>
         <DialogContent showCloseButton={false}>

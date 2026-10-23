@@ -110,6 +110,7 @@ export function FolderTransferControls({ folder, onImported }: FolderTransferCon
         aria-label="导出当前文件夹"
       >
         {isExporting ? <Loader2 className="spin" size={17} /> : <Download size={17} />}
+        <span>导出当前文件夹</span>
       </button>
       <button
         type="button"
@@ -119,6 +120,7 @@ export function FolderTransferControls({ folder, onImported }: FolderTransferCon
         aria-label="导入文件夹或紧急救灾备份"
       >
         {isImporting ? <Loader2 className="spin" size={17} /> : <Upload size={17} />}
+        <span>导入文件夹或备份</span>
       </button>
       <input
         ref={fileInputRef}

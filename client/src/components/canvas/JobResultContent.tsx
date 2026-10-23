@@ -2,7 +2,7 @@ import { Braces, ExternalLink, Maximize2 } from "lucide-react";
 import { memo, useState } from "react";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import type { DrawJob, GeneratedAsset, GeneratedAssetKind } from "../../types";
-import { AnimatedModal } from "../ui/AnimatedModal";
+import { MediaPreview } from "../modals/MediaPreview";
 import { RetryingImage } from "../ui/RetryingImage";
 
 /** 通用任务结果组件的属性。 */
@@ -181,15 +181,11 @@ export const JobResultContent = memo(function JobResultContent({ job }: JobResul
         </details>
       ) : null}
 
-      <AnimatedModal
-        open={Boolean(previewAsset?.url)}
+      <MediaPreview
+        items={previewAsset?.url ? [{ url: previewAsset.url, alt: previewAsset.name || job.prompt, kind: previewAsset.kind === "video" ? "video" : "image" }] : []}
         onClose={() => setPreviewAsset(null)}
         ariaLabel="图片结果预览"
-      >
-        {previewAsset?.url ? (
-          <RetryingImage src={previewAsset.url} alt={previewAsset.name || job.prompt} />
-        ) : null}
-      </AnimatedModal>
+      />
     </section>
   );
 });

@@ -676,17 +676,6 @@
   border-color: transparent !important;
 }
 
-.uploaded-image-preview-panel {
-  width: fit-content;
-  max-width: min(1360px, calc(100vw - 40px));
-}
-
-.uploaded-image-preview-caption > div {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
 .empty-canvas-icon {
   display: grid;
   width: 44px;

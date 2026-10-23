@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowRight, Cat, Check, CircleHelp, Clock, Copy, Folder, Github, Images, LayoutGrid, LocateFixed, Maximize2, Megaphone, Moon, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowDown, ArrowRight, Cat, Check, ChevronDown, CircleHelp, Clock, Copy, Folder, Github, Images, LayoutGrid, ListFilter, LocateFixed, Maximize2, Megaphone, Moon, MoreHorizontal, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { LayoutDirection } from "../../lib/canvas";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import { matchJobSearch, splitHighlight, type JobSearchMatch } from "../../lib/jobSearch";
@@ -145,6 +145,31 @@ export function CanvasToolbar({
   });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const layoutMenuRef = useRef<HTMLDivElement | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+
+  // 原生 details 保留键盘操作；点击外部、选择操作或按 Escape 时收起菜单。
+  useEffect(() => {
+    const closeMenus = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      const isEscape = event instanceof KeyboardEvent && event.key === "Escape";
+      if (event.type === "keydown" && !isEscape) return;
+      toolbarRef.current?.querySelectorAll<HTMLDetailsElement>("details[open]").forEach((details) => {
+        if (isEscape || !details.contains(target) || target?.closest("button")) {
+          details.open = false;
+          if (isEscape) {
+            event.preventDefault();
+            details.querySelector("summary")?.focus();
+          }
+        }
+      });
+    };
+    document.addEventListener("click", closeMenus);
+    document.addEventListener("keydown", closeMenus);
+    return () => {
+      document.removeEventListener("click", closeMenus);
+      document.removeEventListener("keydown", closeMenus);
+    };
+  }, []);
 
   // 点击外部或按 Esc 关闭排版菜单
   useEffect(() => {
@@ -235,9 +260,8 @@ export function CanvasToolbar({
   const matchingJobs = useMemo(() => searchResults.map((result) => result.job), [searchResults]);
 
   return (
-    <div className="canvas-toolbar floating-toolbar" data-layout-obstacle="toolbar">
-      {children ? <div className="tool-group">{children}</div> : null}
-      <div className="tool-group">
+    <div ref={toolbarRef} className="canvas-toolbar floating-toolbar" data-layout-obstacle="toolbar" aria-label="画布工具栏">
+      <div className="tool-group toolbar-zoom">
         <button type="button" onClick={onZoomOut} title="缩小">
           <ZoomOut size={17} />
         </button>
@@ -388,11 +412,16 @@ export function CanvasToolbar({
       </div>
 
       <div className="tool-group">
+        <details className="toolbar-menu toolbar-organize">
+          <summary title="整理画布" aria-label="整理画布"><ListFilter size={17} /><span>整理</span><ChevronDown size={12} /></summary>
+          <div className="toolbar-menu-content">
+        <span className="toolbar-menu-heading">整理画布</span>
+        {children}
         <button type="button" onClick={onSortByTime} title="按生成时间排序">
-          <Clock size={17} />
+          <Clock size={17} /><span>按生成时间排序</span>
         </button>
         <button type="button" onClick={onSortByName} title="按提示词排序">
-          <RefreshCw size={17} />
+          <RefreshCw size={17} /><span>按提示词排序</span>
         </button>
         {onClearFailedJobs && (
           <button
@@ -404,6 +433,7 @@ export function CanvasToolbar({
             aria-label={(failedJobsCount ?? 0) > 0 ? `一键清理失败盒子 (共 ${failedJobsCount} 个)` : "暂无生成失败的盒子"}
           >
             <Trash2 size={17} />
+            <span>清理失败任务</span>
             {(failedJobsCount ?? 0) > 0 && (
               <span className="toolbar-badge-count">
                 {(failedJobsCount ?? 0) > 99 ? "99+" : failedJobsCount}
@@ -411,6 +441,8 @@ export function CanvasToolbar({
             )}
           </button>
         )}
+          </div>
+        </details>
 
         {onApplyLayout && (
           <div className="layout-menu-wrapper" ref={layoutMenuRef}>
@@ -558,11 +590,15 @@ export function CanvasToolbar({
           </div>
         )}
 
+        <details className="toolbar-menu toolbar-more">
+          <summary title="更多工具" aria-label="更多工具"><MoreHorizontal size={18} /></summary>
+          <div className="toolbar-menu-content">
+        <span className="toolbar-menu-heading">工作台偏好</span>
         <button type="button" onClick={onTogglePet} title={petEnabled ? "关闭 Mugi 桌宠" : "开启 Mugi 桌宠"} aria-label="Mugi 桌宠">
-          <Cat size={17} className={petEnabled ? "text-[var(--green)]" : ""} />
+          <Cat size={17} className={petEnabled ? "text-[var(--green)]" : ""} /><span>{petEnabled ? "关闭桌宠" : "开启桌宠"}</span>
         </button>
         <button type="button" onClick={onToggleTheme} title="切换暗黑模式">
-          {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+          {darkMode ? <Sun size={17} /> : <Moon size={17} />}<span>{darkMode ? "浅色外观" : "深色外观"}</span>
         </button>
         {onOpenAnnouncement && (
           <button
@@ -577,6 +613,7 @@ export function CanvasToolbar({
             aria-label="更新日志"
           >
             <Megaphone size={17} />
+            <span>更新日志</span>
             {unreadAnnouncementsCount && unreadAnnouncementsCount > 0 ? (
               <span className="announcement-badge-count">
                 {unreadAnnouncementsCount > 9 ? "9+" : unreadAnnouncementsCount}
@@ -585,7 +622,7 @@ export function CanvasToolbar({
           </button>
         )}
         <button type="button" onClick={onOpenGuide} title="新手指引">
-          <CircleHelp size={17} />
+          <CircleHelp size={17} /><span>使用指南</span>
         </button>
         <button
           type="button"
@@ -593,7 +630,7 @@ export function CanvasToolbar({
           title="个性化设置"
           aria-label="个性化设置"
         >
-          <SlidersHorizontal size={17} />
+          <SlidersHorizontal size={17} /><span>个性化设置</span>
         </button>
         <button
           type="button"
@@ -601,10 +638,12 @@ export function CanvasToolbar({
           title="访问 GitHub 仓库"
           aria-label="访问 GitHub 仓库"
         >
-          <Github size={17} />
+          <Github size={17} /><span>GitHub 仓库</span>
         </button>
-        <button type="button" onClick={onOpenApiSettings} title="接口设置" data-tour="api-settings">
-          <Settings size={17} />
+          </div>
+        </details>
+        <button type="button" className="toolbar-settings" onClick={onOpenApiSettings} title="接口设置" data-tour="api-settings">
+          <Settings size={16} /><span>接口设置</span>
         </button>
       </div>
 

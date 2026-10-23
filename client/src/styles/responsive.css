@@ -253,10 +253,6 @@
     max-height: min(42dvh, 360px);
   }
 
-  .uploaded-image-preview-panel {
-    width: calc(100vw - 20px);
-  }
-
   .floating-toolbar {
     right: 12px;
     flex-direction: row;

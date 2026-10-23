@@ -1,6 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { BookOpen, ChevronDown, Image as ImageIcon, ImagePlus, ImageUp, Loader2, MousePointer2, Music, PenLine, Play, Shapes, Sparkles, Video, Wrench, X } from "lucide-react";
+import { ArrowUpRight, BookOpen, ChevronDown, Image as ImageIcon, ImagePlus, ImageUp, Loader2, LockKeyhole, Music, PenLine, Play, Plus, Shapes, Sparkles, Video, Wrench, X } from "lucide-react";
 import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -10,7 +10,7 @@ import { InputGroup, InputGroupAddon, InputGroupTextarea } from "@/components/ui
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { AnimatedModal } from "@/components/ui/AnimatedModal";
+import { MediaPreview } from "@/components/modals/MediaPreview";
 import { PromptPolish } from "@/components/ui/prompt-polish";
 import { DuomiCapabilityFields } from "./DuomiCapabilityFields";
 import {
@@ -175,6 +175,9 @@ const grsaiGptVipSizeOptions = gptSizeOptions.filter(
 const qualityOptions: ThinkingValue[] = ["high", "medium", "low"];
 const nanoImageSizeOptions: NanoImageSize[] = ["1K", "2K", "4K"];
 
+// 暂停多米能力入口，同时阻止旧草稿恢复到能力模式；保留实现供后续重新开放。
+const DUOMI_CAPABILITIES_ENABLED = false;
+
 const parseCustomDimension = (value: string) => Number.parseInt(value.trim(), 10);
 
 const getImageFiles = (files: FileList | File[]) => Array.from(files).filter((file) => file.type.startsWith("image/"));
@@ -196,33 +199,6 @@ const isRemoteImageUrl = (value: string) => {
     return false;
   }
 };
-
-function ReferenceImagePreview({
-  image,
-  onClose
-}: {
-  image: UploadResult | null;
-  onClose: () => void;
-}) {
-  return (
-    <AnimatedModal open={Boolean(image)} onClose={onClose} ariaLabel="参考图片预览">
-      {image ? (
-        <>
-          <div className="image-preview-actions">
-            <button type="button" className="image-preview-action image-preview-close" onClick={onClose} title="关闭预览">
-              <X size={18} />
-            </button>
-          </div>
-          <img src={image.url} alt={image.originalName} />
-          <div className="image-preview-caption">
-            <strong>{image.originalName}</strong>
-            <span>参考图片</span>
-          </div>
-        </>
-      ) : null}
-    </AnimatedModal>
-  );
-}
 
 const getDraftKey = (folderId: string) => `aidraw-draft-${folderId}`;
 
@@ -343,7 +319,7 @@ export function CreateJobPanel({
   const isGrokVideo = isGrokVideoModel(model);
   const isKlingVideo = isKlingVideoModel(model);
   const isVideo = isVideoModel(model);
-  const usesCapability = apiProviderId === "duomi" && creationMode === "capability";
+  const usesCapability = DUOMI_CAPABILITIES_ENABLED && apiProviderId === "duomi" && creationMode === "capability";
   const categoryCapabilities = useMemo(() => getDuomiCapabilitiesByCategory(capabilityCategory), [capabilityCategory]);
   const selectedCapability = getDuomiCapability(capabilityId) ?? categoryCapabilities[0];
   const isDuomiNanoBanana = apiProviderId === "duomi" && isNanoBanana;
@@ -393,7 +369,7 @@ export function CreateJobPanel({
       setVideoDuration(draft.videoDuration ?? 10);
       setSound(draft.sound ?? "on");
       setInputImages(draft.inputImages ?? []);
-      setCreationMode(draft.creationMode === "capability" && apiProviderId === "duomi" ? "capability" : "model");
+      setCreationMode(DUOMI_CAPABILITIES_ENABLED && draft.creationMode === "capability" && apiProviderId === "duomi" ? "capability" : "model");
       const restoredCategory = (draft.capabilityCategory ?? "image") as CapabilityCategory;
       setCapabilityCategory(
         getDuomiCapabilitiesByCategory(restoredCategory).length > 0 ? restoredCategory : "image"
@@ -465,7 +441,7 @@ export function CreateJobPanel({
   ]);
 
   useEffect(() => {
-    if (apiProviderId !== "duomi" && creationMode === "capability") setCreationMode("model");
+    if ((!DUOMI_CAPABILITIES_ENABLED || apiProviderId !== "duomi") && creationMode === "capability") setCreationMode("model");
   }, [apiProviderId, creationMode]);
 
   useEffect(() => {
@@ -530,6 +506,19 @@ export function CreateJobPanel({
     },
     []
   );
+
+  // 展开时先出现输入面板，再带出上方参数栏；不改动外层的定位 transform。
+  useGSAP(() => {
+    if (variant !== "composer" || isCollapsed || !panelRef.current) return;
+    const media = gsap.matchMedia();
+    media.add("(prefers-reduced-motion: no-preference)", () => {
+      gsap.timeline({ defaults: { ease: "power3.out", clearProps: "transform,opacity,visibility" } })
+        .from(".composer-surface", { y: 28, scale: 0.975, autoAlpha: 0, duration: 0.48, transformOrigin: "50% 100%" }, 0)
+        .from(".composer-floating-controls", { y: 16, autoAlpha: 0, duration: 0.4 }, 0.08)
+        .from(".composer-secondary-actions, .composer-submit-actions", { y: 8, autoAlpha: 0, stagger: 0.05, duration: 0.32 }, 0.18);
+    }, panelRef);
+    return () => media.revert();
+  }, { dependencies: [variant, isCollapsed], scope: panelRef, revertOnUpdate: true });
 
   useGSAP(
     () => {
@@ -972,6 +961,7 @@ export function CreateJobPanel({
         <Button
           type="button"
           variant={creationMode === "model" ? "default" : "ghost"}
+          aria-pressed={creationMode === "model"}
           size="sm"
           onClick={() => setCreationMode("model")}
         >
@@ -981,10 +971,13 @@ export function CreateJobPanel({
         <Button
           type="button"
           variant={creationMode === "capability" ? "default" : "ghost"}
+          aria-pressed={creationMode === "capability"}
           size="sm"
+          disabled={!DUOMI_CAPABILITIES_ENABLED}
+          title={DUOMI_CAPABILITIES_ENABLED ? undefined : "多米能力暂未开放"}
           onClick={() => setCreationMode("capability")}
         >
-          <Shapes data-icon="inline-start" />
+          {DUOMI_CAPABILITIES_ENABLED ? <Shapes data-icon="inline-start" /> : <LockKeyhole data-icon="inline-start" />}
           多米能力
         </Button>
       </div>
@@ -1089,20 +1082,31 @@ export function CreateJobPanel({
     );
   };
 
+  const referencePreview = (
+    <MediaPreview
+      items={previewImage ? [{ url: previewImage.url, alt: previewImage.originalName }] : []}
+      onClose={() => setPreviewImage(null)}
+      ariaLabel="参考图片预览"
+      title={previewImage?.originalName}
+      description="参考图片"
+    />
+  );
+
   if (variant === "composer") {
     if (isCollapsed) {
       return (
-        <div
+        <button
+          type="button"
           className="create-panel composer-panel composer-collapsed cursor-pointer flex items-center justify-between"
           onClick={() => setCollapsed(false)}
           title="展开创作面板"
           data-layout-obstacle="composer"
         >
-          <div className="flex items-center gap-2 font-bold text-muted-foreground hover:text-foreground transition-colors">
+          <span className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <PenLine size={16} />
-            <span>展开创作面板...</span>
-          </div>
-        </div>
+            <span>写下一个新想法…</span>
+          </span>
+        </button>
       );
     }
 
@@ -1119,8 +1123,6 @@ export function CreateJobPanel({
           onDrop={dropImages}
           noValidate
         >
-          {renderCreationMode()}
-          {usesCapability ? renderCapabilityPanel("top") : null}
           <div className="composer-floating-controls">
             {!usesCapability ? <div className={`composer-fields ${!isNanoBanana && sizeMode === "custom" ? "has-custom-size" : ""}`} data-tour="composer-options">
               <Field orientation="horizontal">
@@ -1135,7 +1137,7 @@ export function CreateJobPanel({
                 />
               </Field>
               <Field orientation="horizontal">
-                <FieldLabel htmlFor="composer-quality">{isVideo ? "时长" : isNanoBanana ? "分辨率" : "Quality"}</FieldLabel>
+                <FieldLabel htmlFor="composer-quality">{isVideo ? "时长" : isNanoBanana ? "分辨率" : "质量"}</FieldLabel>
                 {isVideo
                   ? renderVideoDurationSelect("composer-quality", "top")
                   : isNanoBanana && supportsNanoImageSize
@@ -1147,7 +1149,7 @@ export function CreateJobPanel({
                         : renderQualitySelect("composer-quality", "top")}
               </Field>
               <Field orientation="horizontal">
-                <FieldLabel htmlFor="composer-size">{isVideo || isNanoBanana ? "比例" : "Size"}</FieldLabel>
+                <FieldLabel htmlFor="composer-size">{isVideo || isNanoBanana ? "比例" : "尺寸"}</FieldLabel>
                 {renderSizeSelect("composer-size", "top")}
               </Field>
               {!isNanoBanana && sizeMode === "custom" ? (
@@ -1207,7 +1209,7 @@ export function CreateJobPanel({
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="ml-auto flex-shrink-0"
+              className="composer-collapse-button"
               onClick={() => setCollapsed(true)}
               title="收起面板"
             >
@@ -1215,57 +1217,64 @@ export function CreateJobPanel({
             </Button>
           </div>
 
-          {!usesCapability ? <Field className="composer-input-field">
-            <FieldLabel htmlFor="composer-prompt" className="sr-only">提示词</FieldLabel>
-            <InputGroup className={`composer-input-shell ${inputImages.length > 0 ? "has-attachments" : ""}${isDragActive ? " is-dragging" : ""}`} onPaste={pasteImages} data-tour="composer">
-              {imageAttachments}
-              <InputGroupTextarea
-                id="composer-prompt"
-                ref={promptTextareaRef}
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                onPaste={pasteImages}
-                placeholder="描述你想生成的画面"
-              />
-              <InputGroupAddon className="composer-actions absolute bottom-2 right-2 flex items-center gap-2">
-                {notice ? (
-                  <div className="notice-line composer-notice-inline">
-                    <MousePointer2 size={14} />
-                    <span>{inputImages.length > 0 ? "检测到图片，将自动使用图生图" : notice}</span>
-                  </div>
-                ) : null}
-                <PromptPolish
-                  text={prompt}
-                  onPolished={handlePolishedPrompt}
-                  images={inputImages.map((image) => image.url)}
+          <div className="composer-surface">
+            {renderCreationMode()}
+            {usesCapability ? renderCapabilityPanel("top") : null}
+            {!usesCapability ? <Field className="composer-input-field">
+              <FieldLabel htmlFor="composer-prompt" className="sr-only">提示词</FieldLabel>
+              <InputGroup className={`composer-input-shell ${inputImages.length > 0 ? "has-attachments" : ""}${isDragActive ? " is-dragging" : ""}`} onPaste={pasteImages} data-tour="composer">
+                {imageAttachments}
+                <InputGroupTextarea
+                  id="composer-prompt"
+                  ref={promptTextareaRef}
+                  value={prompt}
+                  onChange={(event) => setPrompt(event.target.value)}
+                  onPaste={pasteImages}
+                  placeholder="描述你想生成的画面"
                 />
-                <Button type="button" variant="outline" size="icon" asChild title="上传参考图片">
-                  <label>
-                    <input className="sr-only" type="file" accept="image/*" multiple onChange={uploadImage} />
-                    {isUploading ? <Loader2 className="spin" /> : <ImagePlus />}
-                  </label>
-                </Button>
-                <Button className="composer-submit" type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <ImageUp data-icon="inline-start" />}
+                <InputGroupAddon align="block-end" className="composer-actions">
+                  <div className="composer-secondary-actions">
+                    <Button type="button" variant="ghost" size="icon" className="composer-attach" asChild title="上传参考图片">
+                      <label>
+                        <input className="sr-only" type="file" accept="image/*" multiple onChange={uploadImage} />
+                        {isUploading ? <Loader2 className="spin" /> : <Plus />}
+                      </label>
+                    </Button>
+                    <PromptPolish
+                      text={prompt}
+                      onPolished={handlePolishedPrompt}
+                      images={inputImages.map((image) => image.url)}
+                    />
+                  </div>
+                  <div className="composer-submit-actions">
+                    {notice && notice !== "准备就绪" ? (
+                      <div className="composer-notice-inline" title={inputImages.length > 0 ? "检测到图片，将自动使用图生图" : notice}>
+                        {inputImages.length > 0 ? "图生图模式" : notice}
+                      </div>
+                    ) : null}
+                    <Button className="composer-submit" type="submit" disabled={isSubmitting}>
+                      <span>{isSubmitting ? "加入中" : "加入队列"}</span>
+                      {isSubmitting ? <Loader2 className="spin" data-icon="inline-end" /> : <ArrowUpRight data-icon="inline-end" />}
+                    </Button>
+                  </div>
+                </InputGroupAddon>
+              </InputGroup>
+            </Field> : (
+              <div className="duomi-capability-submit-row">
+                <span>{selectedCapability?.priceLabel}</span>
+                <Button
+                  className="composer-submit"
+                  type="submit"
+                  disabled={isSubmitting || !selectedCapability || !isDuomiCapabilitySubmittable(selectedCapability)}
+                >
+                  {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <Play data-icon="inline-start" />}
                   <span>{isSubmitting ? "加入中" : "加入队列"}</span>
                 </Button>
-              </InputGroupAddon>
-            </InputGroup>
-          </Field> : (
-            <div className="duomi-capability-submit-row">
-              <span>{selectedCapability?.priceLabel}</span>
-              <Button
-                className="composer-submit"
-                type="submit"
-                disabled={isSubmitting || !selectedCapability || !isDuomiCapabilitySubmittable(selectedCapability)}
-              >
-                {isSubmitting ? <Loader2 className="spin" data-icon="inline-start" /> : <Play data-icon="inline-start" />}
-                <span>{isSubmitting ? "加入中" : "加入队列"}</span>
-              </Button>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </form>
-        <ReferenceImagePreview image={previewImage} onClose={() => setPreviewImage(null)} />
+        {referencePreview}
       </>
     );
   }
@@ -1291,7 +1300,7 @@ export function CreateJobPanel({
             {isSubmitting ? "加入中" : "加入能力任务队列"}
           </Button>
         </form>
-        <ReferenceImagePreview image={previewImage} onClose={() => setPreviewImage(null)} />
+        {referencePreview}
       </>
     );
   }
@@ -1435,7 +1444,7 @@ export function CreateJobPanel({
         {isSubmitting ? "加入中" : "加入绘制队列"}
       </Button>
     </form>
-    <ReferenceImagePreview image={previewImage} onClose={() => setPreviewImage(null)} />
+    {referencePreview}
     </>
   );
 }

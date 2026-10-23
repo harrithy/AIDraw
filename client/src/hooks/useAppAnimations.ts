@@ -75,10 +75,10 @@ export function useAppAnimations({
         }
       };
 
-      // 按视觉层级顺序入场：画布 → 面板 → 工具栏 → 按钮 → 指标
+      // 操作栏只动画内部控件，避免覆盖居中、右对齐等布局定位的 transform。
       animateIn(".canvas-stage", { autoAlpha: 0, duration: 0.36, ease: "power1.out", clearProps: "opacity,visibility" });
-      animateIn(".left-panel.open > *", { y: 10, autoAlpha: 0, stagger: 0.04, clearProps: "transform,opacity,visibility" }, "<0.08");
-      animateIn(".floating-toolbar", { y: -12, autoAlpha: 0, clearProps: "transform,opacity,visibility" }, "<0.08");
+      animateIn(".left-panel.open > *", { y: 18, autoAlpha: 0, stagger: 0.055, clearProps: "transform,opacity,visibility" }, "<0.08");
+      animateIn(".floating-toolbar > *", { y: -14, autoAlpha: 0, stagger: 0.045, clearProps: "transform,opacity,visibility" }, "<0.08");
       animateIn(".dock-toggle", { scale: 0.86, autoAlpha: 0, stagger: 0.05, clearProps: "transform,opacity,visibility" }, "<0.05");
       animateIn(".metric", { y: -10, autoAlpha: 0, stagger: 0.06, clearProps: "transform,opacity,visibility" }, "<0.04");
     },
@@ -105,17 +105,17 @@ export function useAppAnimations({
           {
             x: 0,
             autoAlpha: 1,
-            duration: 0.32,
+            duration: 0.44,
             ease: "power3.out",
             stagger: 0.035,
-            clearProps: "transform,visibility"
+            clearProps: "transform,opacity,visibility"
           }
         );
       };
 
       if (openedLeft) animatePanelChildren(".left-panel.open > *", -12);
     },
-    { dependencies: [leftOpen], scope: appRef }
+    { dependencies: [leftOpen], scope: appRef, revertOnUpdate: true }
   );
 
   // ─── 任务卡片状态变化动画 ───
@@ -160,6 +160,8 @@ export function useAppAnimations({
 
       // 新卡片：弹入动画（back.out 弹性曲线）
       if (enteringCards.length > 0) {
+        // 入场期间暂停 CSS transform 过渡，避免与逐帧补间互相追赶。
+        gsap.set(enteringCards, { transition: "none" });
         gsap.fromTo(
           enteringCards,
           { y: 24, scale: 0.97, autoAlpha: 0 },
@@ -169,13 +171,14 @@ export function useAppAnimations({
             autoAlpha: 1,
             duration: 0.5,
             ease: "back.out(1.45)",
-            stagger: 0.07,
-            clearProps: "transform,visibility"
+            // 大量历史任务也在一小段时间内完成入场，避免越排越慢。
+            stagger: Math.min(0.07, 0.3 / enteringCards.length),
+            clearProps: "transform,opacity,visibility,transition"
           }
         );
       }
 
-      // 状态变化卡片：短暂的高亮闪烁（绿色边框 + 亮度提升）
+      // 状态变化卡片：边框短暂提示，结果区域缩放渐显，避免使用大面积滤镜。
       if (changedCards.length > 0) {
         const changedImages = changedCards
           .map((card) => card.querySelector<HTMLElement>(".job-image"))
@@ -194,18 +197,18 @@ export function useAppAnimations({
 
         gsap.fromTo(
           changedImages,
-          { scale: 0.985, filter: "brightness(1.12)" },
+          { scale: 0.96, autoAlpha: 0.55 },
           {
             scale: 1,
-            filter: "brightness(1)",
-            duration: 0.7,
+            autoAlpha: 1,
+            duration: 0.55,
             ease: "power2.out",
-            clearProps: "transform,filter"
+            clearProps: "transform,opacity,visibility"
           }
         );
       }
     },
-    { dependencies: [jobAnimationKey], scope: appRef }
+    { dependencies: [jobAnimationKey], scope: appRef, revertOnUpdate: true }
   );
 
   // ─── 通知消息淡入动画 ───
@@ -218,6 +221,6 @@ export function useAppAnimations({
 
       gsap.fromTo(noticeLines, { y: 6, autoAlpha: 0.72 }, { y: 0, autoAlpha: 1, duration: 0.26, ease: "power2.out", clearProps: "transform,visibility" });
     },
-    { dependencies: [notice], scope: appRef }
+    { dependencies: [notice], scope: appRef, revertOnUpdate: true }
   );
 }
