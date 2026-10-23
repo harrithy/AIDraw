@@ -22,7 +22,7 @@
 
   .uploaded-image-overlay-name {
     display: inline-block !important;
-    font-size: 9px;
+    font-size: calc(9px + var(--ui-font-size-offset));
   }
 
   .uploaded-image-overlay .delete-btn {
@@ -566,7 +566,7 @@
   }
 
   .personalization-nav-copy strong {
-    font-size: 11px;
+    font-size: calc(11px + var(--ui-font-size-offset));
   }
 
   .personalization-content {
@@ -588,7 +588,7 @@
   }
 
   .personalization-header [data-slot="dialog-title"] {
-    font-size: 20px;
+    font-size: calc(20px + var(--ui-font-size-offset));
   }
 
   .personalization-header-facts > span:nth-child(2) {

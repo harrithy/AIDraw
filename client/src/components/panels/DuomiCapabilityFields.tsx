@@ -98,7 +98,7 @@ function RequiredLabel({ field, htmlFor }: { field: DuomiCapabilityField; htmlFo
       ) : null}
       <span className="inline !w-auto">{field.label}</span>
       {field.description ? (
-        <span className="text-[11px] font-normal text-[var(--muted)] truncate max-w-[260px] inline !w-auto ml-1">
+        <span className="text-[length:calc(11px+var(--ui-font-size-offset))] font-normal text-[var(--muted)] truncate max-w-[260px] inline !w-auto ml-1">
           ({field.description})
         </span>
       ) : null}
@@ -165,7 +165,7 @@ function Base64ImageField({ field, id, value, onChange }: Base64ImageFieldProps)
         <RequiredLabel field={field} htmlFor={id} />
         <button
           type="button"
-          className="text-[11px] text-[var(--green)] hover:underline font-medium flex items-center gap-1"
+          className="text-[length:calc(11px+var(--ui-font-size-offset))] text-[var(--green)] hover:underline font-medium flex items-center gap-1"
           onClick={() => setMode(mode === "file" ? "text" : "file")}
         >
           {mode === "file" ? <Code2 size={13} /> : <FileImage size={13} />}
@@ -200,11 +200,11 @@ function Base64ImageField({ field, id, value, onChange }: Base64ImageFieldProps)
                   onChange={(e) => void handleFileUpload(e.target.files)}
                 />
                 <ImagePlus size={20} className="transition-transform group-hover:scale-110" />
-                <span className="text-[10px] font-medium">{isProcessing ? "转换中" : "上传图片"}</span>
+                <span className="text-[length:calc(10px+var(--ui-font-size-offset))] font-medium">{isProcessing ? "转换中" : "上传图片"}</span>
               </label>
             )}
           </div>
-          <p className="text-[11px] text-[var(--muted)]">
+          <p className="text-[length:calc(11px+var(--ui-font-size-offset))] text-[var(--muted)]">
             {isMultiple ? "支持直接选择 2~5 张图片文件，自动为您编码为 Base64 数组" : "选择一张图片文件，自动转换为 Base64 格式"}
           </p>
         </div>

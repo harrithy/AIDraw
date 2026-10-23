@@ -130,7 +130,7 @@
 .folder-item small,
 .job-body small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
 }
 
 .floating-toolbar {
@@ -153,7 +153,7 @@
   min-width: 52px;
   text-align: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
 }
 
 .floating-toolbar button:not(.global-asset-library-popover button):not(.layout-popover-menu button):not(:disabled):hover,
@@ -207,7 +207,7 @@
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   color: var(--ink);
-  font-size: 14px;
+  font-size: calc(14px + var(--ui-font-size-offset));
   padding: 2px 4px;
   outline: none;
 }
@@ -290,12 +290,12 @@
 
 .panel-title h2 {
   margin: 3px 0 0;
-  font-size: 24px;
+  font-size: calc(24px + var(--ui-font-size-offset));
   line-height: 1.1;
 }
 
 .panel-title.compact h2 {
-  font-size: 22px;
+  font-size: calc(22px + var(--ui-font-size-offset));
 }
 
 /* ─── 搜索框样式 ─── */
@@ -349,7 +349,7 @@
   background: transparent;
   width: 100%;
   height: 100%;
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
   color: var(--ink);
   padding: 0 24px 0 32px;
   opacity: 0;
@@ -426,7 +426,7 @@ button.search-clear-btn:hover {
   padding: 16px;
   text-align: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
 }
 
 .search-dropdown-list {
@@ -484,7 +484,7 @@ button.search-clear-btn:hover {
 }
 
 .search-dropdown-prompt {
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
@@ -510,7 +510,7 @@ button.search-clear-btn:hover {
 /* 提示词未命中时，明确标注真正命中的字段 */
 .search-hit-source {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-size-offset));
   line-height: 1.4;
   padding: 1px 5px;
   border-radius: 4px;
@@ -526,7 +526,7 @@ button.search-clear-btn:hover {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   color: var(--muted);
 }
 
@@ -537,7 +537,7 @@ button.search-clear-btn:hover {
   background: var(--subtle-strong);
   border: 1px solid var(--line);
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-size-offset));
   line-height: 1.5;
 }
 
@@ -552,7 +552,7 @@ button.search-clear-btn:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   line-height: 1.2;
   padding: 1px 6px;
   border-radius: 4px;
@@ -572,7 +572,7 @@ button.search-clear-btn:hover {
 }
 
 .search-dropdown-time {
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   color: var(--muted);
   white-space: nowrap;
 }
@@ -627,7 +627,7 @@ button.search-clear-btn:hover {
   background: transparent;
   width: 100%;
   height: 100%;
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
   color: var(--ink);
   padding: 0 24px 0 32px;
   opacity: 0;
@@ -687,7 +687,7 @@ button.search-clear-btn:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
   z-index: 10000;
   pointer-events: none;
   animation: toast-in-out 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;

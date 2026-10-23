@@ -72,7 +72,7 @@ function showMessage(content: string, type: MessageType, options?: MessageOption
         className="pointer-events-auto flex items-center gap-2 rounded-lg border bg-[var(--panel)] px-4 py-2.5 shadow-lg animate-in fade-in slide-in-from-top-4"
       >
         {icons[type]}
-        <span className="text-[14px] font-medium text-[var(--ink)]">{content}</span>
+        <span className="text-[length:calc(14px+var(--ui-font-size-offset))] font-medium text-[var(--ink)]">{content}</span>
         {options?.action ? (
           <button
             type="button"

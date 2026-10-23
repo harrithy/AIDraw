@@ -32,7 +32,7 @@ const MODELS = Object.keys(DEEPSEEK_MODEL_LABELS) as DeepSeekModel[];
 const THINKING_LEVELS = Object.keys(DEEPSEEK_THINKING_LABELS) as DeepSeekThinkingLevel[];
 
 const MENU_LABEL_CLASS =
-  "px-2.5 pt-2 pb-1 text-[11px] font-semibold text-[var(--muted)] select-none";
+  "px-2.5 pt-2 pb-1 text-[length:calc(11px+var(--ui-font-size-offset))] font-semibold text-[var(--muted)] select-none";
 const MENU_ITEM_CLASS =
   "flex cursor-pointer select-none items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-[var(--ink)] outline-none hover:bg-[var(--hover)] data-[highlighted]:bg-[var(--hover)]";
 

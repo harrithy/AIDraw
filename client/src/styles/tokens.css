@@ -3,6 +3,8 @@
    ========================================================================== */
 
 :root {
+  /* 全站字号统一增加 2px；只调整文字，不放大图标、间距和画布。 */
+  --ui-font-size-offset: 2px;
   color-scheme: light;
   font-family: "Geist Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
   background: #ffffff;
@@ -149,6 +151,20 @@
  */
 
 @theme inline {
+  /* Tailwind 与普通 CSS 共用增量，嵌套文字继承时不会重复放大。 */
+  --text-xs: calc(0.75rem + var(--ui-font-size-offset));
+  --text-sm: calc(0.875rem + var(--ui-font-size-offset));
+  --text-base: calc(1rem + var(--ui-font-size-offset));
+  --text-lg: calc(1.125rem + var(--ui-font-size-offset));
+  --text-xl: calc(1.25rem + var(--ui-font-size-offset));
+  --text-2xl: calc(1.5rem + var(--ui-font-size-offset));
+  --text-3xl: calc(1.875rem + var(--ui-font-size-offset));
+  --text-4xl: calc(2.25rem + var(--ui-font-size-offset));
+  --text-5xl: calc(3rem + var(--ui-font-size-offset));
+  --text-6xl: calc(3.75rem + var(--ui-font-size-offset));
+  --text-7xl: calc(4.5rem + var(--ui-font-size-offset));
+  --text-8xl: calc(6rem + var(--ui-font-size-offset));
+  --text-9xl: calc(8rem + var(--ui-font-size-offset));
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);

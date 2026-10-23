@@ -182,19 +182,19 @@ export function DuomiApiDocDialog({ open, onOpenChange }: DuomiApiDocDialogProps
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className="p-2.5 rounded-lg border border-[var(--line)] bg-[var(--panel-strong)] text-center">
                       <span className="font-semibold text-amber-600 block mb-0.5">NOT_START</span>
-                      <span className="text-[var(--muted)] text-[11px]">任务排队中</span>
+                      <span className="text-[var(--muted)] text-[length:calc(11px+var(--ui-font-size-offset))]">任务排队中</span>
                     </div>
                     <div className="p-2.5 rounded-lg border border-[var(--line)] bg-[var(--panel-strong)] text-center">
                       <span className="font-semibold text-blue-600 block mb-0.5">IN_PROGRESS</span>
-                      <span className="text-[var(--muted)] text-[11px]">AI 正在生成中</span>
+                      <span className="text-[var(--muted)] text-[length:calc(11px+var(--ui-font-size-offset))]">AI 正在生成中</span>
                     </div>
                     <div className="p-2.5 rounded-lg border border-[var(--line)] bg-[var(--panel-strong)] text-center">
                       <span className="font-semibold text-emerald-600 block mb-0.5">SUCCESS</span>
-                      <span className="text-[var(--muted)] text-[11px]">已完成并产出结果</span>
+                      <span className="text-[var(--muted)] text-[length:calc(11px+var(--ui-font-size-offset))]">已完成并产出结果</span>
                     </div>
                     <div className="p-2.5 rounded-lg border border-[var(--line)] bg-[var(--panel-strong)] text-center">
                       <span className="font-semibold text-rose-600 block mb-0.5">FAILURE</span>
-                      <span className="text-[var(--muted)] text-[11px]">失败 (含错误原因)</span>
+                      <span className="text-[var(--muted)] text-[length:calc(11px+var(--ui-font-size-offset))]">失败 (含错误原因)</span>
                     </div>
                   </div>
                 </section>
@@ -329,7 +329,7 @@ print("任务状态:", task_status["status"])`;
                       </Button>
                     </div>
 
-                    <pre className="p-3 rounded-lg bg-[var(--card-bg)] border border-[var(--line)] font-mono text-[11px] text-[var(--ink)] overflow-x-auto leading-relaxed">
+                    <pre className="p-3 rounded-lg bg-[var(--card-bg)] border border-[var(--line)] font-mono text-[length:calc(11px+var(--ui-font-size-offset))] text-[var(--ink)] overflow-x-auto leading-relaxed">
                       {activeLang === "javascript" && (
                         <code>{`// 1. 提交混图任务
 const res = await fetch("https://api.duomi.ai/api/v1/mj/blend", {
@@ -399,7 +399,7 @@ print("已提交任务 ID:", task_id)`}</code>
                     <p>• <strong>参数示范</strong>：<code className="text-[var(--ink)] font-mono">image: "https://your-domain.com/photo.png"</code>, <code className="text-[var(--ink)] font-mono">prompt: "赛博朋克猫咪在下雨的霓虹街道缓缓奔跑，4K高清电影质感"</code>, <code className="text-[var(--ink)] font-mono">duration: 10</code>, <code className="text-[var(--ink)] font-mono">mode: "pro"</code>。</p>
                   </div>
 
-                  <pre className="p-3 rounded-lg bg-[var(--card-bg)] border border-[var(--line)] font-mono text-[11px] text-[var(--ink)] overflow-x-auto leading-relaxed">
+                  <pre className="p-3 rounded-lg bg-[var(--card-bg)] border border-[var(--line)] font-mono text-[length:calc(11px+var(--ui-font-size-offset))] text-[var(--ink)] overflow-x-auto leading-relaxed">
                     <code>{`POST /api/v1/kling/video/create
 {
   "model_name": "kling-v1.5",
@@ -424,7 +424,7 @@ print("已提交任务 ID:", task_id)`}</code>
 
                   <div className="p-3 rounded-lg bg-[var(--panel-strong)] border border-[var(--line)] text-xs space-y-1.5 text-[var(--muted)]">
                     <p className="font-semibold text-[var(--ink)]">歌词结构化标记格式推荐：</p>
-                    <pre className="p-2 rounded bg-[var(--card-bg)] border border-[var(--line)] font-mono text-[11px] text-[var(--ink)]">
+                    <pre className="p-2 rounded bg-[var(--card-bg)] border border-[var(--line)] font-mono text-[length:calc(11px+var(--ui-font-size-offset))] text-[var(--ink)]">
 {`[Verse 1]
 Neon lights on the rain-slicked street
 Quantum pulses in a cybernetic beat
@@ -487,7 +487,7 @@ Whispering code inside a neon dream`}
                   <div className="p-3.5 rounded-xl border border-[var(--line)] bg-[var(--subtle)] space-y-1.5">
                     <div className="font-bold text-[var(--ink)] flex items-center justify-between">
                       <span>KLING 可灵官方格式</span>
-                      <span className="text-[11px] text-[var(--green)]">推荐</span>
+                      <span className="text-[length:calc(11px+var(--ui-font-size-offset))] text-[var(--green)]">推荐</span>
                     </div>
                     <p className="text-[var(--muted)] leading-relaxed">
                       支持文生视频、图生视频、多图参考、视频特效、视频延长、人脸识别对口型与音画同步。
@@ -497,7 +497,7 @@ Whispering code inside a neon dream`}
                   <div className="p-3.5 rounded-xl border border-[var(--line)] bg-[var(--subtle)] space-y-1.5">
                     <div className="font-bold text-[var(--ink)] flex items-center justify-between">
                       <span>Seedance 2.0 (即梦)</span>
-                      <span className="text-[11px] text-blue-600">最新</span>
+                      <span className="text-[length:calc(11px+var(--ui-font-size-offset))] text-blue-600">最新</span>
                     </div>
                     <p className="text-[var(--muted)] leading-relaxed">
                       字节跳动即梦视频生成大模型，支持高动态镜头运动与超写实光影运镜。

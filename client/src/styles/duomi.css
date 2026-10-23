@@ -49,7 +49,7 @@
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -80,7 +80,7 @@
   border-radius: 9px;
   border: 1.5px solid var(--line);
   background: var(--panel-strong);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -135,7 +135,7 @@
 
 .duomi-capability-option small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
 }
 
 .duomi-capability-summary {
@@ -147,13 +147,13 @@
   border: 1px solid var(--line);
   border-left: 3.5px solid var(--green);
   background: var(--subtle);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   animation: summary-pulse-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   transition: all 0.2s ease;
 }
 
 .duomi-provider-tag {
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
@@ -167,7 +167,7 @@
 .duomi-price-highlight {
   color: var(--green);
   font-weight: 700;
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
 }
 
 .duomi-status-badge {
@@ -177,16 +177,16 @@
   color: var(--green);
   font-style: normal;
   font-weight: 700;
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
 }
 
 .duomi-price-note {
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--ui-font-size-offset));
   color: var(--muted);
 }
 
 .duomi-desc {
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--ui-font-size-offset));
   color: var(--muted);
   line-height: 1.5;
   margin: 0;
@@ -234,7 +234,7 @@
   width: fit-content !important;
   min-width: 0 !important;
   margin-bottom: 2px !important;
-  font-size: 12.5px !important;
+  font-size: calc(12.5px + var(--ui-font-size-offset)) !important;
   font-weight: 700 !important;
   line-height: 1.2 !important;
 }
@@ -348,7 +348,7 @@
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
   font-weight: 700;
 }
 
@@ -437,7 +437,7 @@
   width: 100%;
   padding: 9px 12px;
   border-radius: 9px;
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--ui-font-size-offset));
   font-weight: 600;
   color: var(--muted);
   text-align: left;

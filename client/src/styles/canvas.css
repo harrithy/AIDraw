@@ -133,7 +133,7 @@
   border: 1px solid var(--line);
   border-radius: 50%;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   line-height: 1;
 }
 
@@ -145,7 +145,7 @@
   height: 16px;
   padding: 0 3px;
   background: var(--panel-strong);
-  font-size: 9px;
+  font-size: calc(9px + var(--ui-font-size-offset));
 }
 
 .uploaded-image-library-popover {
@@ -184,7 +184,7 @@
   align-items: center;
   gap: 8px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
   font-weight: 700;
   letter-spacing: 0.2px;
 }
@@ -202,7 +202,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--green) 14%, transparent);
   color: var(--green-dark);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 800;
   line-height: 1;
 }
@@ -239,7 +239,7 @@
   padding-left: 32px !important;
   padding-right: 32px !important;
   height: 36px !important;
-  font-size: 13px !important;
+  font-size: calc(13px + var(--ui-font-size-offset)) !important;
   font-weight: 500 !important;
   cursor: pointer !important;
   background: var(--input-bg) !important;
@@ -325,7 +325,7 @@
   align-content: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
 }
 
 .uploaded-image-skeleton-group {
@@ -367,7 +367,7 @@
 .uploaded-image-library-state-text {
   justify-self: center;
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
 }
 
 .uploaded-image-date-group {
@@ -421,7 +421,7 @@
   align-items: center;
   gap: 7px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: 0.2px;
@@ -469,7 +469,7 @@
   border-color: transparent;
   background: var(--subtle-strong);
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-size-offset));
   font-weight: 500;
 }
 
@@ -628,7 +628,7 @@
 }
 
 .uploaded-image-overlay-name {
-  font-size: 9px;
+  font-size: calc(9px + var(--ui-font-size-offset));
   color: #ffffff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   overflow: hidden;
@@ -771,7 +771,7 @@
   color: var(--ink);
   cursor: copy;
   font: inherit;
-  font-size: 17px;
+  font-size: calc(17px + var(--ui-font-size-offset));
   line-height: 1.22;
   pointer-events: auto;
   text-align: left;
@@ -892,7 +892,7 @@
   padding: 3px 6px;
   background: rgba(8, 12, 10, 0.76);
   color: #ffffff;
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-size-offset));
   font-weight: 700;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -1122,7 +1122,7 @@
   min-width: 0;
   padding: 7px 8px;
   color: var(--ink);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 750;
 }
 
@@ -1196,7 +1196,7 @@
   border-radius: 6px;
   background: var(--subtle);
   color: var(--ink);
-  font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+  font: calc(12px + var(--ui-font-size-offset))/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -1207,7 +1207,7 @@
   gap: 6px;
   padding: 6px 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 800;
   cursor: pointer;
 }
@@ -1236,12 +1236,12 @@
   min-height: 24px;
   padding: 0 2px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
 }
 
 .image-comparison-pane figcaption strong {
   color: var(--ink);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
 }
 
 .image-comparison-pane.is-current figcaption strong {
@@ -1346,7 +1346,7 @@
   padding: 0;
   background: color-mix(in srgb, var(--panel-strong) 92%, var(--green) 8%);
   color: var(--green-dark);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 800;
   cursor: pointer;
 }
@@ -1358,7 +1358,7 @@
 }
 
 .job-reference-count.is-collapse {
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-size-offset));
 }
 
 .job-card.attachment-mode-stack:not(.attachments-expanded) .job-reference-strip {
@@ -1440,7 +1440,7 @@
   border-radius: 999px;
   background: var(--panel-strong);
   box-shadow: 0 6px 16px rgba(16, 21, 19, 0.14);
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-size-offset));
 }
 
 .job-reference-thumb .retrying-image-wrapper {

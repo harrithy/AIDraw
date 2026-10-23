@@ -7,6 +7,8 @@
 }
 
 body {
+  /* 保留根元素的 rem 基准，避免显式字号被重复叠加。 */
+  font-size: calc(1rem + var(--ui-font-size-offset));
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
@@ -30,7 +32,7 @@ button:disabled {
 }
 
 .message-action {
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   line-height: 1;
   padding: 3px 7px;
 }
@@ -43,7 +45,7 @@ button:disabled {
 .eyebrow {
   margin: 0;
   color: var(--green-dark);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -51,7 +53,7 @@ button:disabled {
 
 .title-chip h1 {
   margin: 4px 0 0;
-  font-size: 24px;
+  font-size: calc(24px + var(--ui-font-size-offset));
   line-height: 1.1;
   font-weight: 800;
 }
@@ -70,7 +72,7 @@ button:disabled {
 
 .metric strong {
   display: block;
-  font-size: 18px;
+  font-size: calc(18px + var(--ui-font-size-offset));
   line-height: 1.1;
 }
 
@@ -85,7 +87,7 @@ button:disabled {
 .dialog-title-row [data-slot="dialog-title"] {
   margin-top: 3px;
   color: var(--ink);
-  font-size: 24px;
+  font-size: calc(24px + var(--ui-font-size-offset));
   line-height: 1.1;
 }
 
@@ -170,7 +172,7 @@ button:disabled {
 
 .brand p {
   margin: 0;
-  font-size: 23px;
+  font-size: calc(23px + var(--ui-font-size-offset));
   font-weight: 700;
 }
 
@@ -236,7 +238,7 @@ button:disabled {
   background: color-mix(in srgb, var(--panel-strong) 92%, transparent);
   color: var(--green-dark);
   box-shadow: 0 8px 22px rgba(16, 21, 19, 0.12);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 700;
   line-height: 1;
   transform: translateX(-50%);
@@ -279,7 +281,7 @@ button:disabled {
 .job-meta-item em {
   overflow: hidden;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-size-offset));
   font-style: normal;
   font-weight: 800;
   line-height: 1;
@@ -293,7 +295,7 @@ button:disabled {
   min-width: 0;
   overflow: hidden;
   color: var(--ink);
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--ui-font-size-offset));
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -434,7 +436,7 @@ button:disabled {
 
 .image-skeleton-text {
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 500;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -443,7 +445,7 @@ button:disabled {
 }
 
 .image-skeleton-loading-text {
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--muted);
@@ -552,7 +554,7 @@ button:disabled {
 
 .image-version-picker > span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 700;
   white-space: nowrap;
 }
@@ -600,7 +602,7 @@ button:disabled {
   padding: 2px 4px;
   background: rgba(8, 12, 10, 0.76);
   color: #ffffff;
-  font-size: 9px;
+  font-size: calc(9px + var(--ui-font-size-offset));
   font-weight: 700;
   line-height: 1;
   pointer-events: none;
@@ -655,7 +657,7 @@ button:disabled {
 
 .image-preview-caption span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
 }
 
 .settings-panel.dialog-mode {
@@ -701,20 +703,20 @@ button:disabled {
 
 .api-provider-option-copy strong {
   flex: 0 0 auto;
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
 }
 
 .api-provider-option-separator {
   flex: 0 0 auto;
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
 }
 
 .api-provider-option-copy small {
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -869,7 +871,7 @@ button:disabled {
   border-radius: 999px;
   background: #f43f5e;
   color: #ffffff;
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-size-offset));
   font-weight: 800;
   line-height: 16px;
   text-align: center;
@@ -897,7 +899,7 @@ button:disabled {
   background: color-mix(in srgb, var(--green) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 800;
   white-space: nowrap;
   flex-shrink: 0;
@@ -905,18 +907,18 @@ button:disabled {
 
 .kling-price-pill strong {
   color: var(--green);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
 }
 
 .kling-price-text {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
 .kling-price-text strong {
   color: var(--green);
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--ui-font-size-offset));
 }
 
 .kling-price-value {
@@ -925,7 +927,7 @@ button:disabled {
   min-height: 34px;
   padding: 0 2px;
   color: var(--green);
-  font-size: 14px;
+  font-size: calc(14px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
@@ -943,7 +945,7 @@ button:disabled {
 .model-select-label {
   padding: 7px 10px 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
@@ -957,7 +959,7 @@ button:disabled {
   background: color-mix(in srgb, var(--green) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 800;
   white-space: nowrap;
   flex-shrink: 0;
@@ -965,18 +967,18 @@ button:disabled {
 
 .kling-price-pill strong {
   color: var(--green);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
 }
 
 .kling-price-text {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
 .kling-price-text strong {
   color: var(--green);
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--ui-font-size-offset));
 }
 
 .kling-price-value {
@@ -985,7 +987,7 @@ button:disabled {
   min-height: 34px;
   padding: 0 2px;
   color: var(--green);
-  font-size: 14px;
+  font-size: calc(14px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
@@ -1003,7 +1005,7 @@ button:disabled {
 .model-select-label {
   padding: 7px 10px 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
@@ -1017,7 +1019,7 @@ button:disabled {
   background: color-mix(in srgb, var(--green) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 800;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1025,18 +1027,18 @@ button:disabled {
 
 .kling-price-pill strong {
   color: var(--green);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
 }
 
 .kling-price-text {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
 .kling-price-text strong {
   color: var(--green);
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--ui-font-size-offset));
 }
 
 .kling-price-value {
@@ -1045,7 +1047,7 @@ button:disabled {
   min-height: 34px;
   padding: 0 2px;
   color: var(--green);
-  font-size: 14px;
+  font-size: calc(14px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
@@ -1063,24 +1065,24 @@ button:disabled {
 .model-select-label {
   padding: 7px 10px 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
 .kling-price-pill strong {
   color: var(--green);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
 }
 
 .kling-price-text {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
 .kling-price-text strong {
   color: var(--green);
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--ui-font-size-offset));
 }
 
 .kling-price-value {
@@ -1089,7 +1091,7 @@ button:disabled {
   min-height: 34px;
   padding: 0 2px;
   color: var(--green);
-  font-size: 14px;
+  font-size: calc(14px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
@@ -1107,7 +1109,7 @@ button:disabled {
 .model-select-label {
   padding: 7px 10px 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 800;
 }
 
@@ -1223,7 +1225,7 @@ button:disabled {
   border-radius: 9999px;
   background: var(--red);
   color: #ffffff !important;
-  font-size: 9.5px;
+  font-size: calc(9.5px + var(--ui-font-size-offset));
   font-weight: 700;
   line-height: 1;
   display: inline-flex;
@@ -1327,14 +1329,14 @@ button:disabled {
 }
 
 .layout-popover-header strong {
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--ui-font-size-offset));
   font-weight: 700;
   color: var(--ink);
   letter-spacing: -0.01em;
 }
 
 .layout-popover-header small {
-  font-size: 11.5px;
+  font-size: calc(11.5px + var(--ui-font-size-offset));
   color: var(--muted);
 }
 
@@ -1411,7 +1413,7 @@ button:disabled {
 }
 
 .layout-option-info span {
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
   font-weight: 600;
   color: var(--ink) !important;
   min-width: 0 !important;
@@ -1425,7 +1427,7 @@ button:disabled {
 }
 
 .layout-option-info small {
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   color: var(--muted) !important;
 }
 
@@ -1444,7 +1446,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   color: var(--muted);
 }
 
@@ -1462,7 +1464,7 @@ button:disabled {
   flex: 1 !important;
   height: auto !important;
   padding: 6px 0 !important;
-  font-size: 12px !important;
+  font-size: calc(12px + var(--ui-font-size-offset)) !important;
   font-weight: 500 !important;
   border-radius: 7px !important;
   border: 1px solid var(--line) !important;
@@ -1503,7 +1505,7 @@ button:disabled {
   border: 0 !important;
   background: var(--green) !important;
   color: #ffffff !important;
-  font-size: 13.5px !important;
+  font-size: calc(13.5px + var(--ui-font-size-offset)) !important;
   font-weight: 700 !important;
   cursor: pointer;
   display: inline-flex !important;
@@ -1589,13 +1591,13 @@ button:disabled {
 }
 
 .action-label {
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--ui-font-size-offset));
   font-weight: 600;
   color: var(--ink);
 }
 
 .action-hidden-badge {
-  font-size: 10px;
+  font-size: calc(10px + var(--ui-font-size-offset));
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 4px;
@@ -1625,7 +1627,7 @@ button:disabled {
 }
 
 .status-text {
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 600;
   color: var(--muted);
   white-space: nowrap;
@@ -1710,7 +1712,7 @@ button:disabled {
   align-items: center;
   gap: 8px;
   color: var(--ink);
-  font-size: 13.5px;
+  font-size: calc(13.5px + var(--ui-font-size-offset));
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -1724,7 +1726,7 @@ button:disabled {
   border-radius: 999px;
   background: color-mix(in srgb, var(--green) 15%, transparent);
   color: var(--green-dark);
-  font-size: 11px;
+  font-size: calc(11px + var(--ui-font-size-offset));
   font-weight: 800;
   line-height: 1;
 }
@@ -1743,7 +1745,7 @@ button:disabled {
   border-radius: 7px;
   background: var(--green);
   color: #ffffff !important;
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 1px 4px color-mix(in srgb, var(--green) 35%, transparent);
@@ -1798,7 +1800,7 @@ button:disabled {
   padding-left: 28px !important;
   padding-right: 26px !important;
   border-radius: 7px !important;
-  font-size: 12px !important;
+  font-size: calc(12px + var(--ui-font-size-offset)) !important;
   background: var(--input-bg) !important;
   border: 1px solid var(--line) !important;
   color: var(--ink) !important;
@@ -1858,7 +1860,7 @@ button:disabled {
   padding: 38px 16px;
   gap: 10px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px + var(--ui-font-size-offset));
   text-align: center;
 }
 
@@ -1872,7 +1874,7 @@ button:disabled {
   border: 1px dashed var(--line-strong);
   background: var(--subtle);
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: calc(12.5px + var(--ui-font-size-offset));
   font-weight: 600;
   cursor: pointer;
   transition: all 160ms ease;
@@ -1889,7 +1891,7 @@ button:disabled {
   background: color-mix(in srgb, var(--green) 16%, var(--panel));
   border-top: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
   color: var(--green-dark);
-  font-size: 12px;
+  font-size: calc(12px + var(--ui-font-size-offset));
   font-weight: 600;
   text-align: center;
   animation: popover-bounce-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
