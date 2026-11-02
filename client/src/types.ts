@@ -79,7 +79,7 @@ export type DrawSize = PresetDrawSize | `${number}x${number}`;
 export type NanoImageSize = "1K" | "2K" | "4K";
 
 /** 绘图任务实际使用的接口提供者 */
-export type ImageProviderId = "duomi" | "nano-banana" | "grsai" | "mock" | "kling";
+export type ImageProviderId = "duomi" | "nano-banana" | "grsai" | "mock" | "kling" | "custom";
 
 /** API Key 所属的平台供应商（deepseek 仅用于 AI 润写，不作为绘图平台激活） */
 export type ApiProviderId = "duomi" | "grsai" | "deepseek";
@@ -130,6 +130,10 @@ export type UploadedImage = {
  * 每个任务记录一次 AI 绘图的完整生命周期
  */
 export type DrawJob = {
+  /** 自定义中转的配置快照与凭据指纹，不含 API Key。 */
+  customProviderId?: string;
+  customProviderConfig?: import("./lib/customProviders").CustomProviderConfig;
+  customCredentialId?: string;
   /** 任务唯一 ID */
   id: string;
   /** 所属文件夹 ID */
@@ -250,10 +254,12 @@ export type QueueStats = {
  * 支持多米 API、Grsai API 和浏览器模拟后端
  */
 export type ImageProviderStatus = {
+  customProviders?: import("./lib/customProviders").PublicCustomProvider[];
+  activeCustomProviderId?: string;
   /** 文生图使用的后端 */
-  textToImage: ApiProviderId | "mock";
+  textToImage: ApiProviderId | "mock" | "custom";
   /** 图生图使用的后端 */
-  imageToImage: ApiProviderId | "mock";
+  imageToImage: ApiProviderId | "mock" | "custom";
   /** 是否配置了 API Key */
   hasApiKey: boolean;
   /** 当前供应商的 API 基础 URL */
@@ -292,6 +298,7 @@ export type HealthPayload = {
  * 提交绘图任务时发送到后端的数据
  */
 export type CreateJobPayload = {
+  customProviderId?: string;
   /** 绘图模式 */
   mode: DrawMode;
   /** 正向提示词（必填） */
@@ -340,6 +347,8 @@ export type CreateJobPayload = {
  * 图像服务配置（前端展示用）
  */
 export type ImageProviderSettings = {
+  customProviders?: import("./lib/customProviders").PublicCustomProvider[];
+  activeCustomProviderId?: string;
   /** API 基础 URL */
   baseUrl: string;
   /** 模型名称 */
@@ -363,6 +372,10 @@ export type ImageProviderSettings = {
  * 所有字段都是可选的——只传需要修改的字段即可
  */
 export type UpdateImageProviderSettingsPayload = {
+  /** 自定义中转支持多配置管理，Key 为空时保留原凭据。 */
+  saveCustomProvider?: { config: import("./lib/customProviders").CustomProviderConfig; apiKey?: string };
+  activateCustomProviderId?: string;
+  deleteCustomProviderId?: string;
   /** 新的 API 基础 URL */
   baseUrl?: string;
   /** 新的模型名称 */

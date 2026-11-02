@@ -1,6 +1,8 @@
 import type { ApiProviderId, DrawJob, GeneratedAsset } from "../../types";
 
 export type StoredSettings = {
+  customProviders?: import("../customProviders").StoredCustomProvider[];
+  activeCustomProviderId?: string;
   baseUrl: string;
   model: string;
   apiKey: string;

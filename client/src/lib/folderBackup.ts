@@ -56,6 +56,7 @@ export type EmergencyBackup = {
 const stripCredentialFields = (job: DrawJob): DrawJob => {
   const {
     credentialId: _credentialId,
+    customCredentialId: _customCredentialId,
     credentialProviderId: _credentialProviderId,
     providerBaseUrl: _providerBaseUrl,
     ...rest
@@ -221,6 +222,9 @@ const uniqueFolderName = (name: string, existingNames: Set<string>) => {
 const stripImportFields = <T extends Record<string, unknown>>(job: T): Partial<T> => {
   const {
     provider: _provider,
+    customCredentialId: _customCredentialId,
+    customProviderId: _customProviderId,
+    customProviderConfig: _customProviderConfig,
     credentialId: _credentialId,
     credentialProviderId: _credentialProviderId,
     providerBaseUrl: _providerBaseUrl,

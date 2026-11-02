@@ -2,6 +2,8 @@ node_modules/
 dist/
 data/
 .playwright-mcp/
+.playwright-cli/
+output/playwright/
 .env
 .env.local
 npm-debug.log*

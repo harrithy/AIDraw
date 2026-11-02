@@ -6,6 +6,7 @@ import { GrsaiProvider } from "./GrsaiProvider";
 import { KlingProvider } from "./KlingProvider";
 import { MockProvider } from "./MockProvider";
 import { NanoBananaProvider } from "./NanoBananaProvider";
+import { CustomProvider } from "./CustomProvider";
 import type { ImageModelProvider, StoredSettings } from "./types";
 
 const providers: Record<ImageProviderId, ImageModelProvider> = {
@@ -13,17 +14,19 @@ const providers: Record<ImageProviderId, ImageModelProvider> = {
   grsai: new GrsaiProvider(),
   "nano-banana": new NanoBananaProvider(),
   kling: new KlingProvider(),
-  mock: new MockProvider()
+  mock: new MockProvider(),
+  custom: new CustomProvider()
 };
 
 const duomiCapabilityProvider = new DuomiCapabilityProvider();
 
 const isProviderId = (value: unknown): value is ImageProviderId =>
-  value === "duomi" || value === "nano-banana" || value === "grsai" || value === "mock" || value === "kling";
+  value === "duomi" || value === "nano-banana" || value === "grsai" || value === "mock" || value === "kling" || value === "custom";
 
 /** 根据历史任务、当前平台和模型确定实际执行任务的 Provider。 */
 export const resolveProviderId = (job: DrawJob, settings: StoredSettings): ImageProviderId => {
   if (isProviderId(job.provider)) return job.provider;
+  if (job.customProviderId) return "custom";
   if (job.remoteTaskId) {
     if (isKlingVideoModel(job.model)) return "kling";
     return isNanoBananaModel(job.model) ? "nano-banana" : "duomi";
@@ -55,6 +58,6 @@ export const getProviderForJob = (job: DrawJob, settings: StoredSettings) => {
  * @returns API Key 提供者类型，Mock 时返回 null
  */
 export const getRequiredApiProvider = (providerId: ImageProviderId): ApiProviderId | null => {
-  if (providerId === "mock") return null;
+  if (providerId === "mock" || providerId === "custom") return null;
   return providerId === "grsai" ? "grsai" : "duomi";
 };

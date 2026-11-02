@@ -59,6 +59,30 @@ describe("useUiPreferences 预览会话", () => {
     });
   };
 
+  it("字号即时预览、应用保存，取消后恢复最近保存的字号", () => {
+    beginPreview();
+    act(() => current().updatePreferences((prefs) => ({
+      ...prefs,
+      appearance: { ...prefs.appearance, fontSizeOffset: 4 }
+    }), false));
+    expect(current().preferences.appearance.fontSizeOffset).toBe(4);
+    expect(storedPreferences().appearance.fontSizeOffset).toBe(2);
+    expect(current().preferences.preset).toBe("standard");
+
+    act(() => { current().commitPreview(); });
+    expect(storedPreferences().appearance.fontSizeOffset).toBe(4);
+
+    beginPreview();
+    act(() => current().updatePreferences((prefs) => ({
+      ...prefs,
+      appearance: { ...prefs.appearance, fontSizeOffset: 0 }
+    }), false));
+    expect(current().preferences.appearance.fontSizeOffset).toBe(0);
+    act(() => { current().cancelPreview(); });
+    expect(current().preferences.appearance.fontSizeOffset).toBe(4);
+    expect(storedPreferences().appearance.fontSizeOffset).toBe(4);
+  });
+
   it("预览期间的调整会反映在状态里，但不会写入本地存储", () => {
     beginPreview();
     act(() => {

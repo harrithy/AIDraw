@@ -20,6 +20,7 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  Type,
   X
 } from "lucide-react";
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
@@ -31,6 +32,7 @@ import {
   type AttachmentMaxVisible,
   type CardActionId,
   type UiLayoutPreset,
+  type UiFontSizeOffset,
   type UiPreferences,
   type UiTheme
 } from "../../lib/uiPreferences";
@@ -68,7 +70,7 @@ const SECTIONS: Array<{
   { id: "presets", label: "布局预设", description: "一键切换空间节奏", icon: <LayoutGrid size={16} /> },
   { id: "page", label: "页面布局", description: "控制面板与创作框", icon: <PanelLeft size={16} /> },
   { id: "card", label: "图片盒子", description: "管理工具与参考图", icon: <ImageIcon size={16} /> },
-  { id: "appearance", label: "外观主题", description: "主题与陪伴体验", icon: <Palette size={16} /> }
+  { id: "appearance", label: "外观主题", description: "字号、主题与陪伴", icon: <Palette size={16} /> }
 ];
 
 const PRESET_LABELS: Record<UiLayoutPreset, string> = {
@@ -912,13 +914,33 @@ export function PersonalizationDrawer({
           </section>
         ) : null}
 
-        {/* TAB 4: 外观与桌宠 */}
+        {/* TAB 4: 字号、主题与桌宠 */}
         {section === "appearance" ? (
           <section className="personalization-section" aria-labelledby="personalization-appearance-title">
             <div className="personalization-section-intro">
-              <h3 id="personalization-appearance-title">外观风格与彩蛋</h3>
-              <p>选择界面的色彩底色模式，或开启可爱的桌宠伴侣。</p>
+              <h3 id="personalization-appearance-title">阅读与外观</h3>
+              <p>调整全站文字大小，选择界面主题，或开启桌宠伴侣。</p>
             </div>
+
+            {/* 字号共用现有预览会话，应用后保存，放弃或关闭时还原。 */}
+            <SettingGroup title="阅读字号" icon={<Type size={16} />}>
+              <SettingRow title="全站字号" description="侧栏、参数、卡片和弹窗同步调整，默认使用舒适字号。" fullWidth>
+                <ChoiceGroup
+                  value={String(preferences.appearance.fontSizeOffset)}
+                  ariaLabel="全站字号"
+                  options={[
+                    { value: "0", label: "标准" },
+                    { value: "2", label: "舒适 +2px" },
+                    { value: "4", label: "大号 +4px" }
+                  ]}
+                  onChange={(value) => updateAppearance({ fontSizeOffset: Number(value) as UiFontSizeOffset })}
+                />
+              </SettingRow>
+              <div className="personalization-font-preview" aria-label="字号效果预览">
+                <strong>让灵感，慢慢成形。</strong>
+                <p>写下一段描述，把脑海里的画面变成眼前的作品。</p>
+              </div>
+            </SettingGroup>
 
             {/* 主题选择卡片 */}
             <SettingGroup title="界面主题配色" icon={<Palette size={16} />}>

@@ -360,16 +360,27 @@ function App() {
         savedApiKeysMasked: health.imageProvider.savedApiKeysMasked,
         providerId: health.imageProvider.providerId,
         savedApiKeyProviderIds: health.imageProvider.savedApiKeyProviderIds,
-        activeApiKeyIndex: health.imageProvider.activeApiKeyIndex
+        activeApiKeyIndex: health.imageProvider.activeApiKeyIndex,
+        customProviders: health.imageProvider.customProviders,
+        activeCustomProviderId: health.imageProvider.activeCustomProviderId
       };
       return isSameProviderSettings(current, next) ? current : next;
     });
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-    document.documentElement.classList.toggle("anime-theme", animeMode);
-  }, [animeMode, darkMode]);
+    const root = document.documentElement;
+    const previousOffset = root.style.getPropertyValue("--ui-font-size-offset");
+    const previousPriority = root.style.getPropertyPriority("--ui-font-size-offset");
+    root.classList.toggle("dark", darkMode);
+    root.classList.toggle("anime-theme", animeMode);
+    // 写入根节点，让 Portal 中的公告、预览和个性化抽屉同步采用字号。
+    root.style.setProperty("--ui-font-size-offset", `${preferences.appearance.fontSizeOffset}px`);
+    return () => {
+      if (previousOffset) root.style.setProperty("--ui-font-size-offset", previousOffset, previousPriority);
+      else root.style.removeProperty("--ui-font-size-offset");
+    };
+  }, [animeMode, darkMode, preferences.appearance.fontSizeOffset]);
 
   useEffect(() => {
     setPreviewJob((current) => {
@@ -855,7 +866,8 @@ function App() {
     try {
       const settings = await api.updateImageProviderSettings(payload);
       setProviderSettings(settings);
-      const providerLabel = settings.providerId === "grsai" ? "Grsai" : "多米API";
+      const providerLabel = settings.customProviders?.find((item) => item.config.id === settings.activeCustomProviderId)?.config.name
+        ?? (settings.providerId === "grsai" ? "Grsai" : "多米API");
       setNotice(settings.hasApiKey ? `API 设置已保存，绘图将使用 ${providerLabel}` : "API 设置已保存");
       await loadQueue();
     } catch (error) {
@@ -1034,6 +1046,7 @@ function App() {
         <CreateJobPanel
           activeFolderId={activeFolderId}
           apiProviderId={providerSettings.providerId}
+          customProvider={providerSettings.customProviders?.find((item) => item.config.id === providerSettings.activeCustomProviderId)}
           variant="composer"
           notice={notice}
           isSubmitting={isSubmitting}

@@ -1,4 +1,5 @@
 import type { ImageProviderSettings, UpdateImageProviderSettingsPayload } from "../../types";
+import { validateCustomProviderConfig } from "../customProviders";
 import {
   DEFAULT_MODEL,
   DUOMI_BASE_URL,
@@ -9,16 +10,25 @@ import {
   saveSettings
 } from "../storage/settings";
 
-const toPublicSettings = (settings: Awaited<ReturnType<typeof getSettings>>): ImageProviderSettings => ({
-  baseUrl: settings.baseUrl || getDefaultBaseUrl(settings.providerId),
-  model: settings.model || DEFAULT_MODEL,
-  hasApiKey: Boolean(settings.apiKey),
-  apiKeyMasked: maskSecret(settings.apiKey),
-  savedApiKeysMasked: (settings.savedApiKeys || []).map(maskSecret),
-  providerId: settings.providerId,
-  savedApiKeyProviderIds: settings.savedApiKeyProviderIds || [],
-  activeApiKeyIndex: getActiveApiKeyIndex(settings)
-});
+export const toPublicSettings = (settings: Awaited<ReturnType<typeof getSettings>>): ImageProviderSettings => {
+  const active = settings.customProviders?.find((item) => item.config.id === settings.activeCustomProviderId);
+  return {
+    baseUrl: active?.config.baseUrl ?? (settings.baseUrl || getDefaultBaseUrl(settings.providerId)),
+    model: active?.config.models[0] ?? (settings.model || DEFAULT_MODEL),
+    hasApiKey: active ? !active.config.authHeader || Boolean(active.apiKey) : Boolean(settings.apiKey),
+    apiKeyMasked: maskSecret(active ? active.apiKey : settings.apiKey),
+    savedApiKeysMasked: (settings.savedApiKeys || []).map(maskSecret),
+    providerId: settings.providerId,
+    savedApiKeyProviderIds: settings.savedApiKeyProviderIds || [],
+    activeApiKeyIndex: active ? -1 : getActiveApiKeyIndex(settings),
+    customProviders: (settings.customProviders ?? []).map((item) => ({
+      config: item.config,
+      hasApiKey: Boolean(item.apiKey),
+      apiKeyMasked: maskSecret(item.apiKey)
+    })),
+    activeCustomProviderId: active?.config.id
+  };
+};
 
 /**
  * API 提供者设置 API，封装配置的读写和脱敏处理。
@@ -42,6 +52,38 @@ export const providerSettingsApi = {
     payload: UpdateImageProviderSettingsPayload
   ): Promise<ImageProviderSettings> => {
     const settings = await getSettings();
+
+    if (payload.saveCustomProvider) {
+      const config = validateCustomProviderConfig(payload.saveCustomProvider.config);
+      const profiles = settings.customProviders ?? [];
+      const previous = profiles.find((item) => item.config.id === config.id);
+      if (!previous && profiles.length >= 30) throw new Error("最多保存 30 个自定义中转");
+      const apiKey = payload.saveCustomProvider.apiKey?.trim() || previous?.apiKey || "";
+      if (config.authHeader && !apiKey) throw new Error("请填写中转 API Key");
+      const previousApiKeys = [...new Set([...(previous?.previousApiKeys ?? []), ...(previous?.apiKey && previous.apiKey !== apiKey ? [previous.apiKey] : [])])];
+      settings.customProviders = [...profiles.filter((item) => item.config.id !== config.id), { config, apiKey, previousApiKeys }];
+      settings.activeCustomProviderId = config.id;
+      await saveSettings(settings);
+      return toPublicSettings(settings);
+    }
+    if (payload.activateCustomProviderId !== undefined) {
+      if (payload.activateCustomProviderId && !settings.customProviders?.some((item) => item.config.id === payload.activateCustomProviderId)) {
+        throw new Error("自定义中转不存在");
+      }
+      settings.activeCustomProviderId = payload.activateCustomProviderId || undefined;
+      await saveSettings(settings);
+      return toPublicSettings(settings);
+    }
+    if (payload.deleteCustomProviderId) {
+      settings.customProviders = settings.customProviders?.filter((item) => item.config.id !== payload.deleteCustomProviderId);
+      if (settings.activeCustomProviderId === payload.deleteCustomProviderId) settings.activeCustomProviderId = undefined;
+      await saveSettings(settings);
+      return toPublicSettings(settings);
+    }
+    // 切回内置绘图凭据时结束自定义中转激活；单独添加润写 Key 不影响绘图。
+    if ((payload.importApiKey && payload.providerId !== "deepseek") || payload.setActiveApiKeyIndex !== undefined || payload.clearApiKey || payload.apiKey) {
+      settings.activeCustomProviderId = undefined;
+    }
 
     if (
       payload.providerId &&

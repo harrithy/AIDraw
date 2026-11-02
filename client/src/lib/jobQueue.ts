@@ -57,7 +57,7 @@ const queryRetryDelay = (attempt: number) =>
 
 const isAmbiguousSubmissionError = (error: unknown) => {
   const message = errorMessageOf(error).toLowerCase();
-  return ["超时", "网络", "cors", "failed to fetch", "network", "timeout", "aborted"].some(
+  return ["超时", "网络", "提交结果未知", "cors", "failed to fetch", "network", "timeout", "aborted"].some(
     (keyword) => message.includes(keyword)
   );
 };
@@ -80,6 +80,10 @@ const normalizeSucceededAssets = (
 
 /** 提交单个任务并持续轮询远程平台，直到任务结束或超时。 */
 export const executeJobBackground = async (job: DrawJob) => {
+  // 同步中转生成可能超过一次租约周期，请求等待期间也要续租。
+  const leaseTimer = window.setInterval(() => {
+    void updateOwnedJob(job.id, queueOwnerId, { leaseExpiresAt: leaseExpiryIso() }, false).catch(() => undefined);
+  }, JOB_LEASE_MS / 3);
   let consecutiveQueryFailures = 0;
   let terminalRemoteError = false;
   try {
@@ -348,6 +352,7 @@ export const executeJobBackground = async (job: DrawJob) => {
       leaseExpiresAt: undefined
     }).catch(() => undefined);
   } finally {
+    window.clearInterval(leaseTimer);
     activeJobs.delete(job.id);
     void processQueue();
   }

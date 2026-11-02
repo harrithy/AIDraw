@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import deepseekChatHandler from "./api/deepseek-chat.ts";
 import mediaProxyHandler from "./api/media-proxy.ts";
 import mediaUploadHandler from "./api/media-upload.ts";
+import providerRequestHandler from "./api/provider-request.ts";
 
 const mediaProxyPlugin = (): Plugin => ({
   name: "media-proxy",
@@ -12,6 +13,7 @@ const mediaProxyPlugin = (): Plugin => ({
     server.middlewares.use("/api/media-proxy", mediaProxyHandler);
     server.middlewares.use("/api/media-upload", mediaUploadHandler);
     server.middlewares.use("/api/deepseek-chat", deepseekChatHandler);
+    server.middlewares.use("/api/provider-request", providerRequestHandler);
   }
 });
 

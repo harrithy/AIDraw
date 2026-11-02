@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { StoredSettings } from "../providers/types";
 import { providerSettingsApi } from "./providerSettingsApi";
+import { createCustomProviderTemplate } from "../customProviders";
 
 let currentStoredSettings: StoredSettings;
 
@@ -16,6 +17,28 @@ vi.mock("../storage/settings", async () => {
 });
 
 describe("providerSettingsApi", () => {
+  it("保存多个自定义中转、切换激活状态并对凭据脱敏", async () => {
+    const config = { ...createCustomProviderTemplate(), baseUrl: "https://relay.example" };
+    const saved = await providerSettingsApi.updateImageProviderSettings({ saveCustomProvider: { config, apiKey: "private-relay-key-12345" } });
+    expect(saved.activeCustomProviderId).toBe(config.id);
+    expect(saved.hasApiKey).toBe(true);
+    expect(JSON.stringify(saved)).not.toContain("private-relay-key-12345");
+    await providerSettingsApi.updateImageProviderSettings({ saveCustomProvider: { config: { ...config, name: "edited" }, apiKey: "new-relay-key-99999" } });
+    expect(currentStoredSettings.customProviders?.[0].previousApiKeys).toContain("private-relay-key-12345");
+    const builtin = await providerSettingsApi.updateImageProviderSettings({ importApiKey: "builtin-key", providerId: "duomi" });
+    expect(builtin.activeCustomProviderId).toBeUndefined();
+    const restored = await providerSettingsApi.updateImageProviderSettings({ activateCustomProviderId: config.id });
+    expect(restored.activeCustomProviderId).toBe(config.id);
+    const deleted = await providerSettingsApi.updateImageProviderSettings({ deleteCustomProviderId: config.id });
+    expect(deleted.customProviders).toEqual([]);
+    expect(deleted.activeCustomProviderId).toBeUndefined();
+  });
+  it("只保存 DeepSeek Key 不改变当前自定义中转", async () => {
+    const config = { ...createCustomProviderTemplate(), baseUrl: "https://relay.example" };
+    await providerSettingsApi.updateImageProviderSettings({ saveCustomProvider: { config, apiKey: "relay-key" } });
+    const updated = await providerSettingsApi.updateImageProviderSettings({ importApiKey: "deepseek-key", providerId: "deepseek" });
+    expect(updated.activeCustomProviderId).toBe(config.id);
+  });
   beforeEach(() => {
     currentStoredSettings = {
       providerId: "duomi",

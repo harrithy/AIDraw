@@ -35,6 +35,8 @@ export const isSameProviderSettings = (
   a.hasApiKey === b.hasApiKey &&
   a.apiKeyMasked === b.apiKeyMasked &&
   a.activeApiKeyIndex === b.activeApiKeyIndex &&
+  a.activeCustomProviderId === b.activeCustomProviderId &&
+  JSON.stringify(a.customProviders ?? []) === JSON.stringify(b.customProviders ?? []) &&
   a.savedApiKeysMasked.length === b.savedApiKeysMasked.length &&
   a.savedApiKeysMasked.every((v, i) => v === b.savedApiKeysMasked[i]) &&
   a.savedApiKeyProviderIds.length === b.savedApiKeyProviderIds.length &&

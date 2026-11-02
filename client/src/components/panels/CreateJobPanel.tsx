@@ -40,6 +40,7 @@ import {
   type SupportedImageModel
 } from "../../lib/imageModels";
 import { uploadRegistry } from "../../lib/uploadRegistry";
+import type { PublicCustomProvider } from "../../lib/customProviders";
 
 const grokVideoSizeOptions: Array<{ label: string; value: SizeMode }> = [
   { label: "16:9", value: "16:9" },
@@ -103,6 +104,7 @@ type UploadResult = {
 };
 
 type CreateJobPanelProps = {
+  customProvider?: PublicCustomProvider;
   activeFolderId?: string | null;
   apiProviderId: ApiProviderId;
   isSubmitting: boolean;
@@ -209,7 +211,7 @@ interface FolderDraft {
   customWidth: string;
   customHeight: string;
   thinking: ThinkingValue;
-  model: SupportedImageModel;
+  model: string;
   nanoImageSize: NanoImageSize;
   videoDuration?: number;
   sound?: KlingSound;
@@ -271,6 +273,7 @@ const saveDraft = (folderId: string, draft: FolderDraft) => {
 };
 
 export function CreateJobPanel({
+  customProvider,
   activeFolderId,
   apiProviderId,
   isSubmitting,
@@ -290,7 +293,7 @@ export function CreateJobPanel({
   const [customWidth, setCustomWidth] = useState("1024");
   const [customHeight, setCustomHeight] = useState("1024");
   const [thinking, setThinking] = useState<ThinkingValue>("high");
-  const [model, setModel] = useState<SupportedImageModel>(GPT_IMAGE_MODEL);
+  const [model, setModel] = useState<string>(GPT_IMAGE_MODEL);
   const [nanoImageSize, setNanoImageSize] = useState<NanoImageSize>("4K");
   const [videoDuration, setVideoDuration] = useState<number>(10);
   const [sound, setSound] = useState<KlingSound>("on");
@@ -315,18 +318,18 @@ export function CreateJobPanel({
   const dragDepthRef = useRef(0);
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const currentMode: DrawMode = inputImages.length > 0 ? "image-to-image" : "text-to-image";
-  const isNanoBanana = isNanoBananaModel(model);
-  const isGrokVideo = isGrokVideoModel(model);
-  const isKlingVideo = isKlingVideoModel(model);
-  const isVideo = isVideoModel(model);
-  const usesCapability = DUOMI_CAPABILITIES_ENABLED && apiProviderId === "duomi" && creationMode === "capability";
+  const isNanoBanana = !customProvider && isNanoBananaModel(model);
+  const isGrokVideo = !customProvider && isGrokVideoModel(model);
+  const isKlingVideo = !customProvider && isKlingVideoModel(model);
+  const isVideo = customProvider ? customProvider.config.outputKind === "video" : isVideoModel(model);
+  const usesCapability = !customProvider && DUOMI_CAPABILITIES_ENABLED && apiProviderId === "duomi" && creationMode === "capability";
   const categoryCapabilities = useMemo(() => getDuomiCapabilitiesByCategory(capabilityCategory), [capabilityCategory]);
   const selectedCapability = getDuomiCapability(capabilityId) ?? categoryCapabilities[0];
   const isDuomiNanoBanana = apiProviderId === "duomi" && isNanoBanana;
-  const supportsNanoImageSize = supportsNanoBananaImageSize(model);
-  const imageModelGroups = getImageModelGroups(apiProviderId);
-  const currentModelOption = getImageModelOption(model, apiProviderId);
-  const currentSizeOptions = isKlingVideo
+  const supportsNanoImageSize = !customProvider && supportsNanoBananaImageSize(model);
+  const imageModelGroups = customProvider ? [{ label: customProvider.config.name, options: customProvider.config.models.map((value) => ({ label: value, value })) }] : getImageModelGroups(apiProviderId);
+  const currentModelOption = customProvider ? { label: model, value: model } : getImageModelOption(model, apiProviderId);
+  const currentSizeOptions = customProvider ? gptSizeOptions : isKlingVideo
     ? klingVideoSizeOptions
     : isGrokVideo
       ? grokVideoSizeOptions
@@ -340,14 +343,14 @@ export function CreateJobPanel({
             ? grsaiGptSizeOptions
             : gptSizeOptions;
 
-  const currentVideoDurationOptions = isKlingVideo
+  const currentVideoDurationOptions = customProvider ? [5, 10, 15, 20, 30].map((value) => ({ label: value + " 秒", value })) : isKlingVideo
     ? klingVideoDurationOptions
     : model === GROK_VIDEO_MODEL_1_5
       ? grokVideo15DurationOptions
       : grokVideoBaseDurationOptions;
 
   /** 模型预计价格：Kling/GROK 视频按查表或按秒，图片模型按固定单价；无价格时返回 null */
-  const modelPrice = getModelPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound);
+  const modelPrice = customProvider ? null : getModelPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound);
 
   const isUpdatingDraftRef = useRef(false);
 
@@ -364,7 +367,7 @@ export function CreateJobPanel({
       setCustomWidth(draft.customWidth ?? "1024");
       setCustomHeight(draft.customHeight ?? "1024");
       setThinking(qualityOptions.includes(draft.thinking) ? draft.thinking : "high");
-      setModel(isSupportedImageModel(draft.model) ? draft.model : GPT_IMAGE_MODEL);
+      setModel(customProvider?.config.models.includes(draft.model) || isSupportedImageModel(draft.model) ? draft.model : customProvider?.config.models[0] ?? GPT_IMAGE_MODEL);
       setNanoImageSize(draft.nanoImageSize ?? "4K");
       setVideoDuration(draft.videoDuration ?? 10);
       setSound(draft.sound ?? "on");
@@ -474,10 +477,14 @@ export function CreateJobPanel({
   }, [isVideo, isKlingVideo, currentVideoDurationOptions, videoDuration]);
 
   useEffect(() => {
+    if (customProvider) {
+      if (!customProvider.config.models.includes(model)) setModel(customProvider.config.models[0]);
+      return;
+    }
     if (!isImageModelAvailableForProvider(model, apiProviderId)) {
       setModel(GPT_IMAGE_MODEL);
     }
-  }, [apiProviderId, model]);
+  }, [apiProviderId, model, customProvider]);
 
   useEffect(() => {
     if (usedImage) {
@@ -787,7 +794,7 @@ export function CreateJobPanel({
     const resolvedSizeMode = currentSizeOptions.some((option) => option.value === sizeMode) ? sizeMode : "auto";
     const width = parseCustomDimension(customWidth);
     const height = parseCustomDimension(customHeight);
-    const maxAspectRatio = apiProviderId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
+    const maxAspectRatio = !customProvider && apiProviderId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
     const customSizeError = resolvedSizeMode === "custom" ? getCustomSizeError(width, height, maxAspectRatio) : "";
     if (customSizeError) {
       const suggestion = getCustomSizeSuggestion(width, height);
@@ -815,6 +822,7 @@ export function CreateJobPanel({
         : resolvedSizeMode;
 
     await onSubmit({
+      customProviderId: customProvider?.config.id,
       mode: currentMode,
       prompt: nextPrompt,
       inputImageUrl: inputImageUrls[0],
@@ -956,7 +964,7 @@ export function CreateJobPanel({
   );
 
   const renderCreationMode = () =>
-    apiProviderId === "duomi" ? (
+    !customProvider && apiProviderId === "duomi" ? (
       <div className="capability-mode-switch" aria-label="创作方式">
         <Button
           type="button"

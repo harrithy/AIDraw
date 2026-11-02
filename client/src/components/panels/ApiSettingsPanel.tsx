@@ -11,6 +11,7 @@ import {
   SelectValue
 } from "../ui/select";
 import { prefersReducedMotion } from "../../lib/motion";
+import { CustomProviderPanel } from "./CustomProviderPanel";
 import type {
   ApiProviderId,
   ImageProviderSettings,
@@ -55,6 +56,7 @@ export function ApiSettingsPanel({
   const [importText, setImportText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [settingsTab, setSettingsTab] = useState<"builtin" | "custom">(settings.activeCustomProviderId ? "custom" : "builtin");
 
   useEffect(() => {
     if (!autoFocusApiKey) return;
@@ -111,7 +113,7 @@ export function ApiSettingsPanel({
   };
 
   const handleSetActiveKey = async (index: number) => {
-    if (index === settings.activeApiKeyIndex) return;
+    if (index === settings.activeApiKeyIndex && !settings.activeCustomProviderId) return;
     try {
       setIsSaving(true);
       setError("");
@@ -173,6 +175,12 @@ export function ApiSettingsPanel({
         </div>
       ) : null}
 
+      <div className="provider-settings-tabs" role="tablist" aria-label="接入方式">
+        <button type="button" role="tab" aria-selected={settingsTab === "builtin"} onClick={() => setSettingsTab("builtin")}>内置供应商</button>
+        <button type="button" role="tab" aria-selected={settingsTab === "custom"} onClick={() => setSettingsTab("custom")}>自定义中转{settings.customProviders?.length ? " · " + settings.customProviders.length : ""}</button>
+      </div>
+      {settingsTab === "custom" ? <CustomProviderPanel settings={settings} onSave={onSave} /> : null}
+      <div className="builtin-provider-fields" hidden={settingsTab === "custom"}>
       <label>
         正在使用
         <Select
@@ -336,6 +344,7 @@ export function ApiSettingsPanel({
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

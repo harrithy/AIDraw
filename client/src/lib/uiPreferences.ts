@@ -24,10 +24,13 @@ export type AttachmentMode = "list" | "stack" | "summary";
 export type AttachmentThumbnailSize = 44 | 58 | 72;
 export type AttachmentMaxVisible = 1 | 3 | 5 | "all";
 export type UiTheme = "light" | "dark" | "anime";
+export const UI_FONT_SIZE_OFFSETS = [0, 2, 4] as const;
+export type UiFontSizeOffset = (typeof UI_FONT_SIZE_OFFSETS)[number];
 
 export type AppearancePreferences = {
   theme: UiTheme;
   petEnabled: boolean;
+  fontSizeOffset: UiFontSizeOffset;
 };
 
 export type PageLayoutPreferences = {
@@ -193,7 +196,8 @@ export const createDefaultUiPreferences = (
     preset: "standard",
     appearance: {
       theme: isOneOf(savedTheme, ["light", "dark", "anime"] as const) ? savedTheme : "dark",
-      petEnabled: savedPet !== "off"
+      petEnabled: savedPet !== "off",
+      fontSizeOffset: 2
     },
     page: {
       ...STANDARD_PAGE,
@@ -225,7 +229,11 @@ export const normalizeUiPreferences = (
       theme: isOneOf(appearance.theme, ["light", "dark", "anime"] as const)
         ? appearance.theme
         : fallback.appearance.theme,
-      petEnabled: readBoolean(appearance.petEnabled, fallback.appearance.petEnabled)
+      petEnabled: readBoolean(appearance.petEnabled, fallback.appearance.petEnabled),
+      // 旧配置没有字号字段时保留当前舒适字号；异常值不写入界面样式。
+      fontSizeOffset: isOneOf(appearance.fontSizeOffset, UI_FONT_SIZE_OFFSETS)
+        ? appearance.fontSizeOffset
+        : fallback.appearance.fontSizeOffset
     },
     page: {
       sidebarOpen: readBoolean(page.sidebarOpen, fallback.page.sidebarOpen),

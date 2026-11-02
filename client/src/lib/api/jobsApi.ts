@@ -9,7 +9,7 @@ import {
   supportsNanoBananaImageSize
 } from "../imageModels";
 import { dimensionsFromSize } from "../imageDimensions";
-import { createJobCredentialSnapshot } from "../jobCredentials";
+import { createCredentialId, createJobCredentialSnapshot } from "../jobCredentials";
 import { getJobRetryMode } from "../jobRetry";
 import { getDuomiCapability, isDuomiCapabilitySubmittable } from "../duomiCapabilities";
 import { processQueue } from "../jobQueue";
@@ -82,6 +82,13 @@ export const jobsApi = {
       (payload.pendingUploadKeys && payload.pendingUploadKeys.length > 0)
     );
     const settings = await getSettings();
+    const custom = payload.customProviderId ? settings.customProviders?.find((item) => item.config.id === payload.customProviderId) : undefined;
+    if (payload.customProviderId && !custom) throw new Error("自定义中转已删除，请重新选择");
+    if (!payload.customProviderId && settings.activeCustomProviderId) throw new Error("中转配置已更新，请重新提交任务");
+    if (custom && !custom.config.models.includes(payload.model ?? "")) throw new Error("请选择该中转已配置的模型");
+    if (custom && inputImageUrls.length && !/\{\{\s*images?\s*\}\}/.test(JSON.stringify(custom.config.requestBody))) {
+      throw new Error("该中转请求模板未配置参考图变量 {{image}} 或 {{images}}");
+    }
     if (!hasPendingUploads && settings.apiKey && settings.providerId === "duomi" && inputImageUrls.length > 0) {
       assertRemoteImageUrls(inputImageUrls);
     }
@@ -109,11 +116,11 @@ export const jobsApi = {
 
     const count = capability ? 1 : Math.min(Math.max(Math.floor(payload.count || 1), 1), 8);
     const model = payload.model || settings.model || DEFAULT_MODEL;
-    const maxAspectRatio = settings.providerId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
+    const maxAspectRatio = !custom && settings.providerId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
     const size = normalizeSize(payload.size, maxAspectRatio);
     const { width, height } = dimensionsFromSize(size);
     if (
-      settings.providerId === "duomi" &&
+      !custom && settings.providerId === "duomi" &&
       isNanoBananaModel(model) &&
       inputImageUrls.length > MAX_NANO_BANANA_REFERENCE_IMAGES
     ) {
@@ -175,10 +182,20 @@ export const jobsApi = {
               posY: 0,
               hasCustomPosition: false,
               ...createJobCredentialSnapshot(settings),
+              ...(custom ? {
+                customProviderId: custom.config.id,
+                customProviderConfig: structuredClone(custom.config),
+                customCredentialId: createCredentialId("duomi", custom.apiKey),
+                outputKind: custom.config.outputKind,
+                duration: payload.duration,
+                credentialId: undefined,
+                credentialProviderId: undefined,
+                providerBaseUrl: undefined
+              } : {}),
               createdAt: now,
               updatedAt: now
             };
-            job.provider = capability ? "duomi" : resolveProviderId(job, settings);
+            job.provider = custom ? "custom" : capability ? "duomi" : resolveProviderId(job, settings);
             created.push(job);
             jobStore.add(job);
           }
@@ -239,7 +256,7 @@ export const jobsApi = {
       status: "pending",
       errorMessage: undefined,
       provider: job.capabilityId ? "duomi" : resolveProviderId(nextJob, settings),
-      ...createJobCredentialSnapshot(settings),
+      ...(job.customProviderId ? {} : createJobCredentialSnapshot(settings)),
       remoteTaskId: undefined,
       remoteTaskIds: undefined,
       remoteStatus: undefined,
@@ -283,13 +300,18 @@ export const jobsApi = {
 
     const inputImageUrls = edits.inputImageUrls.map((url) => url.trim()).filter(Boolean);
     const settings = await getSettings();
+    const custom = job.customProviderConfig;
+    if (custom && !custom.models.includes(edits.model)) throw new Error("请选择该任务中转支持的模型");
+    if (custom && inputImageUrls.length && !/\{\{\s*images?\s*\}\}/.test(JSON.stringify(custom.requestBody))) {
+      throw new Error("该中转请求模板未配置参考图变量");
+    }
     if (settings.apiKey && settings.providerId === "duomi" && inputImageUrls.length > 0) {
       assertRemoteImageUrls(inputImageUrls);
     }
 
     const model = edits.model || settings.model || DEFAULT_MODEL;
     if (
-      settings.providerId === "duomi" &&
+      !custom && settings.providerId === "duomi" &&
       isNanoBananaModel(model) &&
       inputImageUrls.length > MAX_NANO_BANANA_REFERENCE_IMAGES
     ) {
@@ -297,7 +319,7 @@ export const jobsApi = {
     }
 
     const mode = inputImageUrls.length > 0 ? "image-to-image" : "text-to-image";
-    const maxAspectRatio = settings.providerId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
+    const maxAspectRatio = !custom && settings.providerId === "grsai" && isGptImageVipModel(model) ? 3 : undefined;
     const size = normalizeSize(edits.size, maxAspectRatio);
     const { width, height } = dimensionsFromSize(size);
     const nextJob = {
@@ -322,7 +344,7 @@ export const jobsApi = {
       imageSize: supportsNanoBananaImageSize(model)
         ? normalizeNanoImageSize(edits.imageSize)
         : undefined,
-      duration: isGrokVideoModel(model)
+      duration: custom ? edits.duration : isGrokVideoModel(model)
         ? (edits.duration ?? 10)
         : isKlingVideoModel(model)
           ? (edits.duration ?? 5)
@@ -331,7 +353,7 @@ export const jobsApi = {
       status: "pending",
       errorMessage: undefined,
       provider: job.capabilityId ? "duomi" : resolveProviderId(nextJob, settings),
-      ...createJobCredentialSnapshot(settings),
+      ...(job.customProviderId ? {} : createJobCredentialSnapshot(settings)),
       remoteTaskId: undefined,
       remoteTaskIds: undefined,
       remoteStatus: undefined,

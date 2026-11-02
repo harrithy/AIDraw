@@ -233,7 +233,7 @@ export function RegenerateEditDialog({
   const [customWidth, setCustomWidth] = useState("1024");
   const [customHeight, setCustomHeight] = useState("1024");
   const [thinking, setThinking] = useState<ThinkingValue>("high");
-  const [model, setModel] = useState<SupportedImageModel>(GPT_IMAGE_MODEL);
+  const [model, setModel] = useState<string>(GPT_IMAGE_MODEL);
   const [nanoImageSize, setNanoImageSize] = useState<NanoImageSize>("4K");
   const [videoDuration, setVideoDuration] = useState<number>(10);
   const [sound, setSound] = useState<KlingSound>("on");
@@ -243,15 +243,16 @@ export function RegenerateEditDialog({
   const dragDepthRef = useRef(0);
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const isNanoBanana = isNanoBananaModel(model);
-  const isGrokVideo = isGrokVideoModel(model);
-  const isKlingVideo = isKlingVideoModel(model);
-  const isVideo = isVideoModel(model);
+  const custom = job?.customProviderConfig;
+  const isNanoBanana = !custom && isNanoBananaModel(model);
+  const isGrokVideo = !custom && isGrokVideoModel(model);
+  const isKlingVideo = !custom && isKlingVideoModel(model);
+  const isVideo = custom ? custom.outputKind === "video" : isVideoModel(model);
   const isDuomiNanoBanana = apiProviderId === "duomi" && isNanoBanana;
-  const supportsNanoImageSize = supportsNanoBananaImageSize(model);
-  const imageModelGroups = getImageModelGroups(apiProviderId);
-  const currentModelOption = getImageModelOption(model, apiProviderId);
-  const currentSizeOptions = isKlingVideo
+  const supportsNanoImageSize = !custom && supportsNanoBananaImageSize(model);
+  const imageModelGroups = custom ? [{ label: custom.name, options: custom.models.map((value) => ({ label: value, value })) }] : getImageModelGroups(apiProviderId);
+  const currentModelOption = custom ? { label: model, value: model } : getImageModelOption(model, apiProviderId);
+  const currentSizeOptions = custom ? gptSizeOptions : isKlingVideo
     ? klingVideoSizeOptions
     : isGrokVideo
       ? grokVideoSizeOptions
@@ -265,21 +266,21 @@ export function RegenerateEditDialog({
             ? grsaiGptSizeOptions
             : gptSizeOptions;
 
-  const currentVideoDurationOptions = isKlingVideo
+  const currentVideoDurationOptions = custom ? [5, 10, 15, 20, 30].map((value) => ({ label: value + " 秒", value })) : isKlingVideo
     ? klingVideoDurationOptions
     : model === GROK_VIDEO_MODEL_1_5
       ? grokVideo15DurationOptions
       : grokVideoBaseDurationOptions;
 
   /** 模型预计价格：Kling/GROK 视频按查表或按秒，图片模型按固定单价；无价格时返回 null */
-  const modelPrice = getModelPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound);
+  const modelPrice = custom ? null : getModelPrice(model, thinking === "high" ? "pro" : "std", videoDuration, sound);
 
   // 打开或切换到另一个任务时，用该任务的当前参数预填表单
   useEffect(() => {
     if (!job) return;
     setPrompt(job.prompt);
     setThinking(normalizeThinking(job.thinking));
-    setModel(isSupportedImageModel(job.model) ? job.model : GPT_IMAGE_MODEL);
+    setModel(job.customProviderId || isSupportedImageModel(job.model) ? job.model : GPT_IMAGE_MODEL);
     setNanoImageSize(job.imageSize ?? "4K");
     setVideoDuration(job.duration ?? (isKlingVideoModel(job.model) ? 5 : 10));
     setSound(job.sound ?? "off");
@@ -311,10 +312,11 @@ export function RegenerateEditDialog({
   }, [isVideo, isKlingVideo, currentVideoDurationOptions, videoDuration]);
 
   useEffect(() => {
+    if (custom) return;
     if (!isImageModelAvailableForProvider(model, apiProviderId)) {
       setModel(GPT_IMAGE_MODEL);
     }
-  }, [apiProviderId, model]);
+  }, [apiProviderId, model, custom]);
 
   const uploadFiles = async (files: File[]) => {
     const imageFiles = getImageFiles(files);

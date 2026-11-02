@@ -46,7 +46,7 @@ describe("UI preferences", () => {
     window.localStorage.setItem(LEGACY_THEME_STORAGE_KEY, "light");
     window.localStorage.setItem(LEGACY_PET_STORAGE_KEY, "off");
     const preferences = loadUiPreferences(window.localStorage, false);
-    expect(preferences.appearance).toEqual({ theme: "light", petEnabled: false });
+    expect(preferences.appearance).toEqual({ theme: "light", petEnabled: false, fontSizeOffset: 2 });
     expect(preferences.page.sidebarOpen).toBe(false);
   });
 
@@ -95,6 +95,7 @@ describe("UI preferences", () => {
   it("applies presets without changing appearance or action choices", () => {
     const current = createDefaultUiPreferences(window.localStorage, true);
     current.appearance.theme = "light";
+    current.appearance.fontSizeOffset = 4;
     current.card.actionOrder = normalizeCardActionOrder(["delete", "retry"]);
     current.card.hiddenActions = ["upload"];
     const next = applyUiPreset(current, "focus");
@@ -103,6 +104,7 @@ describe("UI preferences", () => {
     expect(next.page.sidebarOpen).toBe(false);
     expect(next.card.attachmentMode).toBe("summary");
     expect(next.appearance.theme).toBe("light");
+    expect(next.appearance.fontSizeOffset).toBe(4);
     expect(next.card.actionOrder[0]).toBe("delete");
     expect(next.card.hiddenActions).toEqual(["upload"]);
   });
@@ -110,12 +112,14 @@ describe("UI preferences", () => {
   it("resets layout without changing appearance", () => {
     const current = applyUiPreset(createDefaultUiPreferences(window.localStorage, true), "compact");
     current.appearance.petEnabled = false;
+    current.appearance.fontSizeOffset = 4;
     current.card.actionOrder = normalizeCardActionOrder(["delete", "retry"]);
     current.card.hiddenActions = ["download"];
     const reset = resetUiLayout(current);
     expect(reset.preset).toBe("standard");
     expect(reset.page.sidebarWidth).toBe(292);
     expect(reset.appearance.petEnabled).toBe(false);
+    expect(reset.appearance.fontSizeOffset).toBe(4);
     expect(reset.card.actionOrder).toEqual(CARD_ACTION_IDS);
     expect(reset.card.hiddenActions).toEqual([]);
   });
@@ -159,12 +163,36 @@ describe("UI preferences", () => {
 
   it("saves the canonical and legacy preference keys", () => {
     const preferences = createDefaultUiPreferences(window.localStorage, true);
-    preferences.appearance = { theme: "anime", petEnabled: false };
+    preferences.appearance = { theme: "anime", petEnabled: false, fontSizeOffset: 4 };
     saveUiPreferences(preferences, window.localStorage);
     expect(JSON.parse(window.localStorage.getItem(UI_PREFERENCES_STORAGE_KEY) || "null"))
       .toEqual(preferences);
     expect(window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY)).toBe("anime");
     expect(window.localStorage.getItem(LEGACY_PET_STORAGE_KEY)).toBe("off");
     expect(loadUiPreferences(window.localStorage, true)).toEqual(preferences);
+  });
+
+  it("旧配置缺少字号字段时迁移为舒适字号，并保留主题和布局", () => {
+    const legacy = createDefaultUiPreferences(window.localStorage, true);
+    window.localStorage.setItem(UI_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      ...legacy,
+      appearance: { theme: "light", petEnabled: false },
+      page: { ...legacy.page, sidebarWidth: 320 }
+    }));
+    const loaded = loadUiPreferences(window.localStorage, true);
+    expect(loaded.appearance).toEqual({ theme: "light", petEnabled: false, fontSizeOffset: 2 });
+    expect(loaded.page.sidebarWidth).toBe(320);
+  });
+
+  it.each([0, 2, 4])("接受有效字号档位 %s", (fontSizeOffset) => {
+    const fallback = createDefaultUiPreferences();
+    const normalized = normalizeUiPreferences({ ...fallback, appearance: { ...fallback.appearance, fontSizeOffset } });
+    expect(normalized.appearance.fontSizeOffset).toBe(fontSizeOffset);
+  });
+
+  it.each([-2, 6, 1.5, NaN, Infinity, "4", null, {}])("异常字号回退到舒适档位：%j", (fontSizeOffset) => {
+    const fallback = createDefaultUiPreferences();
+    const normalized = normalizeUiPreferences({ ...fallback, appearance: { ...fallback.appearance, fontSizeOffset } });
+    expect(normalized.appearance.fontSizeOffset).toBe(2);
   });
 });

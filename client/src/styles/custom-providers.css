@@ -1,0 +1,50 @@
+/* 中转设置沿用全站颜色变量，编辑器在窄屏自动折为单列。 */
+.api-settings-dialog:has(.custom-provider-panel) { width: min(720px, calc(100vw - 32px)); max-width: min(720px, calc(100vw - 32px)); }
+.provider-settings-tabs { display: flex; padding: 4px; gap: 4px; border: 1px solid var(--border); border-radius: 12px; background: var(--subtle); }
+.provider-settings-tabs button { flex: 1; padding: 9px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted-foreground); font-weight: 600; cursor: pointer; }
+.provider-settings-tabs button[aria-selected="true"] { background: var(--background); color: var(--foreground); box-shadow: 0 1px 4px #0001; }
+.builtin-provider-fields:not([hidden]) { display: grid; gap: 16px; }
+.custom-provider-panel { display: grid; gap: 18px; min-width: 0; }
+.custom-provider-intro { display: flex; gap: 13px; align-items: center; padding: 8px 0; }
+.custom-provider-icon { display: grid; place-items: center; flex: 0 0 44px; height: 44px; border: 1px solid var(--border); border-radius: 14px; background: var(--subtle); }
+.custom-provider-intro h3 { margin: 0 0 5px; font-size: calc(17px + var(--ui-font-size-offset, 2px)); font-weight: 650; }
+.custom-provider-intro p, .custom-provider-hint, .custom-provider-document p { margin: 0; color: var(--muted-foreground); font-size: calc(12px + var(--ui-font-size-offset, 2px)); line-height: 1.7; overflow-wrap: anywhere; }
+.custom-provider-list { display: grid; gap: 8px; }
+.custom-provider-card { display: flex; gap: 8px; border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.custom-provider-card[data-active="true"] { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.custom-provider-card-copy { display: grid; min-width: 0; gap: 5px; flex: 1; text-align: left; border: 0; padding: 0; background: transparent; color: inherit; cursor: pointer; }
+.custom-provider-card-copy strong { display: flex; flex-wrap: wrap; gap: 8px; font-size: calc(13px + var(--ui-font-size-offset, 2px)); }
+.custom-provider-card-copy small { color: var(--muted-foreground); font-size: calc(11px + var(--ui-font-size-offset, 2px)); overflow-wrap: anywhere; }
+.custom-provider-card-copy em { display: inline-flex; align-items: center; gap: 3px; color: var(--primary); font-style: normal; font-size: calc(10px + var(--ui-font-size-offset, 2px)); }
+.custom-provider-card-actions { display: flex; align-items: center; gap: 5px; }
+.custom-provider-panel button:not(.custom-provider-card-copy) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: var(--foreground); font-size: calc(12px + var(--ui-font-size-offset, 2px)); cursor: pointer; }
+.custom-provider-panel button:disabled { opacity: .5; cursor: wait; }
+.custom-provider-panel button.custom-provider-add { border-style: dashed; min-height: 44px; color: var(--muted-foreground); background: transparent; }
+.custom-provider-editor { border-top: 1px solid var(--border); padding-top: 18px; }
+.custom-provider-section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.custom-provider-section-title h4 { margin: 0; font-weight: 650; font-size: calc(14px + var(--ui-font-size-offset, 2px)); }
+.custom-provider-fields { display: grid; gap: 14px; padding: 0; margin: 0; border: 0; min-width: 0; }
+.custom-provider-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.custom-provider-panel label { display: grid; gap: 7px; font-size: calc(12px + var(--ui-font-size-offset, 2px)); min-width: 0; }
+.custom-provider-panel input, .custom-provider-panel textarea, .custom-provider-panel select { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: var(--foreground); padding: 9px 10px; font-size: calc(12px + var(--ui-font-size-offset, 2px)); }
+.custom-provider-panel input:focus, .custom-provider-panel textarea:focus, .custom-provider-panel select:focus { outline: 2px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+.custom-provider-panel textarea { resize: vertical; line-height: 1.6; }
+.custom-provider-panel details { border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-width: 0; }
+.custom-provider-panel details[open] { display: grid; gap: 12px; }
+.custom-provider-panel summary { cursor: pointer; font-size: calc(12px + var(--ui-font-size-offset, 2px)); font-weight: 600; }
+.custom-provider-panel summary svg { display: inline; vertical-align: middle; margin-right: 6px; }
+.custom-provider-panel details[open] > * + * { margin-top: 12px; }
+.custom-provider-inline-actions { display: flex; gap: 8px; }
+.custom-provider-code, .custom-provider-preview { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.custom-provider-preview { max-height: 200px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border-radius: 8px; background: var(--subtle); font-size: calc(11px + var(--ui-font-size-offset, 2px)); }
+.custom-provider-async { display: grid; gap: 14px; padding: 14px; border-radius: 10px; background: var(--subtle); }
+.custom-provider-save { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding-top: 18px; margin-top: 18px; border-top: 1px solid var(--border); }
+.custom-provider-save > span { color: var(--muted-foreground); font-size: calc(11px + var(--ui-font-size-offset, 2px)); }
+.custom-provider-panel button.custom-provider-primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.custom-provider-status, .custom-provider-error { display: flex; align-items: center; gap: 6px; font-size: calc(12px + var(--ui-font-size-offset, 2px)); line-height: 1.7; margin: 0; overflow-wrap: anywhere; }
+.custom-provider-error { color: var(--destructive); }
+@media (max-width: 480px) {
+  .custom-provider-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .custom-provider-save { align-items: stretch; flex-direction: column; }
+  .custom-provider-card { flex-wrap: wrap; }
+}

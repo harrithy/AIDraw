@@ -218,6 +218,10 @@ button:focus-visible, summary:focus-visible, a:focus-visible {
 .personalization-content { padding: 22px; }
 .personalization-setting-label { font-weight: 500; }
 .personalization-footer { background: var(--studio-sidebar); }
+/* 字号示例使用与整个工作台相同的增量，调节时即可比较阅读效果。 */
+.personalization-font-preview { margin: 0 15px 15px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--subtle); }
+.personalization-font-preview strong { font-size: calc(18px + var(--ui-font-size-offset)); font-weight: 550; line-height: 1.6; }
+.personalization-font-preview p { margin: 7px 0 0; color: var(--muted); font-size: calc(12px + var(--ui-font-size-offset)); line-height: 1.8; }
 .duomi-capability-panel { border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); background: var(--panel-strong); }
 .onboarding-tour-popover, .comparison-preview-panel { border-radius: 14px; }
 .anime-release-dialog { border-radius: 18px; background: var(--panel-strong); }
@@ -315,7 +319,8 @@ button:focus-visible, summary:focus-visible, a:focus-visible {
 }
 @media (max-width: 380px) {
   /* 字号增大后压缩非文字间距，为统计和参数保留完整的阅读空间。 */
-  .app-shell[class] .floating-top { gap: 6px; }
+  .app-shell[class] .floating-top { left: 56px; gap: 6px; }
+  .metrics { flex: 1; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
   .metric { padding-inline: 4px; gap: 4px; }
   .composer-panel .composer-fields [data-slot="field"] { padding-inline: 4px; }
   .app-shell .floating-toolbar { gap: 1px; padding: 4px; }

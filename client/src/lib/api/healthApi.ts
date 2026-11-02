@@ -1,13 +1,8 @@
 import type { DrawJob, HealthPayload } from "../../types";
 import { MAX_CONCURRENT_JOBS, processQueue } from "../jobQueue";
 import { JOB_STORE, openDb } from "../storage/database";
-import {
-  DEFAULT_MODEL,
-  getActiveApiKeyIndex,
-  getDefaultBaseUrl,
-  getSettings,
-  maskSecret
-} from "../storage/settings";
+import { toPublicSettings } from "./providerSettingsApi";
+import { getSettings } from "../storage/settings";
 
 /**
  * 应用健康检查与状态聚合 API。
@@ -31,6 +26,7 @@ export const healthApi = {
       req.onerror = () => reject(req.error);
     });
     const settings = await getSettings();
+    const publicSettings = toPublicSettings(settings);
 
     return {
       ok: true,
@@ -40,17 +36,10 @@ export const healthApi = {
         pending: jobs.filter((job) => job.status === "pending").length
       },
       imageProvider: {
-        textToImage: settings.apiKey ? settings.providerId : "mock",
-        imageToImage: settings.apiKey ? settings.providerId : "mock",
-        hasApiKey: Boolean(settings.apiKey),
-        baseUrl: settings.baseUrl || getDefaultBaseUrl(settings.providerId),
-        model: settings.model || DEFAULT_MODEL,
-        apiKeyMasked: maskSecret(settings.apiKey),
-        savedApiKeysMasked: (settings.savedApiKeys || []).map(maskSecret),
-        providerId: settings.providerId,
-        savedApiKeyProviderIds: settings.savedApiKeyProviderIds || [],
-        activeApiKeyIndex: getActiveApiKeyIndex(settings),
-        usesSavedConfig: Boolean(settings.apiKey || settings.baseUrl || settings.model)
+        textToImage: publicSettings.activeCustomProviderId ? "custom" : settings.apiKey ? settings.providerId : "mock",
+        imageToImage: publicSettings.activeCustomProviderId ? "custom" : settings.apiKey ? settings.providerId : "mock",
+        usesSavedConfig: Boolean(settings.apiKey || settings.baseUrl || settings.model),
+        ...publicSettings
       }
     };
   }

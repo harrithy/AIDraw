@@ -21,7 +21,7 @@ describe("changelog and release announcement system", () => {
 
   it("should have valid release notes structure", () => {
     expect(INITIAL_RELEASES.length).toBeGreaterThan(0);
-    expect(LATEST_RELEASE.version).toBe("v1.4.18");
+    expect(LATEST_RELEASE.version).toBe("v1.4.19");
     expect(LATEST_RELEASE.title).toBeTruthy();
     expect(LATEST_RELEASE.items.length).toBeGreaterThan(0);
   });
@@ -41,6 +41,14 @@ describe("changelog and release announcement system", () => {
     markAllReleasesAsRead();
     expect(getUnreadReleasesCount()).toBe(0);
     expect(checkHasUnreadRelease()).toBe(false);
+  });
+
+  it("读过上一版的用户仍能看到本次字号与界面更新公告", () => {
+    // 模拟旧版本已全部读完，新增公告不会被旧已读记录覆盖。
+    INITIAL_RELEASES.slice(1).forEach((release) => markReleaseAsRead(release.version));
+    expect(getUnreadReleasesCount()).toBe(1);
+    expect(isReleaseRead(LATEST_RELEASE.version)).toBe(false);
+    expect(LATEST_RELEASE.items.some((item) => item.title.includes("字号"))).toBe(true);
   });
 
   it("should accumulate and preserve historical releases in local storage", () => {

@@ -59,4 +59,30 @@ describe("PersonalizationDrawer 保存反馈", () => {
     expect(messages.success).toHaveBeenCalledExactlyOnceWith("已应用个性化设置");
     expect(apply!.disabled).toBe(true);
   });
+
+  it("外观主题提供三档字号，选择后进入预览且不改变布局预设", () => {
+    const onPreview = vi.fn();
+    const preferences = createDefaultUiPreferences();
+    act(() => root.render(
+      <PersonalizationDrawer open preferences={preferences} onOpenChange={vi.fn()}
+        onPreview={onPreview} onPreviewPreset={vi.fn()} onPreviewReset={vi.fn()}
+        onCancel={vi.fn()} onCommit={vi.fn().mockReturnValue(true)} />
+    ));
+    const appearance = Array.from(document.querySelectorAll<HTMLButtonElement>(".personalization-nav-tab"))
+      .find((button) => button.textContent?.includes("外观主题"));
+    act(() => appearance!.click());
+
+    const group = document.querySelector('[role="group"][aria-label="全站字号"]');
+    const buttons = Array.from(group!.querySelectorAll("button"));
+    expect(buttons).toHaveLength(3);
+    expect(buttons[1].getAttribute("aria-pressed")).toBe("true");
+    act(() => buttons[2].click());
+
+    const [updater, markCustom] = onPreview.mock.calls[0];
+    expect(updater(preferences).appearance.fontSizeOffset).toBe(4);
+    expect(markCustom).toBe(false);
+    const apply = Array.from(document.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("应用设置"));
+    expect(apply!.disabled).toBe(false);
+  });
 });
