@@ -107,7 +107,8 @@ export function AnimatedModal({
         onCloseRef.current();
         return;
       }
-      if (event.key !== "Tab") return;
+      // 菜单已处理的 Tab 不再被下面的预览焦点循环覆盖。
+      if (event.key !== "Tab" || event.defaultPrevented) return;
 
       const panel = panelRef.current;
       if (!panel) return;

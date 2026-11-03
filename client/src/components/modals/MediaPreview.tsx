@@ -1,4 +1,5 @@
 import { Download, ImagePlus, Loader2, X } from "lucide-react";
+import { DropdownMenu } from "radix-ui";
 import { type ReactNode, useRef, useState } from "react";
 import { downloadImage } from "../../lib/download";
 import { AnimatedModal } from "../ui/AnimatedModal";
@@ -82,13 +83,18 @@ export function MediaPreview({
   const selectedIndex = Math.max(0, Math.min(selection?.key === groupKey ? selection.index : latestIndex, latestIndex));
   const isVideo = current?.kind === "video";
   const hasComparison = previous.length > 0;
+  // 更换任务或历史版本列表后重建菜单，避免继续操作旧任务的下载选项。
+  const downloadMenuKey = JSON.stringify([groupKey, ...media.map((item) => item.url)]);
 
-  const handleDownload = async () => {
-    if (!current || downloadName === undefined || downloadInProgressRef.current) return;
+  const handleDownload = async (index = media.length - 1) => {
+    const target = media[index];
+    if (!target || downloadName === undefined || downloadInProgressRef.current) return;
     downloadInProgressRef.current = true;
     setIsDownloading(true);
     try {
-      await downloadImage(current.url, downloadName, isVideo ? "video" : "image");
+      // 版本号放在文件名前面，长提示词被截断时仍能区分各个版本。
+      const fileName = hasComparison ? `V${index + 1} ${downloadName}` : downloadName;
+      await downloadImage(target.url, fileName, target.kind === "video" ? "video" : "image");
     } catch {
       Message.error("下载失败，请重试");
     } finally {
@@ -106,10 +112,40 @@ export function MediaPreview({
     >
       <div className="image-preview-actions">
         {downloadName !== undefined ? (
-          <button type="button" className="image-preview-action" onClick={() => void handleDownload()} disabled={isDownloading}
-            title={downloadLabel ?? (isVideo ? "下载视频" : "下载图片")} aria-label={downloadLabel ?? (isVideo ? "下载视频" : "下载图片")}>
-            {isDownloading ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
-          </button>
+          hasComparison ? (
+            <DropdownMenu.Root key={downloadMenuKey} modal={false}>
+              <DropdownMenu.Trigger asChild>
+                <button type="button" className="image-preview-action" disabled={isDownloading}
+                  title="选择下载版本" aria-label="选择下载版本">
+                  {isDownloading ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="preview-download-menu" align="end" sideOffset={8} collisionPadding={12}
+                  // Escape 先关闭版本菜单，不穿透关闭下面的图片预览。
+                  onEscapeKeyDown={(event) => event.stopPropagation()}
+                  aria-label="选择下载版本">
+                  <DropdownMenu.Label className="preview-download-menu-heading">下载生成版本</DropdownMenu.Label>
+                  {media.map((item, index) => (
+                    <DropdownMenu.Item key={`${index}-${item.url}`} className="preview-download-menu-item"
+                      disabled={isDownloading} onSelect={() => void handleDownload(index)}
+                      aria-label={`下载 V${index + 1}${index === media.length - 1 ? "（当前版本）" : ""}`}>
+                      <span className="preview-download-thumbnail" aria-hidden="true"><PreviewMediaView media={item} thumbnail /></span>
+                      <strong>V{index + 1}</strong>
+                      {index === media.length - 1 ? <span className="preview-download-version-tag is-current">当前版本</span>
+                        : index === selectedIndex ? <span className="preview-download-version-tag">对比中</span> : null}
+                      <Download size={15} className="preview-download-item-icon" aria-hidden="true" />
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          ) : (
+            <button type="button" className="image-preview-action" onClick={() => void handleDownload()} disabled={isDownloading}
+              title={downloadLabel ?? (isVideo ? "下载视频" : "下载图片")} aria-label={downloadLabel ?? (isVideo ? "下载视频" : "下载图片")}>
+              {isDownloading ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
+            </button>
+          )
         ) : null}
         {current && onUseImage && !isVideo ? (
           <button type="button" className="image-preview-action" onClick={() => onUseImage(current.url)} title="作为参考图引用" aria-label="作为参考图引用">

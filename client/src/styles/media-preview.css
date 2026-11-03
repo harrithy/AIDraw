@@ -10,6 +10,7 @@
 
 .media-preview-content {
   display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   flex: 1 1 auto;
   place-items: center;
   width: 100%;
@@ -22,9 +23,12 @@
 .media-preview-content > .retrying-image-wrapper,
 .image-comparison-layer > .retrying-image-wrapper {
   display: grid;
+  /* 网格轨道允许缩小，避免图片的原始高度撑开容器后被 overflow 裁掉。 */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
   height: 100%;
   min-height: 0;
+  min-width: 0;
 }
 
 .media-preview-content img,
@@ -33,19 +37,47 @@
 .image-comparison-layer video {
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   max-height: 100%;
   object-fit: contain;
 }
 
-.media-preview-panel .image-comparison-grid { flex: 1 1 auto; height: min(62dvh, 680px); }
+.media-preview-panel .image-comparison-grid { flex: 1 1 auto; height: min(62dvh, 680px); grid-template-rows: minmax(0, 1fr); }
+/* 对比区先扣除版本标题，再让媒体填满剩余轨道。 */
 .media-preview-panel .image-comparison-stage,
-.media-preview-panel .image-comparison-pane .media-preview-content { height: 100%; min-height: 0; }
+.media-preview-panel .image-comparison-pane .media-preview-content { height: auto; min-height: 0; }
 .media-preview-panel .image-version-picker,
 .media-preview-panel .image-preview-caption { flex-shrink: 0; }
 /* 为操作栏保留独立空间，避免关闭按钮遮住图片或当前版本编号。 */
 .media-preview-panel .image-preview-actions { position: static; flex-shrink: 0; align-self: flex-end; }
 .media-preview-panel .image-preview-actions svg { width: 18px; height: 18px; }
 .media-preview-panel .image-version-list video { width: 100%; height: 100%; object-fit: cover; }
+
+/* 下载菜单独立于预览尺寸，历史较多时在菜单内滚动。 */
+.preview-download-menu {
+  z-index: 110;
+  width: min(248px, calc(100vw - 24px));
+  max-height: min(440px, var(--radix-dropdown-menu-content-available-height, calc(100dvh - 24px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px;
+  background: var(--panel-strong);
+  color: var(--ink);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 18%);
+}
+.preview-download-menu-heading { padding: 6px 8px 8px; color: var(--muted); font-size: calc(11px + var(--ui-font-size-offset)); }
+.preview-download-menu-item { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer; outline: none; user-select: none; }
+.preview-download-menu-item[data-highlighted] { background: var(--subtle); }
+.preview-download-menu-item[data-disabled] { opacity: 0.5; pointer-events: none; }
+.preview-download-menu-item > strong { font-size: calc(12px + var(--ui-font-size-offset)); }
+.preview-download-thumbnail { display: block; flex: 0 0 42px; width: 42px; height: 42px; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: var(--subtle); }
+.preview-download-thumbnail img, .preview-download-thumbnail video { width: 100%; height: 100%; object-fit: contain; }
+.preview-download-version-tag { color: var(--muted); font-size: calc(10px + var(--ui-font-size-offset)); }
+.preview-download-version-tag.is-current { color: var(--green-dark); }
+.preview-download-item-icon { flex-shrink: 0; margin-left: auto; color: var(--muted); }
 
 /* 将淡入淡出放在包裹层上，加载重试不会重置当前选中的历史版本。 */
 .image-comparison-stage > .image-comparison-layer { transition: opacity 280ms ease, visibility 280ms ease; }
