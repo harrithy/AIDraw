@@ -27,6 +27,7 @@ import { useUiPreferences } from "./hooks/useUiPreferences";
 import { BOARD_PADDING, calculateLayoutPositions, getPositionedJobs, type LayoutDirection, type PositionedJob } from "./lib/canvas";
 import { areJobSnapshotsEqual, getLatestOutputTime, isSameProviderSettings, isSameQueue } from "./lib/appSnapshots";
 import { getJobOutputImages } from "./lib/jobImages";
+import { getGeneratedImageStats } from "./lib/generatedImageStats";
 import type {
   CreateJobPayload,
   DrawFolder,
@@ -219,6 +220,7 @@ function App() {
   const completedJobs = jobs.filter((job) => job.status === "completed").length;
   const inFlightJobs = jobs.filter((job) => job.status === "pending" || job.status === "running").length;
   const failedJobsCount = useMemo(() => jobs.filter((job) => job.status === "failed").length, [jobs]);
+  const generatedImageStats = useMemo(() => getGeneratedImageStats(folders, allJobs), [folders, allJobs]);
 
   const {
     canvasDrag,
@@ -334,7 +336,7 @@ function App() {
   }, []);
 
   /**
-   * 加载所有文件夹下的所有任务（用于跨文件夹全局搜索）。
+   * 加载所有文件夹下的任务，供全局搜索与生成图片统计共用。
    */
   const loadAllJobs = useCallback(async () => {
     try {
@@ -975,6 +977,7 @@ function App() {
 
       <CanvasToolbar
         zoom={activeFolder?.canvasZoom ?? 1}
+        generatedImageCount={generatedImageStats.total}
         darkMode={darkMode}
         onZoomOut={() => zoomCanvas(-0.1)}
         onZoomIn={() => zoomCanvas(0.1)}
@@ -1033,6 +1036,7 @@ function App() {
       <LeftSidebar
         isOpen={leftOpen}
         folders={folders}
+        generatedImageStats={generatedImageStats}
         activeFolderId={activeFolderId}
         folderName={folderName}
         onFolderNameChange={setFolderName}

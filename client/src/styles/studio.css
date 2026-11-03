@@ -49,6 +49,8 @@ button:focus-visible, summary:focus-visible, a:focus-visible {
 .folder-item .folder-name::after { position: absolute; inset: 0; content: ""; border-radius: inherit; }
 .folder-item .folder-actions, .folder-name-input { z-index: 1; }
 .folder-item small { font-size: calc(10px + var(--ui-font-size-offset)); color: var(--muted); }
+.folder-item .folder-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px; }
+.folder-image-count { font-variant-numeric: tabular-nums; }
 .folder-item.active .folder-icon { fill: color-mix(in srgb, var(--green) 12%, transparent); }
 .folder-item:focus-within .folder-actions { opacity: 1; }
 .sidebar-empty { display: grid; justify-items: center; gap: 10px; padding: 44px 15px; color: var(--muted); text-align: center; }
@@ -112,6 +114,11 @@ button:focus-visible, summary:focus-visible, a:focus-visible {
 .toolbar-menu-content .announcement-badge-count { top: 8px; right: 8px; }
 .toolbar-organize .toolbar-menu-content { left: 0; right: auto; }
 .app-shell .floating-toolbar .toolbar-settings { display: flex !important; gap: 7px; width: auto !important; padding: 0 9px; color: var(--ink) !important; font-size: calc(11px + var(--ui-font-size-offset)); }
+/* 图片图标配合数量保持工具栏简洁，统计说明通过悬停和无障碍标签提供。 */
+.toolbar-image-count { display: flex; flex-shrink: 0; align-items: center; gap: 6px; height: 31px; margin-left: 4px; padding: 0 8px; border-left: 1px solid var(--line); color: var(--muted); font-size: calc(10px + var(--ui-font-size-offset)); white-space: nowrap; }
+.toolbar-image-count > svg { flex-shrink: 0; }
+/* 收紧数字行盒并向下微调 1px，让字形与图标在视觉上居中。 */
+.toolbar-image-count strong { display: inline-flex; align-items: center; justify-content: center; min-width: 1ch; line-height: 1; transform: translateY(1px); color: var(--ink); font-size: calc(12px + var(--ui-font-size-offset)); font-weight: 600; font-variant-numeric: tabular-nums; }
 .toolbar-menu .folder-transfer-controls { display: grid; gap: 3px; padding-bottom: 5px; margin-bottom: 3px; border-bottom: 1px solid var(--line); }
 .app-shell[class] .floating-top, .app-shell.ui-toolbar-top-center .floating-top, .app-shell.ui-toolbar-top-right .floating-top { top: 26px; right: 28px; gap: 16px; left: auto; }
 .metrics { display: flex; gap: 0; padding: 0; }
@@ -277,6 +284,8 @@ button:focus-visible, summary:focus-visible, a:focus-visible {
   .toolbar-menu summary { padding-inline: 4px; }
   .toolbar-organize summary > svg:last-child { display: none; }
   .app-shell .floating-toolbar .toolbar-settings { padding: 0 4px; }
+  .toolbar-image-count { gap: 4px; margin-left: 2px; padding-inline: 4px; }
+  .toolbar-image-count strong { font-size: calc(10px + var(--ui-font-size-offset)); }
   .search-group { width: 28px; }
   .search-group.expanded { position: absolute; top: 50px; left: 0; width: min(300px, calc(100vw - 24px)); height: 37px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: var(--shadow); z-index: 5; }
   .toolbar-menu-content { right: -34px; }

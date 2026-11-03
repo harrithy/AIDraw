@@ -1,6 +1,7 @@
 import { ArrowUpRight, Edit2, Folder, FolderPlus, HardDrive, Layers, Trash2 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { formatDate } from "../../lib/format";
+import type { GeneratedImageStats } from "../../lib/generatedImageStats";
 import type { DrawFolder } from "../../types";
 import { Button } from "../ui/button";
 import {
@@ -18,6 +19,8 @@ type LeftSidebarProps = {
   isOpen: boolean;
   /** 所有文件夹列表 */
   folders: DrawFolder[];
+  /** 全部文件夹及各文件夹当前保留的生成图片数量，包含重绘历史。 */
+  generatedImageStats: GeneratedImageStats;
   /** 当前激活的文件夹 ID */
   activeFolderId: string | null;
   folderName: string;
@@ -35,6 +38,7 @@ type LeftSidebarProps = {
 export function LeftSidebar({
   isOpen,
   folders,
+  generatedImageStats,
   activeFolderId,
   folderName,
   onFolderNameChange,
@@ -128,7 +132,12 @@ export function LeftSidebar({
               </button>
             )}
 
-            <small>{formatDate(folder.createdAt)}</small>
+            <small className="folder-meta">
+              <span>{formatDate(folder.createdAt)}</span>
+              <span className="folder-image-count" aria-label={`${folder.name}已生成图片数量`}>
+                {(generatedImageStats.byFolderId.get(folder.id) ?? 0).toLocaleString("zh-CN")} 张图片
+              </span>
+            </small>
 
             {!editingFolderId && (
               <div className="folder-actions" onClick={(e) => e.stopPropagation()}>

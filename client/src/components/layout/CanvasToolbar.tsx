@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowRight, Cat, Check, ChevronDown, CircleHelp, Clock, Copy, Folder, Github, Images, LayoutGrid, ListFilter, LocateFixed, Maximize2, Megaphone, Moon, MoreHorizontal, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowDown, ArrowRight, Cat, Check, ChevronDown, CircleHelp, Clock, Copy, Folder, Github, Image, Images, LayoutGrid, ListFilter, LocateFixed, Maximize2, Megaphone, Moon, MoreHorizontal, RefreshCw, Search, Settings, SlidersHorizontal, Sun, Trash2, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { LayoutDirection } from "../../lib/canvas";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import { matchJobSearch, splitHighlight, type JobSearchMatch } from "../../lib/jobSearch";
@@ -11,6 +11,8 @@ import { GlobalAssetLibrary } from "../panels/GlobalAssetLibrary";
 type CanvasToolbarProps = {
   /** 当前画布缩放比例 */
   zoom: number;
+  /** 全部文件夹当前保留的生成图片总数，包含重绘历史。 */
+  generatedImageCount: number;
   /** 是否处于深色模式 */
   darkMode: boolean;
   onZoomOut: () => void;
@@ -99,6 +101,7 @@ function HighlightedText({ text, indices }: { text: string; indices: number[] | 
  */
 export function CanvasToolbar({
   zoom,
+  generatedImageCount,
   darkMode,
   onZoomOut,
   onZoomIn,
@@ -642,6 +645,15 @@ export function CanvasToolbar({
         </button>
           </div>
         </details>
+        {/* 全局图片数量常驻工具栏，收起侧栏或隐藏队列统计时仍可查看。 */}
+        <div
+          className="toolbar-image-count"
+          aria-label={`全部文件夹共生成 ${generatedImageCount.toLocaleString("zh-CN")} 张图片`}
+          title={`全部文件夹当前保留 ${generatedImageCount.toLocaleString("zh-CN")} 张生成图片，包含重绘历史；不含参考图、视频和其他结果。`}
+        >
+          <Image size={16} strokeWidth={1.7} aria-hidden="true" />
+          <strong>{generatedImageCount.toLocaleString("zh-CN")}</strong>
+        </div>
         <button type="button" className="toolbar-settings" onClick={onOpenApiSettings} title="接口设置" data-tour="api-settings">
           <Settings size={16} /><span>接口设置</span>
         </button>

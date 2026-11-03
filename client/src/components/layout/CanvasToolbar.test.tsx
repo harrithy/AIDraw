@@ -70,6 +70,7 @@ describe("CanvasToolbar 全局搜索下拉", () => {
       root.render(
         <CanvasToolbar
           zoom={1}
+          generatedImageCount={0}
           darkMode={false}
           onZoomOut={() => {}}
           onZoomIn={() => {}}
