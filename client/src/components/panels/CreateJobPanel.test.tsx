@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateJobPanel } from "./CreateJobPanel";
 import { createCustomProviderTemplate } from "../../lib/customProviders";
+import { writeReferenceImageDrag } from "../../lib/referenceImageDrag";
 
 vi.mock("@gsap/react", () => ({ useGSAP: () => undefined }));
 vi.mock("@/components/ui/prompt-polish", () => ({ PromptPolish: () => null }));
@@ -32,6 +33,35 @@ describe("CreateJobPanel 暂停多米能力", () => {
     act(() => root.unmount());
     container.remove();
     localStorage.clear();
+  });
+
+  it("新建表单也接收素材链接，避免浏览器打开拖入地址或重复上传", async () => {
+    const onUpload = vi.fn();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    localStorage.setItem("aidraw-draft-drag-folder", JSON.stringify({ prompt: "厨房", count: 1, model: "gpt-image-2" }));
+    await act(async () => root.render(<CreateJobPanel activeFolderId="drag-folder" apiProviderId="duomi"
+      isSubmitting={false} variant="composer" onSubmit={onSubmit} onUploadImage={onUpload} />));
+    const values = new Map<string, string>();
+    const transfer = {
+      files: [], items: [], get types() { return [...values.keys()]; },
+      setData: (type: string, value: string) => values.set(type, value),
+      getData: (type: string) => values.get(type) ?? ""
+    } as unknown as DataTransfer;
+    writeReferenceImageDrag(transfer, {
+      id: "asset", folderId: "drag-folder", url: "https://example.test/table.png", originalName: "餐桌.png",
+      mimeType: "image/png", byteSize: 1, createdAt: "2026-11-03"
+    });
+    // 连续放入同一素材，应只新增一个参考图并直接将链接交给任务。
+    for (let index = 0; index < 2; index += 1) {
+      const event = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "dataTransfer", { value: transfer });
+      await act(async () => container.querySelector("form")!.dispatchEvent(event));
+      expect(event.defaultPrevented).toBe(true);
+    }
+    expect(container.querySelectorAll('.composer-attachments img[alt="餐桌.png"]')).toHaveLength(1);
+    expect(onUpload).not.toHaveBeenCalled();
+    await act(async () => container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(onSubmit.mock.calls[0][0].inputImageUrls).toEqual(["https://example.test/table.png"]);
   });
 
   it.each(["composer", "panel"] as const)("%s 不允许切换，旧能力草稿仍按模型提交", async (variant) => {

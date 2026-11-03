@@ -17,6 +17,7 @@ import {
 import { type ChangeEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { UploadedImage } from "../../types";
 import { prefersReducedMotion } from "../../lib/motion";
+import { writeReferenceImageDrag } from "../../lib/referenceImageDrag";
 import { MediaPreview } from "../modals/MediaPreview";
 import { Button } from "../ui/button";
 import {
@@ -431,6 +432,10 @@ export function GlobalAssetLibrary({
                             <button
                               type="button"
                               className="uploaded-image-preview-button"
+                              draggable={!isUploadedVideo(image)}
+                              onDragStart={(event) => {
+                                if (!writeReferenceImageDrag(event.dataTransfer, image)) event.preventDefault();
+                              }}
                               onClick={() => setPreviewImage(image)}
                               title={`预览 ${image.originalName}`}
                               style={{

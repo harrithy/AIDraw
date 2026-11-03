@@ -919,7 +919,7 @@ function App() {
   return (
     <main
       ref={appRef}
-      className={`app-shell${darkMode ? " dark" : ""}${animeMode ? " anime-theme" : ""} ${leftOpen ? "sidebar-open" : "sidebar-closed"} ui-toolbar-${preferences.page.toolbarPosition} ui-composer-${preferences.page.composerPosition}`}
+      className={`app-shell${darkMode ? " dark" : ""}${animeMode ? " anime-theme" : ""}${editingRetryJob ? " reference-editing" : ""} ${leftOpen ? "sidebar-open" : "sidebar-closed"} ui-toolbar-${preferences.page.toolbarPosition} ui-composer-${preferences.page.composerPosition}`}
       style={appStyle}
     >
       <WorkflowCanvas
@@ -952,7 +952,7 @@ function App() {
         cardPreferences={preferences.card}
       />
 
-      {preferences.page.showMetrics || (preferences.page.showAssetLibrary && activeFolder) ? (
+      {preferences.page.showMetrics || ((preferences.page.showAssetLibrary || editingRetryJob) && activeFolder) ? (
         <header className="floating-top" data-layout-obstacle="top-panel">
           {preferences.page.showMetrics ? (
             <div className="metrics">
@@ -962,7 +962,7 @@ function App() {
               <Metric label="处理中" value={String(inFlightJobs)} />
             </div>
           ) : null}
-          {preferences.page.showAssetLibrary && activeFolder ? (
+          {(preferences.page.showAssetLibrary || editingRetryJob) && activeFolder ? (
             <UploadedImageLibrary
               folderId={activeFolder.id}
               folderName={activeFolder.name}
@@ -970,6 +970,7 @@ function App() {
               isLoading={isImageLibraryLoading}
               onUseImage={useUploadedImage}
               onDeleteImage={deleteUploadedImage}
+              referenceTargetActive={Boolean(editingRetryJob)}
             />
           ) : null}
         </header>
@@ -1059,7 +1060,7 @@ function App() {
             ...current,
             page: { ...current.page, composerCollapsed }
           }))}
-          usedImage={imageToUse}
+          usedImage={editingRetryJob ? null : imageToUse}
           onSubmit={submitJobs}
           onUploadImage={uploadImage}
           onImageUsed={() => setImageToUse(null)}
@@ -1105,6 +1106,8 @@ function App() {
             open={Boolean(editingRetryJob)}
             job={editingRetryJob}
             isSubmitting={isRegenerating}
+            usedImage={imageToUse}
+            onImageUsed={() => setImageToUse(null)}
             onClose={() => setEditingRetryJob(null)}
             onUploadImage={uploadImage}
             onConfirm={confirmRegenerate}

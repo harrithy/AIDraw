@@ -40,6 +40,7 @@ import {
   type SupportedImageModel
 } from "../../lib/imageModels";
 import { uploadRegistry } from "../../lib/uploadRegistry";
+import { hasReferenceImageDrag, readReferenceImageDrag } from "../../lib/referenceImageDrag";
 import type { PublicCustomProvider } from "../../lib/customProviders";
 
 const grokVideoSizeOptions: Array<{ label: string; value: SizeMode }> = [
@@ -632,7 +633,7 @@ export function CreateJobPanel({
   };
 
   const dragImages = (event: DragEvent<HTMLElement>) => {
-    if (!hasDraggedImage(event)) return;
+    if (!hasDraggedImage(event) && !hasReferenceImageDrag(event.dataTransfer)) return;
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = "copy";
@@ -641,14 +642,14 @@ export function CreateJobPanel({
   };
 
   const holdDraggedImages = (event: DragEvent<HTMLElement>) => {
-    if (!isDragActive && !hasDraggedImage(event)) return;
+    if (!isDragActive && !hasDraggedImage(event) && !hasReferenceImageDrag(event.dataTransfer)) return;
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = "copy";
   };
 
   const leaveDraggedImages = (event: DragEvent<HTMLElement>) => {
-    if (!isDragActive && !hasDraggedImage(event)) return;
+    if (!isDragActive && !hasDraggedImage(event) && !hasReferenceImageDrag(event.dataTransfer)) return;
     event.preventDefault();
     event.stopPropagation();
     dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
@@ -656,6 +657,16 @@ export function CreateJobPanel({
   };
 
   const dropImages = (event: DragEvent<HTMLElement>) => {
+    if (hasReferenceImageDrag(event.dataTransfer) && event.dataTransfer.files.length === 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      dragDepthRef.current = 0;
+      setIsDragActive(false);
+      const image = readReferenceImageDrag(event.dataTransfer);
+      if (image) addReferenceImageUrl(image.url, image.originalName);
+      else Message.error("请拖入有效的图片素材");
+      return;
+    }
     const hasFiles = event.dataTransfer.files.length > 0;
     if (!hasFiles && !hasDraggedImage(event)) return;
 
@@ -690,7 +701,7 @@ export function CreateJobPanel({
     });
   };
 
-  const addReferenceImageUrl = (rawValue: string) => {
+  const addReferenceImageUrl = (rawValue: string, originalName?: string) => {
     const url = rawValue.trim();
     if (!url) {
       return;
@@ -699,6 +710,7 @@ export function CreateJobPanel({
       Message.error("参考图片 URL 需要以 http:// 或 https:// 开头");
       return;
     }
+    if (inputImages.some((image) => image.url === url)) return;
     if (isDuomiNanoBanana && inputImages.length >= MAX_NANO_BANANA_REFERENCE_IMAGES) {
       Message.error(`NANO-BANANA 最多支持 ${MAX_NANO_BANANA_REFERENCE_IMAGES} 张参考图`);
       return;
@@ -707,14 +719,14 @@ export function CreateJobPanel({
     const hostname = new URL(url).hostname;
     const refId = `url-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setInputImages((current) =>
-      current.some((image) => image.url === url)
+      current.some((image) => image.url === url) || (isDuomiNanoBanana && current.length >= MAX_NANO_BANANA_REFERENCE_IMAGES)
         ? current
         : [
             ...current,
             {
               id: refId,
               url,
-              originalName: hostname || "参考图片 URL"
+              originalName: originalName || hostname || "参考图片 URL"
             }
           ]
     );

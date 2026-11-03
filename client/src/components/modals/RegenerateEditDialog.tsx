@@ -4,16 +4,19 @@ import {
   type ClipboardEvent,
   type DragEvent,
   type FormEvent,
+  useCallback,
   useEffect,
   useRef,
   useState
 } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Message } from "@/components/ui/message";
 import { PromptPolish } from "@/components/ui/prompt-polish";
 import { Textarea } from "@/components/ui/textarea";
+import { hasReferenceImageDrag, readReferenceImageDrag } from "../../lib/referenceImageDrag";
 import {
   Dialog,
   DialogContent,
@@ -116,6 +119,8 @@ type RegenerateEditDialogProps = {
   onClose: () => void;
   onUploadImage: (file: File) => Promise<UploadResult>;
   onConfirm: (jobId: string, edits: RegenerateEdits) => Promise<void>;
+  usedImage?: string | null;
+  onImageUsed?: () => void;
 };
 
 type SizeMode = PresetDrawSize | "custom";
@@ -217,7 +222,7 @@ const normalizeThinking = (value: DrawJob["thinking"]): ThinkingValue =>
 /**
  * 重绘编辑对话框。
  * 任务完成或失败后，允许修改提示词、模型、尺寸、参考图等参数后重新生成。
- * 复用 CreateJobPanel 的模型选择和图片上传逻辑（通过内嵌 CreateJobPanel 实现）。
+ * 接收外部素材拖拽，保留本地上传、粘贴及模型参数编辑。
  */
 export function RegenerateEditDialog({
   apiProviderId,
@@ -226,7 +231,9 @@ export function RegenerateEditDialog({
   isSubmitting,
   onClose,
   onUploadImage,
-  onConfirm
+  onConfirm,
+  usedImage,
+  onImageUsed
 }: RegenerateEditDialogProps) {
   const [prompt, setPrompt] = useState("");
   const [sizeMode, setSizeMode] = useState<SizeMode>("auto");
@@ -354,11 +361,16 @@ export function RegenerateEditDialog({
     }
   };
 
-  const addReferenceImageUrl = (rawValue: string) => {
+  const addReferenceImageUrl = useCallback((rawValue: string, originalName?: string) => {
     const url = rawValue.trim();
     if (!url) return;
     if (!isRemoteImageUrl(url)) {
       Message.error("参考图片 URL 需要以 http:// 或 https:// 开头");
+      return;
+    }
+    if (inputImages.some((image) => image.url === url)) return;
+    if (isUploading || isSubmitting) {
+      Message.error("正在处理图片，请稍后再添加参考图");
       return;
     }
     if (isDuomiNanoBanana && inputImages.length >= MAX_NANO_BANANA_REFERENCE_IMAGES) {
@@ -367,11 +379,37 @@ export function RegenerateEditDialog({
     }
     const hostname = new URL(url).hostname;
     setInputImages((current) =>
-      current.some((image) => image.url === url)
+      current.some((image) => image.url === url) || (isDuomiNanoBanana && current.length >= MAX_NANO_BANANA_REFERENCE_IMAGES)
         ? current
-        : [...current, { url, originalName: hostname || "参考图片 URL" }]
+        : [...current, { url, originalName: originalName || hostname || "参考图片 URL" }]
     );
-  };
+  }, [inputImages, isUploading, isSubmitting, isDuomiNanoBanana]);
+
+  // 外部素材的「用作参考图」按钮也交给当前编辑器处理，兼容触屏操作。
+  useEffect(() => {
+    if (!open || !usedImage) return;
+    addReferenceImageUrl(usedImage);
+    onImageUsed?.();
+  }, [open, usedImage, onImageUsed, addReferenceImageUrl]);
+
+  // 放开素材面板的焦点访问后，Tab 仍只在编辑器和素材面板之间循环。
+  useEffect(() => {
+    if (!open) return;
+    const cycleEditingFocus = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || event.defaultPrevented || document.querySelector(".media-preview-panel, [role='listbox'], [data-slot='dialog-content']:not(.regenerate-edit-dialog)")) return;
+      const controls = Array.from(document.querySelectorAll<HTMLElement>(
+        ".regenerate-edit-dialog button, .regenerate-edit-dialog input, .regenerate-edit-dialog textarea, .is-reference-source button, .is-reference-source input"
+      )).filter((element) => !element.matches(":disabled, [tabindex='-1']") && element.getClientRects().length > 0);
+      if (controls.length === 0) return;
+      const index = controls.indexOf(document.activeElement as HTMLElement);
+      const nextIndex = index < 0 ? (event.shiftKey ? controls.length - 1 : 0)
+        : (index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+      event.preventDefault();
+      controls[nextIndex]?.focus();
+    };
+    document.addEventListener("keydown", cycleEditingFocus);
+    return () => document.removeEventListener("keydown", cycleEditingFocus);
+  }, [open]);
 
   const pasteImages = (event: ClipboardEvent<HTMLElement>) => {
     const pastedText = event.clipboardData.getData("text").trim();
@@ -395,7 +433,7 @@ export function RegenerateEditDialog({
   };
 
   const dragImages = (event: DragEvent<HTMLElement>) => {
-    if (!hasDraggedImage(event)) return;
+    if (!hasDraggedImage(event) && !hasReferenceImageDrag(event.dataTransfer)) return;
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = "copy";
@@ -404,14 +442,14 @@ export function RegenerateEditDialog({
   };
 
   const holdDraggedImages = (event: DragEvent<HTMLElement>) => {
-    if (!isDragActive && !hasDraggedImage(event)) return;
+    if (!isDragActive && !hasDraggedImage(event) && !hasReferenceImageDrag(event.dataTransfer)) return;
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = "copy";
   };
 
   const leaveDraggedImages = (event: DragEvent<HTMLElement>) => {
-    if (!isDragActive && !hasDraggedImage(event)) return;
+    if (!isDragActive && !hasDraggedImage(event) && !hasReferenceImageDrag(event.dataTransfer)) return;
     event.preventDefault();
     event.stopPropagation();
     dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
@@ -419,6 +457,16 @@ export function RegenerateEditDialog({
   };
 
   const dropImages = (event: DragEvent<HTMLElement>) => {
+    if (hasReferenceImageDrag(event.dataTransfer) && event.dataTransfer.files.length === 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      dragDepthRef.current = 0;
+      setIsDragActive(false);
+      const image = readReferenceImageDrag(event.dataTransfer);
+      if (image) addReferenceImageUrl(image.url, image.originalName);
+      else Message.error("请拖入有效的图片素材");
+      return;
+    }
     const hasFiles = event.dataTransfer.files.length > 0;
     if (!hasFiles && !hasDraggedImage(event)) return;
     event.preventDefault();
@@ -609,8 +657,24 @@ export function RegenerateEditDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next && !isSubmitting) onClose(); }}>
-      <DialogContent showCloseButton={!isSubmitting} className="regenerate-edit-dialog sm:max-w-lg">
+    <Dialog modal={false} open={open} onOpenChange={(next) => { if (!next && !isSubmitting) onClose(); }}>
+      {/* 单独遮罩保留背景隔离，同时允许原有素材面板高于遮罩接收拖拽。 */}
+      {open ? createPortal(<div className="regenerate-edit-backdrop" aria-hidden="true" />, document.body) : null}
+      <DialogContent
+        showCloseButton={!isSubmitting}
+        className="regenerate-edit-dialog sm:max-w-lg"
+        onInteractOutside={(event) => {
+          const target = event.target;
+          // 素材列表与公共图片预览属于编辑流程，不触发外部点击关闭。
+          if (document.querySelector(".uploaded-image-delete-dialog") ||
+            (target instanceof Element && target.closest(".uploaded-image-library-anchor, .image-preview-backdrop"))) {
+            event.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={(event) => {
+          if (document.querySelector(".media-preview-panel")) event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{isVideo ? "重新编辑并生成视频" : "重新编辑并绘制"}</DialogTitle>
           <DialogDescription>修改参数后重新生成，结果会作为新版本更新到当前任务卡片。</DialogDescription>
@@ -643,7 +707,7 @@ export function RegenerateEditDialog({
             />
           </Field>
 
-          <div className="reference-upload-group">
+          <div className={`reference-upload-group${isDragActive ? " is-dragging" : ""}`} aria-label="参考图拖放区域">
             <label className={`upload-box${isDragActive ? " is-dragging" : ""}${inputImages.length > 0 ? " has-attachments" : ""}`}>
               <input type="file" accept="image/*" multiple onChange={uploadImage} />
               {isUploading ? <Loader2 className="spin" size={20} /> : <ImagePlus size={20} />}

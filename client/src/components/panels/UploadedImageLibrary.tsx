@@ -14,6 +14,7 @@ import { type CSSProperties, useEffect, useId, useMemo, useRef, useState } from 
 import type { UploadedImage } from "../../types";
 import { formatDate } from "../../lib/format";
 import { prefersReducedMotion } from "../../lib/motion";
+import { writeReferenceImageDrag } from "../../lib/referenceImageDrag";
 import { MediaPreview } from "../modals/MediaPreview";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -35,6 +36,8 @@ type UploadedImageLibraryProps = {
   isLoading: boolean;
   onUseImage: (url: string) => void;
   onDeleteImage: (imageId: string) => Promise<void>;
+  /** 编辑重绘时保持原面板展开，供外部拖入参考图。 */
+  referenceTargetActive?: boolean;
 };
 
 const dateLabelFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -67,7 +70,8 @@ export function UploadedImageLibrary({
   images,
   isLoading,
   onUseImage,
-  onDeleteImage
+  onDeleteImage,
+  referenceTargetActive = false
 }: UploadedImageLibraryProps) {
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -75,6 +79,7 @@ export function UploadedImageLibrary({
   const hasOpenedRef = useRef(false);
   const popoverId = useId();
   const [isOpen, setIsOpen] = useState(false);
+  const libraryOpen = isOpen || referenceTargetActive;
   const [dateFilter, setDateFilter] = useState("");
   const [previewImage, setPreviewImage] = useState<UploadedImage | null>(null);
   const [deleteImage, setDeleteImage] = useState<UploadedImage | null>(null);
@@ -90,7 +95,7 @@ export function UploadedImageLibrary({
   }, [folderId]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || referenceTargetActive) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
       // 公共预览已处理的 Escape 不再穿透关闭下面的素材列表。
@@ -103,7 +108,7 @@ export function UploadedImageLibrary({
     return () => {
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [isOpen]);
+  }, [isOpen, referenceTargetActive]);
 
   useGSAP(
     () => {
@@ -114,15 +119,15 @@ export function UploadedImageLibrary({
 
       if (prefersReducedMotion()) {
         gsap.set(popover, {
-          autoAlpha: isOpen ? 1 : 0,
+          autoAlpha: libraryOpen ? 1 : 0,
           y: 0,
           scale: 1,
-          pointerEvents: isOpen ? "auto" : "none"
+          pointerEvents: libraryOpen ? "auto" : "none"
         });
         return;
       }
 
-      if (isOpen) {
+      if (libraryOpen) {
         hasOpenedRef.current = true;
         gsap.set(popover, { pointerEvents: "auto" });
         gsap.fromTo(
@@ -166,7 +171,7 @@ export function UploadedImageLibrary({
         overwrite: "auto"
       });
     },
-    { dependencies: [isOpen], scope: anchorRef }
+    { dependencies: [libraryOpen], scope: anchorRef }
   );
 
   const groupedImages = useMemo(() => {
@@ -213,7 +218,7 @@ export function UploadedImageLibrary({
     <>
       <div
         ref={anchorRef}
-        className="uploaded-image-library-anchor"
+        className={`uploaded-image-library-anchor${referenceTargetActive ? " is-reference-source" : ""}`}
         data-testid="uploaded-image-library"
       >
         <button
@@ -223,7 +228,7 @@ export function UploadedImageLibrary({
           onClick={() => setIsOpen((value) => !value)}
           title="上传素材"
           aria-label="上传素材"
-          aria-expanded={isOpen}
+          aria-expanded={libraryOpen}
           aria-controls={popoverId}
           aria-haspopup="dialog"
         >
@@ -237,7 +242,7 @@ export function UploadedImageLibrary({
           className="uploaded-image-library-popover"
           role="dialog"
           aria-label={`${folderName}的上传素材`}
-          aria-hidden={!isOpen}
+          aria-hidden={!libraryOpen}
         >
           <div className="uploaded-image-library-header">
             <div className="uploaded-image-library-title">
@@ -326,6 +331,10 @@ export function UploadedImageLibrary({
                               <button
                                 type="button"
                                 className="uploaded-image-preview-button"
+                                draggable={!isUploadedVideo(image)}
+                                onDragStart={(event) => {
+                                  if (!writeReferenceImageDrag(event.dataTransfer, image)) event.preventDefault();
+                                }}
                                 onClick={() => setPreviewImage(image)}
                                 title={`预览 ${image.originalName}`}
                               >
@@ -393,7 +402,7 @@ export function UploadedImageLibrary({
       />
 
       <Dialog open={Boolean(deleteImage)} onOpenChange={(open) => { if (!open && !isDeleting) setDeleteImage(null); }}>
-        <DialogContent showCloseButton={false}>
+        <DialogContent className="uploaded-image-delete-dialog" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>移除上传记录</DialogTitle>
             <DialogDescription>只会从当前文件夹的素材列表中移除，不会删除图床文件。</DialogDescription>
