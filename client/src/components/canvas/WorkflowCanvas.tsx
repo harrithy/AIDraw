@@ -1,5 +1,7 @@
-import { memo, useEffect, useMemo, useRef, type PointerEventHandler } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEventHandler } from "react";
+import { useCanvasViewport } from "../../hooks/useCanvasViewport";
 import { type PositionedJob } from "../../lib/canvas";
+import { getCanvasLinks, getVisibleCanvasJobs, getVisibleCanvasLinks } from "../../lib/canvasVisibility";
 import type { CardLayoutPreferences } from "../../lib/uiPreferences";
 import type { DrawFolder, DrawJob } from "../../types";
 import { EmptyCanvas } from "./EmptyCanvas";
@@ -77,6 +79,48 @@ export const WorkflowCanvas = memo(function WorkflowCanvas({
   cardPreferences
 }: WorkflowCanvasProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const renderBounds = useCanvasViewport(stageRef, activeFolder?.id ?? null, {
+    panX: activeFolder?.canvasPanX ?? 0,
+    panY: activeFolder?.canvasPanY ?? 0,
+    zoom: activeFolder?.canvasZoom ?? 1
+  });
+  const [retainedJobIds, setRetainedJobIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [measuredHeights, setMeasuredHeights] = useState<ReadonlyMap<string, number>>(() => new Map());
+  const onHeightChange = useCallback((jobId: string, height: number) => {
+    setMeasuredHeights((current) => {
+      if (current.get(jobId) === height) return current;
+      return new Map(current).set(jobId, height);
+    });
+  }, []);
+  const onRetentionChange = useCallback((jobId: string, retain: boolean) => {
+    setRetainedJobIds((current) => {
+      if (current.has(jobId) === retain) return current;
+      const next = new Set(current);
+      if (retain) next.add(jobId);
+      else next.delete(jobId);
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    const ids = new Set(positionedJobs.map((item) => item.job.id));
+    setRetainedJobIds((current) => {
+      const next = new Set([...current].filter((id) => ids.has(id)));
+      return next.size === current.size ? current : next;
+    });
+    setMeasuredHeights((current) => {
+      const next = new Map([...current].filter(([id]) => ids.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [positionedJobs]);
+  const visibleJobs = useMemo(
+    () => getVisibleCanvasJobs(positionedJobs, renderBounds, retainedJobIds, draggingJobId, measuredHeights),
+    [positionedJobs, renderBounds, retainedJobIds, draggingJobId, measuredHeights]
+  );
+  const links = useMemo(() => getCanvasLinks(positionedJobs), [positionedJobs]);
+  const visibleLinks = useMemo(
+    () => getVisibleCanvasLinks(links, renderBounds, draggingJobId),
+    [links, renderBounds, draggingJobId]
+  );
   /** 用 ref 存最新的 wheel handler，避免 useEffect 重复绑定/解绑事件 */
   const wheelHandlerRef = useRef(onWheel);
 
@@ -121,8 +165,8 @@ export const WorkflowCanvas = memo(function WorkflowCanvas({
               }px) scale(${activeFolder?.canvasZoom ?? 1})`
             }}
           >
-            <WorkflowLinks positionedJobs={positionedJobs} />
-            {positionedJobs.map(({ job, index, x, y, cardSize }) => (
+            <WorkflowLinks links={visibleLinks} bounds={renderBounds} />
+            {visibleJobs.map(({ job, index, x, y, cardSize }) => (
               <JobCard
                 key={job.id}
                 job={job}
@@ -140,6 +184,8 @@ export const WorkflowCanvas = memo(function WorkflowCanvas({
                 onUploadLatestMedia={onUploadLatestMedia}
                 onUseImage={onUseImage}
                 cardPreferences={cardPreferences}
+                onRetentionChange={onRetentionChange}
+                onHeightChange={onHeightChange}
               />
             ))}
           </div>

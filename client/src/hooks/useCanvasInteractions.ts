@@ -3,6 +3,7 @@ import { PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { api } from "../api";
 import { getConnectionPath, getPositionedJobs, type PositionedJob } from "../lib/canvas";
+import { notifyCanvasViewport } from "../lib/canvasVisibility";
 import type { DrawFolder, DrawJob } from "../types";
 import type { CardDragState, DragState } from "../types/ui";
 
@@ -423,6 +424,8 @@ export function useCanvasInteractions({
           if (!boardElement) return;
           const pan = pendingCanvasRef.current;
           boardElement.style.transform = `translate3d(${pan.panX}px, ${pan.panY}px, 0) scale(${activeFolder.canvasZoom})`;
+          const stage = boardElement.parentElement;
+          if (stage) notifyCanvasViewport(stage, { panX: pan.panX, panY: pan.panY, zoom: activeFolder.canvasZoom });
         });
       }
     },

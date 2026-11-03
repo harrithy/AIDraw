@@ -136,14 +136,13 @@ export function useAppAnimations({
 
       jobs.forEach((job) => {
         const card = cardByJobId.get(job.id);
-        if (!card) return;
-
-        if (!knownJobIds.has(job.id)) {
+        if (card && !knownJobIds.has(job.id)) {
           enteringCards.push(card);            // 新出现的卡片
-        } else if (knownStatuses.get(job.id) !== job.status) {
+        } else if (card && knownStatuses.get(job.id) !== job.status) {
           changedCards.push(card);             // 状态变化（如 running → completed）
         }
 
+        // 屏幕外任务也记录状态，随后滚入视口时无需重放整批历史任务入场。
         knownJobIds.add(job.id);
         knownStatuses.set(job.id, job.status);
       });

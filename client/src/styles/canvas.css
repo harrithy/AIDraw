@@ -47,17 +47,20 @@
   will-change: transform;
 }
 
+/* 平移画布时不触发卡片的悬停和工具栏反馈，减少额外的绘制工作。 */
+.canvas-stage.canvas-panning .job-card {
+  pointer-events: none;
+}
+
 .canvas-stage.dragging .workflow-link {
   animation-play-state: paused;
 }
 
 .workflow-links {
   position: absolute;
-  inset: 0;
   z-index: 1;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+  /* 连线只占据带缓冲的视口，避免为超长画布创建同样巨大的 SVG 图层。 */
+  overflow: hidden;
   pointer-events: none;
 }
 

@@ -1,5 +1,5 @@
 import { Braces, ExternalLink, Maximize2 } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import type { DrawJob, GeneratedAsset, GeneratedAssetKind } from "../../types";
 import { MediaPreview } from "../modals/MediaPreview";
@@ -8,6 +8,7 @@ import { RetryingImage } from "../ui/RetryingImage";
 /** 通用任务结果组件的属性。 */
 type JobResultContentProps = {
   job: DrawJob;
+  onPreviewOpenChange?: (open: boolean) => void;
 };
 
 const assetKindLabel: Record<GeneratedAssetKind, string> = {
@@ -128,8 +129,12 @@ const AttachmentAsset = ({ asset, index }: { asset: GeneratedAsset; index: numbe
  * 统一显示图片、视频、音频、文件、文本和结构化任务结果。
  * 新任务优先读取 outputAssets，旧任务继续兼容 outputImageUrl(s)。
  */
-export const JobResultContent = memo(function JobResultContent({ job }: JobResultContentProps) {
+export const JobResultContent = memo(function JobResultContent({ job, onPreviewOpenChange }: JobResultContentProps) {
   const [previewAsset, setPreviewAsset] = useState<GeneratedAsset | null>(null);
+  useEffect(() => {
+    onPreviewOpenChange?.(Boolean(previewAsset?.url));
+    return () => onPreviewOpenChange?.(false);
+  }, [previewAsset?.url, onPreviewOpenChange]);
   const assets = getResultAssets(job);
   const mediaAssets = assets.filter((asset) => asset.kind === "image" || asset.kind === "video");
   const attachmentAssets = assets.filter((asset) => asset.kind === "audio" || asset.kind === "file");

@@ -71,6 +71,10 @@ type JobCardProps = {
   onUploadLatestMedia?: (jobId: string) => Promise<void>;
   onUseImage?: (url: string) => void;
   cardPreferences: CardLayoutPreferences;
+  /** 有展开内容或未结束的交互时，避免视口裁剪卸载卡片。 */
+  onRetentionChange?: (jobId: string, retain: boolean) => void;
+  /** 记录富结果卡片的真实高度，滚到长内容下半部分时仍能正确裁剪。 */
+  onHeightChange?: (jobId: string, height: number) => void;
 };
 
 const statusIcon = (status: DrawJob["status"]) => {
@@ -100,7 +104,9 @@ export const JobCard = memo(function JobCard({
   onDelete,
   onUploadLatestMedia,
   onUseImage,
-  cardPreferences
+  cardPreferences,
+  onRetentionChange,
+  onHeightChange
 }: JobCardProps) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -110,10 +116,28 @@ export const JobCard = memo(function JobCard({
   const [isUploadingLatest, setIsUploadingLatest] = useState(false);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
+  const [resultPreviewOpen, setResultPreviewOpen] = useState(false);
   // 默认折叠历史版本：卡片只显示最新一张，点卡片右缘的展开按钮查看并对比新旧版本。
   // （如需默认展开并排显示所有版本，可把下面两个初始值改为 true。）
   const [versionsExpanded, setVersionsExpanded] = useState(false);
   const [renderHistory, setRenderHistory] = useState(false);
+  const retainCard = versionsExpanded || renderHistory || attachmentsExpanded || resultPreviewOpen ||
+    retryMenuOpen || showDeleteConfirm || referencePreviewUrl !== null || isDownloading || isUploadingLatest ||
+    (toolsOpen && cardPreferences.toolbarBehavior !== "hover");
+  useEffect(() => {
+    onRetentionChange?.(job.id, retainCard);
+  }, [job.id, retainCard, onRetentionChange]);
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || !onHeightChange) return;
+    const observer = new ResizeObserver(([entry]) => {
+      // 只跟踪高度，横向展开历史版本的逐帧宽度动画不触发画布重渲染。
+      const height = entry?.borderBoxSize?.[0]?.blockSize ?? card.offsetHeight;
+      onHeightChange(job.id, Math.ceil(height));
+    });
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [job.id, onHeightChange]);
   const versionAnimationRef = useRef<gsap.core.Tween | null>(null);
   const canRetry = job.status === "completed" || job.status === "failed";
   const outputImages = getJobOutputImages(job);
@@ -682,7 +706,7 @@ export const JobCard = memo(function JobCard({
         {/* 纯图片/视频任务存在多版本历史时，优先展示版本对比条；
             outputAssets 只保存最新一次的资产，直接用 JobResultContent 会丢掉旧版对比。 */}
         {hasRichResult && !(isRichMediaOnly && hasMultipleVersions) ? (
-          <JobResultContent job={job} />
+          <JobResultContent job={job} onPreviewOpenChange={setResultPreviewOpen} />
         ) : currentImageUrl ? (
           hasMultipleVersions ? (
             <div className="job-image-comparison">
