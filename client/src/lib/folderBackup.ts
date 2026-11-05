@@ -236,6 +236,8 @@ const stripImportFields = <T extends Record<string, unknown>>(job: T): Partial<T
     startedAt: _startedAt,
     queueOwnerId: _queueOwnerId,
     leaseExpiresAt: _leaseExpiresAt,
+    pendingUploads: _pendingUploads,
+    pendingUploadKeys: _pendingUploadKeys,
     ...rest
   } = job;
   return rest as Partial<T>;

@@ -10,21 +10,16 @@ type UploadEntry = {
   resolvedUrl?: string;
   error?: Error;
   status: "pending" | "resolved" | "rejected";
+  retryFactory?: () => Promise<string>;
 };
 
 class UploadRegistry {
   private uploads = new Map<string, UploadEntry>();
 
-  /**
-   * 注册一个正在进行的上传任务。
-   * @param key - 唯一的上传标识符
-   * @param promise - 返回图床公网 URL 的 Promise
-   */
-  registerUpload(key: string, promise: Promise<string>): void {
-    const entry: UploadEntry = {
-      promise,
-      status: "pending"
-    };
+  private bindPromise(entry: UploadEntry, promise: Promise<string>): void {
+    entry.promise = promise;
+    entry.status = "pending";
+    entry.error = undefined;
 
     promise
       .then((url) => {
@@ -35,8 +30,35 @@ class UploadRegistry {
         entry.error = err instanceof Error ? err : new Error(String(err));
         entry.status = "rejected";
       });
+  }
 
+  /**
+   * 注册一个正在进行的上传任务。
+   * @param key - 唯一的上传标识符
+   * @param promise - 返回图床公网 URL 的 Promise
+   * @param retryFactory - 可选的重试工厂函数，用于在当前页面未刷新时重新发起失败的上传
+   */
+  registerUpload(key: string, promise: Promise<string>, retryFactory?: () => Promise<string>): void {
+    const entry: UploadEntry = {
+      promise,
+      status: "pending",
+      retryFactory
+    };
+
+    this.bindPromise(entry, promise);
     this.uploads.set(key, entry);
+  }
+
+  /**
+   * 当上传任务处于失败终态且登记了重试工厂时，重新触发上传。
+   */
+  retryFailedUpload(key: string): boolean {
+    const entry = this.uploads.get(key);
+    if (!entry || entry.status !== "rejected" || !entry.retryFactory) {
+      return false;
+    }
+    this.bindPromise(entry, entry.retryFactory());
+    return true;
   }
 
   /**

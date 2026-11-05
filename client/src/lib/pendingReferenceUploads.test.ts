@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  canResolvePendingReferenceUploadsLocally,
   hasPendingReferenceUploads,
   resolveJobInputImageUrls,
   resolvePendingReferenceKeys,
-  resolvePendingReferenceUrls
+  resolvePendingReferenceUrls,
+  syncJobReferenceUploads
 } from "./pendingReferenceUploads";
 import { uploadRegistry } from "./uploadRegistry";
 
@@ -76,5 +78,54 @@ describe("pendingReferenceUploads", () => {
       "https://example.com/0.png"
     ]);
     expect(resolveJobInputImageUrls(undefined, undefined)).toEqual([]);
+  });
+
+  it("skips stale pendingUploads when inputImageUrls are already replaced with remote urls", async () => {
+    const resolved = await resolvePendingReferenceUrls(
+      ["https://example.com/cabinet-1.png", "https://example.com/cabinet-2.png"],
+      [{ placeholderUrl: "blob:http://localhost:5173/old-blob", uploadKey: "missing-old-key" }]
+    );
+    expect(resolved).toEqual([
+      "https://example.com/cabinet-1.png",
+      "https://example.com/cabinet-2.png"
+    ]);
+  });
+
+  it("falls back to remote fallbackUrls for legacy pendingUploadKeys when uploadRegistry lost keys", async () => {
+    const resolved = await resolvePendingReferenceKeys(
+      ["missing-legacy-key"],
+      ["https://example.com/cabinet-1.png"]
+    );
+    expect(resolved).toEqual(["https://example.com/cabinet-1.png"]);
+  });
+
+  it("syncs resolved uploads and prunes stale pendingUploads on retry", async () => {
+    uploadRegistry.registerUpload("key-resolved", Promise.resolve("https://example.com/resolved.png"));
+    await uploadRegistry.waitForUpload("key-resolved");
+
+    const synced = syncJobReferenceUploads(
+      ["blob:http://localhost:5173/1", "https://example.com/already-remote.png"],
+      "blob:http://localhost:5173/1",
+      [
+        { placeholderUrl: "blob:http://localhost:5173/1", uploadKey: "key-resolved" },
+        { placeholderUrl: "blob:http://localhost:5173/stale-unused", uploadKey: "missing-key" }
+      ],
+      ["key-resolved", "missing-key"]
+    );
+
+    expect(synced).toEqual({
+      inputImageUrls: ["https://example.com/resolved.png", "https://example.com/already-remote.png"],
+      inputImageUrl: "https://example.com/resolved.png",
+      pendingUploads: undefined,
+      pendingUploadKeys: undefined
+    });
+    expect(
+      canResolvePendingReferenceUploadsLocally(
+        synced.inputImageUrls,
+        synced.inputImageUrl,
+        synced.pendingUploads,
+        synced.pendingUploadKeys
+      )
+    ).toBe(true);
   });
 });

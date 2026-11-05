@@ -13,6 +13,7 @@ import { createCredentialId, createJobCredentialSnapshot } from "../jobCredentia
 import { getJobRetryMode } from "../jobRetry";
 import { getDuomiCapability, isDuomiCapabilitySubmittable } from "../duomiCapabilities";
 import { processQueue } from "../jobQueue";
+import { hasPendingReferenceUploads, syncJobReferenceUploads } from "../pendingReferenceUploads";
 import { resolveProviderId } from "../providers/providerRegistry";
 import { FOLDER_STORE, JOB_STORE, openDb } from "../storage/database";
 import { ensureFolder, ensureJob, updateJob } from "../storage/entities";
@@ -246,8 +247,23 @@ export const jobsApi = {
     }
 
     const settings = await getSettings();
+    const syncedUploads = syncJobReferenceUploads(
+      job.inputImageUrls,
+      job.inputImageUrl,
+      job.pendingUploads,
+      job.pendingUploadKeys,
+      { retryFailed: true }
+    );
+    const hasPendingUploads = hasPendingReferenceUploads(
+      syncedUploads.pendingUploads,
+      syncedUploads.pendingUploadKeys
+    );
     const nextJob = {
       ...job,
+      inputImageUrl: syncedUploads.inputImageUrl,
+      inputImageUrls: syncedUploads.inputImageUrls,
+      pendingUploadKeys: syncedUploads.pendingUploadKeys,
+      pendingUploads: syncedUploads.pendingUploads,
       provider: undefined,
       remoteTaskId: undefined,
       remoteTaskIds: undefined
@@ -255,11 +271,15 @@ export const jobsApi = {
     const updated = await updateJob(jobId, {
       status: "pending",
       errorMessage: undefined,
+      inputImageUrl: syncedUploads.inputImageUrl,
+      inputImageUrls: syncedUploads.inputImageUrls,
+      pendingUploadKeys: syncedUploads.pendingUploadKeys,
+      pendingUploads: syncedUploads.pendingUploads,
       provider: job.capabilityId ? "duomi" : resolveProviderId(nextJob, settings),
       ...(job.customProviderId ? {} : createJobCredentialSnapshot(settings)),
       remoteTaskId: undefined,
       remoteTaskIds: undefined,
-      remoteStatus: undefined,
+      remoteStatus: hasPendingUploads ? "uploading_reference" : undefined,
       submitTime: undefined,
       queryUrl: undefined,
       queueOwnerId: undefined,
@@ -298,7 +318,13 @@ export const jobsApi = {
     const prompt = edits.prompt.trim();
     if (!prompt) throw new Error("提示词不能为空");
 
-    const inputImageUrls = edits.inputImageUrls.map((url) => url.trim()).filter(Boolean);
+    const syncedExisting = syncJobReferenceUploads(
+      edits.inputImageUrls.map((url) => url.trim()).filter(Boolean),
+      undefined,
+      job.pendingUploads,
+      undefined
+    );
+    const inputImageUrls = syncedExisting.inputImageUrls;
     const settings = await getSettings();
     const custom = job.customProviderConfig;
     if (custom && !custom.models.includes(edits.model)) throw new Error("请选择该任务中转支持的模型");
@@ -335,6 +361,8 @@ export const jobsApi = {
       prompt,
       inputImageUrl: inputImageUrls[0],
       inputImageUrls,
+      pendingUploadKeys: undefined,
+      pendingUploads: undefined,
       width,
       height,
       size,

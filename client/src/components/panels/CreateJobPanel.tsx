@@ -255,10 +255,39 @@ const getCapabilityPrompt = (item: DuomiCapability, values: Record<string, unkno
   return (typeof primaryValue === "string" ? primaryValue.trim() : "") || fallback.trim() || item.name;
 };
 
+const normalizeDraftInputImages = (images: UploadResult[] | undefined): UploadResult[] => {
+  if (!Array.isArray(images)) return [];
+  const normalized: UploadResult[] = [];
+  for (const image of images) {
+    if (!image || typeof image.url !== "string") continue;
+    if (image.uploadKey) {
+      const resolvedUrl = uploadRegistry.getResolvedUrl(image.uploadKey);
+      if (resolvedUrl) {
+        normalized.push({ ...image, url: resolvedUrl, isPendingUpload: false });
+        continue;
+      }
+      if (uploadRegistry.isUploadPending(image.uploadKey)) {
+        normalized.push({ ...image, isPendingUpload: true });
+        continue;
+      }
+    }
+    if (isRemoteImageUrl(image.url)) {
+      normalized.push({ ...image, isPendingUpload: false });
+    }
+  }
+  return normalized;
+};
+
 const loadDraft = (folderId: string): FolderDraft | null => {
   try {
     const data = localStorage.getItem(getDraftKey(folderId));
-    if (data) return JSON.parse(data);
+    if (data) {
+      const parsed = JSON.parse(data) as FolderDraft;
+      return {
+        ...parsed,
+        inputImages: normalizeDraftInputImages(parsed.inputImages)
+      };
+    }
   } catch (e) {
     console.error("Error loading draft", e);
   }
@@ -270,6 +299,31 @@ const saveDraft = (folderId: string, draft: FolderDraft) => {
     localStorage.setItem(getDraftKey(folderId), JSON.stringify(draft));
   } catch (e) {
     console.error("Error saving draft", e);
+  }
+};
+
+const updateDraftUploadedImage = (
+  folderId: string | null | undefined,
+  uploadKey: string,
+  resolvedUrl: string | null
+) => {
+  if (!folderId) return;
+  try {
+    const raw = localStorage.getItem(getDraftKey(folderId));
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as FolderDraft;
+    if (!Array.isArray(parsed.inputImages)) return;
+    const nextImages =
+      resolvedUrl === null
+        ? parsed.inputImages.filter((item) => item.uploadKey !== uploadKey)
+        : parsed.inputImages.map((item) =>
+            item.uploadKey === uploadKey
+              ? { ...item, url: resolvedUrl, isPendingUpload: false }
+              : item
+          );
+    localStorage.setItem(getDraftKey(folderId), JSON.stringify({ ...parsed, inputImages: nextImages }));
+  } catch (e) {
+    console.error("Error updating draft uploaded image", e);
   }
 };
 
@@ -304,8 +358,7 @@ export function CreateJobPanel({
   const [capabilityId, setCapabilityId] = useState("image.gpt-image-2");
   const [capabilityValues, setCapabilityValues] = useState<Record<string, unknown>>({});
   const [previewImage, setPreviewImage] = useState<UploadResult | null>(null);
-  const [pendingUploadCount, setPendingUploadCount] = useState(0);
-  const isUploading = pendingUploadCount > 0;
+  const isUploading = inputImages.some((image) => Boolean(image.isPendingUpload));
   const [isDragActive, setIsDragActive] = useState(false);
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = collapsed ?? internalCollapsed;
@@ -563,14 +616,15 @@ export function CreateJobPanel({
       }
     }
 
-    setPendingUploadCount((c) => c + filesToUpload.length);
+    const draftFolderId = activeFolderId;
 
     const newItems: UploadResult[] = filesToUpload.map((file) => {
       const uploadKey = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const previewUrl = URL.createObjectURL(file);
 
-      const uploadPromise = onUploadImage(file)
-        .then((uploaded) => {
+      const startUpload = () =>
+        onUploadImage(file).then((uploaded) => {
+          updateDraftUploadedImage(draftFolderId, uploadKey, uploaded.url);
           setInputImages((current) =>
             current.map((item) =>
               item.uploadKey === uploadKey
@@ -579,16 +633,16 @@ export function CreateJobPanel({
             )
           );
           return uploaded.url;
-        })
-        .catch((err) => {
-          Message.error(err instanceof Error ? err.message : "图片添加失败");
-          throw err;
-        })
-        .finally(() => {
-          setPendingUploadCount((c) => Math.max(0, c - 1));
         });
 
-      uploadRegistry.registerUpload(uploadKey, uploadPromise);
+      const uploadPromise = startUpload().catch((err) => {
+        Message.error(err instanceof Error ? err.message : "图片添加失败");
+        updateDraftUploadedImage(draftFolderId, uploadKey, null);
+        setInputImages((current) => current.filter((item) => item.uploadKey !== uploadKey));
+        throw err;
+      });
+
+      uploadRegistry.registerUpload(uploadKey, uploadPromise, startUpload);
 
       return {
         id: uploadKey,
@@ -687,14 +741,9 @@ export function CreateJobPanel({
   const removeImage = (idOrUrl: string) => {
     setInputImages((current) => {
       const target = current.find((image) => (image.id ? image.id === idOrUrl : image.url === idOrUrl));
-      if (target?.uploadKey) {
-        uploadRegistry.clearUpload(target.uploadKey);
-        if (target.isPendingUpload) {
-          setPendingUploadCount((c) => Math.max(0, c - 1));
-        }
-      }
-      // 本地预览用的 object URL 需要主动释放，避免面板长期使用时累积内存占用。
-      if (target?.url.startsWith("blob:")) {
+      // 仅在没有后台上传进行中时释放 object URL，且不主动从 uploadRegistry 删除记录，
+      // 防止已入队任务在等待同一 uploadKey 时报「找不到该参考图的上传任务」。
+      if (target?.url.startsWith("blob:") && (!target.uploadKey || !uploadRegistry.isUploadPending(target.uploadKey))) {
         URL.revokeObjectURL(target.url);
       }
       return current.filter((image) => (image.id ? image.id !== idOrUrl : image.url !== idOrUrl));
@@ -794,9 +843,13 @@ export function CreateJobPanel({
       return;
     }
 
-    const inputImageUrls = inputImages.map((image) => image.url);
-    const pendingUploads = inputImages
-      .filter((img) => img.uploadKey && uploadRegistry.isUploadPending(img.uploadKey))
+    const resolvedImages = inputImages.map((image) => {
+      const resolvedUrl = image.uploadKey ? uploadRegistry.getResolvedUrl(image.uploadKey) : undefined;
+      return resolvedUrl ? { ...image, url: resolvedUrl, isPendingUpload: false } : image;
+    });
+    const inputImageUrls = resolvedImages.map((image) => image.url);
+    const pendingUploads = resolvedImages
+      .filter((img) => img.uploadKey && !isRemoteImageUrl(img.url) && uploadRegistry.hasUpload(img.uploadKey))
       .map((img) => ({
         placeholderUrl: img.url,
         uploadKey: img.uploadKey!

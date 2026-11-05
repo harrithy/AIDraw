@@ -50,4 +50,16 @@ describe("uploadRegistry", () => {
     const urls = await uploadRegistry.waitForAll(["img-1", "img-2"]);
     expect(urls).toEqual(["https://example.com/1.png", "https://example.com/2.png"]);
   });
+
+  it("retries a rejected upload when retryFactory is provided", async () => {
+    uploadRegistry.registerUpload(
+      "key-retry",
+      Promise.reject(new Error("首次上传失败")),
+      () => Promise.resolve("https://example.com/retried.png")
+    );
+
+    await expect(uploadRegistry.waitForUpload("key-retry")).rejects.toThrow("首次上传失败");
+    expect(uploadRegistry.retryFailedUpload("key-retry")).toBe(true);
+    await expect(uploadRegistry.waitForUpload("key-retry")).resolves.toBe("https://example.com/retried.png");
+  });
 });

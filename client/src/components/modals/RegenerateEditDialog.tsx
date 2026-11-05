@@ -17,6 +17,7 @@ import { Message } from "@/components/ui/message";
 import { PromptPolish } from "@/components/ui/prompt-polish";
 import { Textarea } from "@/components/ui/textarea";
 import { hasReferenceImageDrag, readReferenceImageDrag } from "../../lib/referenceImageDrag";
+import { syncJobReferenceUploads } from "../../lib/pendingReferenceUploads";
 import {
   Dialog,
   DialogContent,
@@ -295,12 +296,17 @@ export function RegenerateEditDialog({
     setSizeMode(derived.sizeMode);
     setCustomWidth(derived.customWidth);
     setCustomHeight(derived.customHeight);
-    const urls = job.inputImageUrls?.length
-      ? job.inputImageUrls
-      : job.inputImageUrl
-        ? [job.inputImageUrl]
-        : [];
-    setInputImages(urls.map((url) => ({ url, originalName: "参考图片" })));
+    const { inputImageUrls: urls } = syncJobReferenceUploads(
+      job.inputImageUrls,
+      job.inputImageUrl,
+      job.pendingUploads,
+      job.pendingUploadKeys
+    );
+    setInputImages(
+      urls
+        .filter((url) => isRemoteImageUrl(url))
+        .map((url) => ({ url, originalName: "参考图片" }))
+    );
     dragDepthRef.current = 0;
     setIsDragActive(false);
   }, [job]);

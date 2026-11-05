@@ -21,7 +21,7 @@ describe("changelog and release announcement system", () => {
 
   it("should have valid release notes structure", () => {
     expect(INITIAL_RELEASES.length).toBeGreaterThan(0);
-    expect(LATEST_RELEASE.version).toBe("v1.4.23");
+    expect(LATEST_RELEASE.version).toBe("v1.4.24");
     expect(LATEST_RELEASE.title).toBeTruthy();
     expect(LATEST_RELEASE.items.length).toBeGreaterThan(0);
   });
@@ -43,13 +43,13 @@ describe("changelog and release announcement system", () => {
     expect(checkHasUnreadRelease()).toBe(false);
   });
 
-  it("读过上一版的用户仍能看到本次预览与版本下载公告", () => {
+  it("读过上一版的用户仍能看到本次参考图上传与重试修复公告", () => {
     // 模拟旧版本已全部读完，新增公告不会被旧已读记录覆盖。
     INITIAL_RELEASES.slice(1).forEach((release) => markReleaseAsRead(release.version));
     expect(getUnreadReleasesCount()).toBe(1);
     expect(isReleaseRead(LATEST_RELEASE.version)).toBe(false);
-    expect(LATEST_RELEASE.items.some((item) => item.title.includes("完整显示"))).toBe(true);
-    expect(LATEST_RELEASE.items.some((item) => item.title.includes("选择版本下载"))).toBe(true);
+    expect(LATEST_RELEASE.items.some((item) => item.title.includes("残留待上传任务报错"))).toBe(true);
+    expect(LATEST_RELEASE.items.some((item) => item.title.includes("移除输入框参考图"))).toBe(true);
   });
 
   it("should accumulate and preserve historical releases in local storage", () => {

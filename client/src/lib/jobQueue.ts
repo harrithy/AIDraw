@@ -4,10 +4,12 @@ import { resolveJobSettings } from "./jobCredentials";
 import { getJobAssetKind, getJobOutputImages } from "./jobImages";
 import { getJobFailureDisposition, getTaskTimeoutMinutes } from "./jobQueuePolicy";
 import {
+  canResolvePendingReferenceUploadsLocally,
   hasPendingReferenceUploads,
   resolveJobInputImageUrls,
   resolvePendingReferenceKeys,
-  resolvePendingReferenceUrls
+  resolvePendingReferenceUrls,
+  syncJobReferenceUploads
 } from "./pendingReferenceUploads";
 import { getProviderForJob, getRequiredApiProvider } from "./providers/providerRegistry";
 import type { ProviderTaskResult } from "./providers/types";
@@ -20,6 +22,7 @@ import { broadcastStateUpdate } from "./storage/stateSync";
 export const MAX_CONCURRENT_JOBS = 30;
 const TASK_POLL_INTERVAL_MS = 10 * 1000;
 const JOB_LEASE_MS = 90 * 1000;
+const PENDING_UPLOAD_OWNER_GRACE_MS = 5 * 1000;
 const MAX_CONSECUTIVE_QUERY_FAILURES = 5;
 const QUERY_RETRY_BASE_MS = 2 * 1000;
 const QUERY_RETRY_MAX_MS = 30 * 1000;
@@ -343,10 +346,27 @@ export const executeJobBackground = async (job: DrawJob) => {
         ? `${originalMessage}。提交结果未知，为避免重复扣费已停止自动重试，请先到远程平台确认`
         : originalMessage;
 
+    const syncedUploads = latestJob
+      ? syncJobReferenceUploads(
+          latestJob.inputImageUrls,
+          latestJob.inputImageUrl,
+          latestJob.pendingUploads,
+          latestJob.pendingUploadKeys
+        )
+      : undefined;
+
     await updateOwnedJob(job.id, queueOwnerId, {
       status: "failed",
       remoteStatus: failureDisposition.remoteStatus,
       errorMessage,
+      ...(syncedUploads
+        ? {
+            inputImageUrl: syncedUploads.inputImageUrl,
+            inputImageUrls: syncedUploads.inputImageUrls,
+            pendingUploads: syncedUploads.pendingUploads,
+            pendingUploadKeys: syncedUploads.pendingUploadKeys
+          }
+        : {}),
       completedAt: nowIso(),
       queueOwnerId: undefined,
       leaseExpiresAt: undefined
@@ -363,6 +383,7 @@ const runQueueLocked = async () => {
   const db = await openDb();
   const claimedJobs: DrawJob[] = [];
   const changedFolderIds = new Set<string>();
+  let deferredPendingUploadJob = false;
 
   await new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(JOB_STORE, "readwrite");
@@ -403,11 +424,21 @@ const runQueueLocked = async () => {
         }
 
         if (!job.remoteTaskId && !job.remoteTaskIds?.length) {
+          const syncedUploads = syncJobReferenceUploads(
+            job.inputImageUrls,
+            job.inputImageUrl,
+            job.pendingUploads,
+            job.pendingUploadKeys
+          );
           const isUploadingRef =
             job.remoteStatus === "uploading_reference" ||
-            hasPendingReferenceUploads(job.pendingUploads, job.pendingUploadKeys);
+            hasPendingReferenceUploads(syncedUploads.pendingUploads, syncedUploads.pendingUploadKeys);
           store.put({
             ...job,
+            inputImageUrl: syncedUploads.inputImageUrl,
+            inputImageUrls: syncedUploads.inputImageUrls,
+            pendingUploads: syncedUploads.pendingUploads,
+            pendingUploadKeys: syncedUploads.pendingUploadKeys,
             status: "failed",
             remoteStatus: isUploadingRef ? "upload_interrupted" : "error",
             errorMessage: isUploadingRef
@@ -436,7 +467,26 @@ const runQueueLocked = async () => {
       }
 
       const slots = Math.max(0, MAX_CONCURRENT_JOBS - runningCount);
-      const pendingJobs = sortJobs(jobs.filter((job) => job.status === "pending")).slice(0, slots);
+      const pendingJobs = sortJobs(jobs.filter((job) => job.status === "pending"))
+        .filter((job) => {
+          if (
+            canResolvePendingReferenceUploadsLocally(
+              job.inputImageUrls,
+              job.inputImageUrl,
+              job.pendingUploads,
+              job.pendingUploadKeys
+            )
+          ) {
+            return true;
+          }
+          const updatedAtMs = new Date(job.updatedAt || job.createdAt).getTime();
+          if (Number.isFinite(updatedAtMs) && now - updatedAtMs < PENDING_UPLOAD_OWNER_GRACE_MS) {
+            deferredPendingUploadJob = true;
+            return false;
+          }
+          return true;
+        })
+        .slice(0, slots);
       for (const job of pendingJobs) {
         const claimedJob: DrawJob = {
           ...job,
@@ -462,6 +512,9 @@ const runQueueLocked = async () => {
     if (activeJobs.has(job.id)) continue;
     activeJobs.add(job.id);
     void executeJobBackground(job);
+  }
+  if (deferredPendingUploadJob) {
+    window.setTimeout(() => void processQueue(), PENDING_UPLOAD_OWNER_GRACE_MS);
   }
 };
 
