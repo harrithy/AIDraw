@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DrawJob } from "../../types";
 import { KlingProvider } from "./KlingProvider";
-import { getProvider, getRequiredApiProvider, resolveProviderId } from "./providerRegistry";
+import { getProvider, getProviderForJob, getRequiredApiProvider, resolveProviderId } from "./providerRegistry";
 import type { StoredSettings } from "./types";
 
 const makeSettings = (overrides: Partial<StoredSettings> = {}): StoredSettings => ({
@@ -119,4 +119,46 @@ describe("getProvider", () => {
   it("kling 注册的 Provider 为 KlingProvider 实例", () => {
     expect(getProvider("kling")).toBeInstanceOf(KlingProvider);
   });
+});
+
+describe("GPT Image 2.6 任务执行", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"])(
+    "%s 保留模型、尺寸、参考图和质量参数并轮询图片结果",
+    async (model) => {
+      const settings = makeSettings();
+      const inputImageUrls = ["https://example.com/reference.png"];
+      const job = makeJob({ model, mode: "image-to-image", size: "1024x1024", inputImageUrls });
+      const fetchMock = vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(new Response(JSON.stringify({ id: "image-task" })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({
+          state: "succeeded",
+          data: { images: [{ url: "https://example.com/result.png" }] }
+        })));
+
+      // 设置仍使用旧默认模型，实际请求必须采用任务中选择的 2.6 模型。
+      const { providerId, provider } = getProviderForJob(job, settings);
+      expect(providerId).toBe("duomi");
+      const created = await provider.createTask(job, settings);
+      const [requestUrl, init] = fetchMock.mock.calls[0];
+      expect(String(requestUrl)).toBe("https://duomiapi.com/v1/images/generations");
+      expect(init?.method).toBe("POST");
+      expect(new Headers(init?.headers).get("Authorization")).toBe(settings.apiKey);
+      expect(JSON.parse(String(init?.body))).toEqual({
+        model,
+        prompt: "prompt",
+        size: "1024x1024",
+        quality: "medium",
+        oversea: false,
+        image: inputImageUrls
+      });
+      expect(created.taskId).toBe("image-task");
+      expect(created.queryUrl).toBe("https://duomiapi.com/v1/tasks/image-task");
+
+      const result = await provider.queryTask(created.taskId, { ...job, queryUrl: created.queryUrl }, settings);
+      expect(fetchMock.mock.calls[1][0]).toBe(created.queryUrl);
+      expect(result).toEqual({ state: "succeeded", imageUrl: "https://example.com/result.png" });
+    }
+  );
 });

@@ -35,6 +35,31 @@ describe("CreateJobPanel 暂停多米能力", () => {
     localStorage.clear();
   });
 
+  it.each(["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"])(
+    "%s 可恢复草稿并按所选模型提交",
+    async (model) => {
+      // 确认白名单和草稿恢复不会将新模型重置成默认模型。
+      localStorage.setItem("aidraw-draft-gpt-26", JSON.stringify({ prompt: "山间的小屋", count: 1, model }));
+      const onSubmit = vi.fn().mockResolvedValue(undefined);
+      await act(async () => root.render(
+        <CreateJobPanel
+          activeFolderId="gpt-26"
+          apiProviderId="duomi"
+          isSubmitting={false}
+          variant="composer"
+          onSubmit={onSubmit}
+          onUploadImage={vi.fn()}
+        />
+      ));
+      expect(container.querySelector('[aria-label="模型"]')?.textContent).toContain(model);
+      await act(async () => {
+        container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      });
+      expect(onSubmit).toHaveBeenCalledOnce();
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({ model, prompt: "山间的小屋" });
+    }
+  );
+
   it("新建表单也接收素材链接，避免浏览器打开拖入地址或重复上传", async () => {
     const onUpload = vi.fn();
     const onSubmit = vi.fn().mockResolvedValue(undefined);

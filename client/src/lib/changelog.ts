@@ -27,10 +27,36 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.25",
+    title: "GPT Image 2.6 模型接入",
+    date: "2026-11-10",
+    badge: "✨ 最新版本",
+    summary:
+      "ChatGPT 模型分组新增 gpt-image-2.6-flare 与 gpt-image-2.6-sunburst，支持现有尺寸、参考图和质量设置，并修复刷新页面后草稿模型回退为默认模型的问题。",
+    highlights: [
+      "新增模型：在多米 API 的 ChatGPT 分组中选择 gpt-image-2.6-flare 或 gpt-image-2.6-sunburst",
+      "常用参数直接复用：继续使用尺寸、参考图和质量设置创建任务",
+      "草稿恢复修复：刷新页面后保留已选模型，继续按原模型提交任务"
+    ],
+    items: [
+      {
+        category: "feature",
+        title: "新增两款 GPT Image 2.6 模型",
+        description: "创作面板的 ChatGPT 分组新增 gpt-image-2.6-flare 与 gpt-image-2.6-sunburst，可配合尺寸、参考图片和质量设置使用。2.6 系列价格以平台实际账单为准。",
+        tag: "图片模型"
+      },
+      {
+        category: "fix",
+        title: "刷新后保留草稿模型",
+        description: "修复刷新页面后，草稿中已选模型被重置为默认模型的问题。恢复草稿后，模型选择器与提交任务使用同一个已选模型。",
+        tag: "草稿恢复"
+      }
+    ]
+  },
+  {
     version: "v1.4.24",
     title: "参考图后台上传与重试修复",
     date: "2026-11-05",
-    badge: "✨ 最新版本",
     summary:
       "修复任务在参考图上传中断后点击重试或重新编辑仍报「找不到该参考图的上传任务」的问题，并优化输入框移除参考图、跨文件夹草稿同步与多标签页队列调度的稳定性。",
     highlights: [

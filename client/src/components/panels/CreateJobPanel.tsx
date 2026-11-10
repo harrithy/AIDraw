@@ -36,8 +36,7 @@ import {
   supportsExtendedNanoAspectRatios,
   supportsNanoBananaImageSize,
   isVideoModel,
-  getImageModelOption,
-  type SupportedImageModel
+  getImageModelOption
 } from "../../lib/imageModels";
 import { uploadRegistry } from "../../lib/uploadRegistry";
 import { hasReferenceImageDrag, readReferenceImageDrag } from "../../lib/referenceImageDrag";
@@ -1009,7 +1008,10 @@ export function CreateJobPanel({
   );
 
   const renderModelSelect = (id?: string, side: "top" | "bottom" = "bottom") => (
-    <Select value={model} onValueChange={(value) => setModel(value as SupportedImageModel)}>
+    <Select value={model} onValueChange={(value) => {
+      // Radix 表单同步可能在挂载时发出空值，避免覆盖草稿恢复的模型。
+      if (value) setModel(value);
+    }}>
       <SelectTrigger id={id} aria-label="模型" className="composer-select-trigger">
         <SelectValue>{currentModelOption?.label ?? model}</SelectValue>
       </SelectTrigger>

@@ -3,6 +3,8 @@ import type { ApiProviderId } from "../types";
 export const GPT_IMAGE_MODEL = "gpt-image-2";
 export const GPT_IMAGE_FLARE_MODEL = "gpt-image-2.5-flare";
 export const GPT_IMAGE_SUNBURST_MODEL = "gpt-image-2.5-sunburst";
+export const GPT_IMAGE_2_6_FLARE_MODEL = "gpt-image-2.6-flare";
+export const GPT_IMAGE_2_6_SUNBURST_MODEL = "gpt-image-2.6-sunburst";
 export const NANO_BANANA_MODEL = "gemini-3-pro-image-preview";
 export const NANO_BANANA_2_1_MODEL = "gemini-nano-banana-2.1";
 export const GROK_VIDEO_MODEL_1_5 = "grok-video-1.5";
@@ -11,13 +13,14 @@ export const GROK_VIDEO_MODEL = GROK_VIDEO_MODEL_1_5;
 export const MAX_NANO_BANANA_REFERENCE_IMAGES = 10;
 
 /**
- * ChatGPT（GPT Image）模型选项，三个模型共用 size / image / quality 参数。
- * flare 是 gpt-image-2 的替代品（出图速度约快一倍），sunburst 面向更高质量的生图场景。
+ * ChatGPT（GPT Image）模型选项，共用 size / image / quality 参数。
  */
 const duomiGptModelOptions = [
   { label: GPT_IMAGE_MODEL, value: GPT_IMAGE_MODEL },
   { label: GPT_IMAGE_FLARE_MODEL, value: GPT_IMAGE_FLARE_MODEL },
-  { label: GPT_IMAGE_SUNBURST_MODEL, value: GPT_IMAGE_SUNBURST_MODEL }
+  { label: GPT_IMAGE_SUNBURST_MODEL, value: GPT_IMAGE_SUNBURST_MODEL },
+  { label: GPT_IMAGE_2_6_FLARE_MODEL, value: GPT_IMAGE_2_6_FLARE_MODEL },
+  { label: GPT_IMAGE_2_6_SUNBURST_MODEL, value: GPT_IMAGE_2_6_SUNBURST_MODEL }
 ] as const;
 
 const duomiGrokModelOptions = [

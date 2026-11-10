@@ -159,6 +159,8 @@ The project defaults to the **Duomi API** (`gpt-image-2` model) and is compatibl
    - **API Key**: Your API key
 3. Click save and start generating images
 
+The **ChatGPT** model group also supports `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst`, `gpt-image-2.6-flare`, and `gpt-image-2.6-sunburst` through the same Duomi image generation endpoint. The 2.6 models support the existing size, reference image, and quality controls. Pricing for the 2.6 models follows the provider's actual billing.
+
 > **Without an API Key**, the system uses local placeholder images for development and testing.
 
 ### Image Upload

@@ -49,6 +49,14 @@ describe("getModelPrice", () => {
   });
 
   describe("未知模型", () => {
+    it.each(["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"])(
+      "%s 未公布具体单价时返回 null",
+      (model) => {
+        // 官方价格表尚未列出 2.6 系列，不沿用旧型号单价。
+        expect(getModelPrice(model, "std", 0, "off")).toBeNull();
+      }
+    );
+
     it("返回 null", () => {
       expect(getModelPrice("kling-v9", "std", 5, "off")).toBeNull();
       expect(getModelPrice("gpt-image-2-vip", "std", 0, "off")).toBeNull();

@@ -202,7 +202,9 @@ describe("多米能力注册表", () => {
     expect(gptModel?.options?.map((option) => option.value)).toEqual([
       "gpt-image-2",
       "gpt-image-2.5-flare",
-      "gpt-image-2.5-sunburst"
+      "gpt-image-2.5-sunburst",
+      "gpt-image-2.6-flare",
+      "gpt-image-2.6-sunburst"
     ]);
 
     const pixSpeaker = getDuomiCapability("video.pix.generate")?.fields.find(
