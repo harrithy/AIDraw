@@ -226,13 +226,13 @@ export function UploadedImageLibrary({
           type="button"
           className="uploaded-image-library-trigger"
           onClick={() => setIsOpen((value) => !value)}
-          title="上传素材"
+          title={images.length > 0 ? `上传素材 · ${images.length} 项` : "上传素材"}
           aria-label="上传素材"
           aria-expanded={libraryOpen}
           aria-controls={popoverId}
           aria-haspopup="dialog"
         >
-          <Images size={19} />
+          <Images size={17} aria-hidden="true" />
           {images.length > 0 ? <span className="uploaded-image-library-count" aria-hidden="true">{images.length}</span> : null}
         </button>
 
