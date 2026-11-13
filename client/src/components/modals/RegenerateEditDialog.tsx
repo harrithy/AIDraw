@@ -4,8 +4,10 @@ import {
   type ClipboardEvent,
   type DragEvent,
   type FormEvent,
+  type Ref,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState
 } from "react";
@@ -18,6 +20,7 @@ import { PromptPolish } from "@/components/ui/prompt-polish";
 import { Textarea } from "@/components/ui/textarea";
 import { hasReferenceImageDrag, readReferenceImageDrag } from "../../lib/referenceImageDrag";
 import { syncJobReferenceUploads } from "../../lib/pendingReferenceUploads";
+import type { ImageDropTarget } from "../../hooks/usePageImageDrop";
 import {
   Dialog,
   DialogContent,
@@ -113,6 +116,7 @@ export type RegenerateEdits = {
 };
 
 type RegenerateEditDialogProps = {
+  imageDropRef?: Ref<ImageDropTarget>;
   apiProviderId: ApiProviderId;
   open: boolean;
   job: DrawJob | null;
@@ -226,6 +230,7 @@ const normalizeThinking = (value: DrawJob["thinking"]): ThinkingValue =>
  * 接收外部素材拖拽，保留本地上传、粘贴及模型参数编辑。
  */
 export function RegenerateEditDialog({
+  imageDropRef,
   apiProviderId,
   open,
   job,
@@ -462,30 +467,36 @@ export function RegenerateEditDialog({
     if (dragDepthRef.current === 0) setIsDragActive(false);
   };
 
-  const dropImages = (event: DragEvent<HTMLElement>) => {
-    if (hasReferenceImageDrag(event.dataTransfer) && event.dataTransfer.files.length === 0) {
-      event.preventDefault();
-      event.stopPropagation();
-      dragDepthRef.current = 0;
-      setIsDragActive(false);
-      const image = readReferenceImageDrag(event.dataTransfer);
+  const addDroppedImages = (transfer: DataTransfer) => {
+    dragDepthRef.current = 0;
+    setIsDragActive(false);
+    if (!open || !job) return;
+    if (isUploading || isSubmitting) {
+      Message.error("正在处理图片，请稍后再添加参考图");
+      return;
+    }
+    if (hasReferenceImageDrag(transfer) && transfer.files.length === 0) {
+      const image = readReferenceImageDrag(transfer);
       if (image) addReferenceImageUrl(image.url, image.originalName);
       else Message.error("请拖入有效的图片素材");
       return;
     }
-    const hasFiles = event.dataTransfer.files.length > 0;
-    if (!hasFiles && !hasDraggedImage(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    dragDepthRef.current = 0;
-    setIsDragActive(false);
-    const imageFiles = getImageFiles(event.dataTransfer.files);
+    const imageFiles = getImageFiles(transfer.files);
     if (imageFiles.length === 0) {
       Message.error("只支持拖拽图片文件");
       return;
     }
     void uploadFiles(imageFiles);
   };
+
+  const dropImages = (event: DragEvent<HTMLElement>) => {
+    if (!hasReferenceImageDrag(event.dataTransfer) && event.dataTransfer.files.length === 0 && !hasDraggedImage(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    addDroppedImages(event.dataTransfer);
+  };
+
+  useImperativeHandle(imageDropRef, () => ({ addDroppedImages }));
 
   const removeImage = (url: string) => {
     setInputImages((current) => current.filter((image) => image.url !== url));

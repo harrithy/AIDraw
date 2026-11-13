@@ -6,6 +6,7 @@ import { MAX_NANO_BANANA_REFERENCE_IMAGES, NANO_BANANA_2_1_MODEL } from "../../l
 import { REFERENCE_IMAGE_DRAG_TYPE, writeReferenceImageDrag } from "../../lib/referenceImageDrag";
 import { RegenerateEditDialog } from "./RegenerateEditDialog";
 import { UploadedImageLibrary } from "../panels/UploadedImageLibrary";
+import { usePageImageDrop, type ImageDropTarget } from "../../hooks/usePageImageDrop";
 
 const { showError } = vi.hoisted(() => ({ showError: vi.fn() }));
 vi.mock("@gsap/react", () => ({ useGSAP: () => undefined }));
@@ -40,6 +41,13 @@ const dragEvent = (type: string, transfer: DataTransfer) => {
   return event;
 };
 
+/** 全页投放时只把数据交给打开的编辑器，防止同时写入新建草稿。 */
+const PageDropEditor = (props: React.ComponentProps<typeof RegenerateEditDialog>) => {
+  const imageDropRef = React.useRef<ImageDropTarget | null>(null);
+  usePageImageDrop((data) => imageDropRef.current?.addDroppedImages(data));
+  return <RegenerateEditDialog {...props} imageDropRef={imageDropRef} />;
+};
+
 describe("重绘弹窗拖拽引用上传素材", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -71,6 +79,25 @@ describe("重绘弹窗拖拽引用上传素材", () => {
     await act(async () => dialog().querySelector("form")!.dispatchEvent(event));
     return event;
   };
+
+  it("编辑时拖到页面空白或弹窗内都只上传一次并添加到当前编辑任务", async () => {
+    onUpload.mockResolvedValueOnce({ url: "https://example.test/uploaded-one.png", originalName: "本地图片.png" })
+      .mockResolvedValueOnce({ url: "https://example.test/uploaded-two.png", originalName: "本地图片.png" });
+    await act(async () => root.render(<PageDropEditor apiProviderId="duomi" open job={makeJob()}
+      isSubmitting={false} onClose={onClose} onUploadImage={onUpload} onConfirm={onConfirm} />));
+    const file = new File(["image"], "本地图片.png", { type: "image/png" });
+    for (const target of [document.body, dialog().querySelector("form")!]) {
+      const event = dragEvent("drop", makeTransfer([file]));
+      await act(async () => target.dispatchEvent(event));
+      expect(event.defaultPrevented).toBe(true);
+    }
+    expect(onUpload).toHaveBeenCalledTimes(2);
+    expect(dialog().querySelectorAll(".composer-attachments img")).toHaveLength(3);
+    await act(async () => dialog().querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(onConfirm).toHaveBeenCalledWith("job", expect.objectContaining({
+      inputImageUrls: ["https://example.test/original.png", "https://example.test/uploaded-one.png", "https://example.test/uploaded-two.png"]
+    }));
+  });
 
   it("从同一份上传素材面板拖入，复用链接、保留名称并随原参数提交", async () => {
     await render();

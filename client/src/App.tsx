@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImagePlus } from "lucide-react";
 import { FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { api } from "./api";
 import { WorkflowCanvas } from "./components/canvas/WorkflowCanvas";
@@ -24,6 +24,7 @@ import { Message } from "./components/ui/message";
 import { useAppAnimations } from "./hooks/useAppAnimations";
 import { useCanvasInteractions } from "./hooks/useCanvasInteractions";
 import { useUiPreferences } from "./hooks/useUiPreferences";
+import { usePageImageDrop, type ImageDropTarget } from "./hooks/usePageImageDrop";
 import { BOARD_PADDING, calculateLayoutPositions, getPositionedJobs, type LayoutDirection, type PositionedJob } from "./lib/canvas";
 import { areJobSnapshotsEqual, getLatestOutputTime, isSameProviderSettings, isSameQueue } from "./lib/appSnapshots";
 import { getJobOutputImages } from "./lib/jobImages";
@@ -173,6 +174,16 @@ function App() {
     setPersonalizationOpen(false);
   }, [cancelPreview]);
   const [editingRetryJob, setEditingRetryJob] = useState<DrawJob | null>(null);
+  const composerImageDropRef = useRef<ImageDropTarget | null>(null);
+  const editorImageDropRef = useRef<ImageDropTarget | null>(null);
+  const isPageImageDragging = usePageImageDrop((transfer) => {
+    const target = editingRetryJob ? editorImageDropRef.current : composerImageDropRef.current;
+    if (!target) {
+      Message.error(editingRetryJob ? "编辑器正在打开，请稍后再拖入图片" : "请先创建或选择一个文件夹");
+      return;
+    }
+    target.addDroppedImages(transfer);
+  });
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showClearFailedConfirm, setShowClearFailedConfirm] = useState(false);
@@ -922,6 +933,13 @@ function App() {
       className={`app-shell${darkMode ? " dark" : ""}${animeMode ? " anime-theme" : ""}${editingRetryJob ? " reference-editing" : ""} ${leftOpen ? "sidebar-open" : "sidebar-closed"} ui-toolbar-${preferences.page.toolbarPosition} ui-composer-${preferences.page.composerPosition}`}
       style={appStyle}
     >
+      {isPageImageDragging ? (
+        <div className="page-image-drop-overlay" role="status">
+          <ImagePlus size={44} aria-hidden="true" />
+          <strong>松开图片即可上传</strong>
+          <span>{editingRetryJob ? "添加到当前编辑任务的参考图" : activeFolder ? "添加到当前创作的参考图" : "请先创建或选择一个文件夹"}</span>
+        </div>
+      ) : null}
       <WorkflowCanvas
         activeFolder={activeFolder}
         boardSize={boardSize}
@@ -1049,6 +1067,7 @@ function App() {
 
       {activeFolder ? (
         <CreateJobPanel
+          imageDropRef={composerImageDropRef}
           activeFolderId={activeFolderId}
           apiProviderId={providerSettings.providerId}
           customProvider={providerSettings.customProviders?.find((item) => item.config.id === providerSettings.activeCustomProviderId)}
@@ -1102,6 +1121,7 @@ function App() {
       {loadedModalsRef.current.regenerate ? (
         <Suspense fallback={null}>
           <RegenerateEditDialog
+            imageDropRef={editorImageDropRef}
             apiProviderId={providerSettings.providerId}
             open={Boolean(editingRetryJob)}
             job={editingRetryJob}

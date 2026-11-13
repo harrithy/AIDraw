@@ -27,10 +27,42 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.26",
+    title: "全页拖拽图片上传",
+    date: "2026-11-13",
+    badge: "✨ 最新版本",
+    summary:
+      "选中文件夹后，可将图片拖到网页任意区域上传并加入参考图，折叠的创作面板会自动展开。重新编辑任务时，拖入图片会加入当前编辑任务。",
+    highlights: [
+      "全页接收图片：画布空白处、任务卡片和创作面板均可投放，支持一次拖入多张图片",
+      "自动展开与目标识别：创作面板折叠时自动展开，重新编辑时图片加入当前编辑任务",
+      "投放提示与防重复：拖入时显示全页提示，同一次投放只上传一次，普通文字拖动不受影响"
+    ],
+    items: [
+      {
+        category: "feature",
+        title: "图片拖入网页即可上传",
+        description: "先创建或选择文件夹，再将本地图片拖到网页任意区域，即可上传并加入当前创作的参考图；支持同时拖入多张图片，继续遵守当前模型的参考图数量限制。",
+        tag: "全页上传"
+      },
+      {
+        category: "improvement",
+        title: "自动展开面板并识别编辑任务",
+        description: "创作面板折叠时，投放图片后自动展开，方便查看上传结果。打开重新编辑弹窗时，图片加入当前编辑任务；关闭弹窗后恢复添加到新建任务的参考图。",
+        tag: "参考图片"
+      },
+      {
+        category: "improvement",
+        title: "投放提示与文件校验",
+        description: "图片进入网页时显示全页投放提示，离开或松开后自动收起；同一次投放只上传一次。非图片文件会给出提示，普通文字拖动继续保留原有操作。",
+        tag: "拖拽体验"
+      }
+    ]
+  },
+  {
     version: "v1.4.25",
     title: "GPT Image 2.6 模型接入",
     date: "2026-11-10",
-    badge: "✨ 最新版本",
     summary:
       "ChatGPT 模型分组新增 gpt-image-2.6-flare 与 gpt-image-2.6-sunburst，支持现有尺寸、参考图和质量设置，并修复刷新页面后草稿模型回退为默认模型的问题。",
     highlights: [

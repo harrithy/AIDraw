@@ -1,7 +1,7 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ArrowUpRight, BookOpen, ChevronDown, Image as ImageIcon, ImagePlus, ImageUp, Loader2, LockKeyhole, Music, PenLine, Play, Plus, Shapes, Sparkles, Video, Wrench, X } from "lucide-react";
-import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, type Ref, lazy, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Message } from "@/components/ui/message";
@@ -41,6 +41,7 @@ import {
 import { uploadRegistry } from "../../lib/uploadRegistry";
 import { hasReferenceImageDrag, readReferenceImageDrag } from "../../lib/referenceImageDrag";
 import type { PublicCustomProvider } from "../../lib/customProviders";
+import type { ImageDropTarget } from "../../hooks/usePageImageDrop";
 
 const grokVideoSizeOptions: Array<{ label: string; value: SizeMode }> = [
   { label: "16:9", value: "16:9" },
@@ -104,6 +105,7 @@ type UploadResult = {
 };
 
 type CreateJobPanelProps = {
+  imageDropRef?: Ref<ImageDropTarget>;
   customProvider?: PublicCustomProvider;
   activeFolderId?: string | null;
   apiProviderId: ApiProviderId;
@@ -327,6 +329,7 @@ const updateDraftUploadedImage = (
 };
 
 export function CreateJobPanel({
+  imageDropRef,
   customProvider,
   activeFolderId,
   apiProviderId,
@@ -709,26 +712,21 @@ export function CreateJobPanel({
     if (dragDepthRef.current === 0) setIsDragActive(false);
   };
 
-  const dropImages = (event: DragEvent<HTMLElement>) => {
-    if (hasReferenceImageDrag(event.dataTransfer) && event.dataTransfer.files.length === 0) {
-      event.preventDefault();
-      event.stopPropagation();
-      dragDepthRef.current = 0;
-      setIsDragActive(false);
-      const image = readReferenceImageDrag(event.dataTransfer);
+  const addDroppedImages = (transfer: DataTransfer) => {
+    dragDepthRef.current = 0;
+    setIsDragActive(false);
+    if (usesCapability) {
+      Message.error("请切换到模型模式添加参考图");
+      return;
+    }
+    setCollapsed(false);
+    if (hasReferenceImageDrag(transfer) && transfer.files.length === 0) {
+      const image = readReferenceImageDrag(transfer);
       if (image) addReferenceImageUrl(image.url, image.originalName);
       else Message.error("请拖入有效的图片素材");
       return;
     }
-    const hasFiles = event.dataTransfer.files.length > 0;
-    if (!hasFiles && !hasDraggedImage(event)) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    dragDepthRef.current = 0;
-    setIsDragActive(false);
-
-    const imageFiles = getImageFiles(event.dataTransfer.files);
+    const imageFiles = getImageFiles(transfer.files);
     if (imageFiles.length === 0) {
       Message.error("只支持拖拽图片文件");
       return;
@@ -736,6 +734,15 @@ export function CreateJobPanel({
 
     void uploadFiles(imageFiles);
   };
+
+  const dropImages = (event: DragEvent<HTMLElement>) => {
+    if (!hasReferenceImageDrag(event.dataTransfer) && event.dataTransfer.files.length === 0 && !hasDraggedImage(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    addDroppedImages(event.dataTransfer);
+  };
+
+  useImperativeHandle(imageDropRef, () => ({ addDroppedImages }));
 
   const removeImage = (idOrUrl: string) => {
     setInputImages((current) => {

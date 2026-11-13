@@ -167,6 +167,8 @@ The **ChatGPT** model group also supports `gpt-image-2.5-flare`, `gpt-image-2.5-
 
 In Image-to-Image mode, when you paste or drag-and-drop a local image, it is first uploaded to an image hosting service (`image.harrio.xyz`), and the resulting public URL is sent to the drawing API. In local development, Vite proxies the upload request; in production, Vercel rewrites handle it.
 
+Drop image files anywhere on the page to upload them and add them as references for the current creation. A collapsed creation panel opens automatically. While editing a task, dropped images are added to that editor instead. Create or select a folder before uploading.
+
 ### Supported Image Sizes
 
 | Fixed Sizes | Aspect Ratios |

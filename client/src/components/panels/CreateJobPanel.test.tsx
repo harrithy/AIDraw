@@ -4,9 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateJobPanel } from "./CreateJobPanel";
 import { createCustomProviderTemplate } from "../../lib/customProviders";
 import { writeReferenceImageDrag } from "../../lib/referenceImageDrag";
+import { usePageImageDrop, type ImageDropTarget } from "../../hooks/usePageImageDrop";
 
 vi.mock("@gsap/react", () => ({ useGSAP: () => undefined }));
 vi.mock("@/components/ui/prompt-polish", () => ({ PromptPolish: () => null }));
+
+/** 与页面相同的接线，验证投放到表单外部时仍复用创作面板上传。 */
+const PageDropComposer = (props: React.ComponentProps<typeof CreateJobPanel>) => {
+  const imageDropRef = React.useRef<ImageDropTarget | null>(null);
+  const [collapsed, setCollapsed] = React.useState(true);
+  usePageImageDrop((data) => imageDropRef.current?.addDroppedImages(data));
+  return <CreateJobPanel {...props} imageDropRef={imageDropRef} collapsed={collapsed} onCollapsedChange={setCollapsed} />;
+};
 
 describe("CreateJobPanel 暂停多米能力", () => {
   it("自定义中转模型可恢复草稿并绑定提交，不被内置模型校验重置", async () => {
@@ -33,6 +42,35 @@ describe("CreateJobPanel 暂停多米能力", () => {
     act(() => root.unmount());
     container.remove();
     localStorage.clear();
+  });
+
+  it("拖到页面空白处会自动展开面板并上传，原输入框投放也只上传一次", async () => {
+    const objectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:page-drop");
+    try {
+      localStorage.setItem("aidraw-draft-page-drop", JSON.stringify({ prompt: "厨房", model: "gpt-image-2" }));
+      const onUpload = vi.fn().mockResolvedValue({ url: "https://example.test/uploaded.png", originalName: "本地图片.png" });
+      const onSubmit = vi.fn().mockResolvedValue(undefined);
+      await act(async () => root.render(<PageDropComposer activeFolderId="page-drop" apiProviderId="duomi"
+        isSubmitting={false} variant="composer" onSubmit={onSubmit} onUploadImage={onUpload} />));
+      expect(container.querySelector("form")).toBeNull();
+      const file = new File(["image"], "本地图片.png", { type: "image/png" });
+      const data = { files: [file], types: ["Files"], getData: () => "" } as unknown as DataTransfer;
+      for (const target of [document.body, null]) {
+        const event = new Event("drop", { bubbles: true, cancelable: true });
+        Object.defineProperty(event, "dataTransfer", { value: data });
+        await act(async () => (target ?? container.querySelector("form")!).dispatchEvent(event));
+        expect(event.defaultPrevented).toBe(true);
+      }
+      expect(onUpload).toHaveBeenCalledTimes(2);
+      expect(onUpload).toHaveBeenNthCalledWith(1, file);
+      expect(onUpload).toHaveBeenNthCalledWith(2, file);
+      expect(container.querySelector("form")).not.toBeNull();
+      expect(container.querySelectorAll('.composer-attachments img[alt="本地图片.png"]')).toHaveLength(2);
+      await act(async () => container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({ prompt: "厨房", inputImageUrls: ["https://example.test/uploaded.png", "https://example.test/uploaded.png"] });
+    } finally {
+      objectUrl.mockRestore();
+    }
   });
 
   it.each(["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"])(
