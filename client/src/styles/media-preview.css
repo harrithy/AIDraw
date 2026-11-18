@@ -1,6 +1,7 @@
 /* 全屏查看器覆盖浏览器视口，普通弹窗继续使用原来的外观。 */
 .image-preview-backdrop.media-viewer-root { z-index: 100; display: block; padding: 0; background: transparent; backdrop-filter: none; overscroll-behavior: none; }
-.media-viewer-root .animated-modal-backdrop { background: #111813; backdrop-filter: none; }
+/* 深色和透明度分开控制，面板保持透明，让遮罩后的工作区仍然可见。 */
+.media-viewer-root .animated-modal-backdrop { background: rgb(17 24 19 / 62%); backdrop-filter: blur(3px); }
 .media-preview-panel.media-viewer-panel {
   --ink: #edf3ed;
   --muted: #a4b3a8;
@@ -23,7 +24,7 @@
   border: 0;
   border-radius: 0;
   padding: 0;
-  background: #111813;
+  background: transparent;
   color: var(--ink);
   box-shadow: none;
 }

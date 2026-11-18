@@ -27,10 +27,25 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v2.0.1",
+    title: "深色预览背景透明度修复",
+    date: "2026-11-18",
+    badge: "✨ 最新版本",
+    summary:
+      "修复全屏预览恢复深色背景后无法透出后方内容的问题，使用深色半透明遮罩和轻微模糊，让图片背后的工作区仍然可见。",
+    items: [
+      {
+        category: "fix",
+        title: "恢复深色背景的透明效果",
+        description: "移除全屏预览容器的不透明实色底，改用深色半透明遮罩并保留轻微模糊，预览时可以透出后方画布。图片与工具按钮保持清晰，顶部中央工具栏、右上角关闭及点击空白关闭继续保留。",
+        tag: "图片预览"
+      }
+    ]
+  },
+  {
     version: "v2.0.0",
     title: "全屏图片查看器与任务操作升级",
     date: "2026-11-18",
-    badge: "✨ 最新版本",
     summary:
       "图片预览升级为覆盖整个浏览器页面的全屏查看器，支持滚轮缩放、拖拽平移与双指操作；图片工具集中在顶部中央，点击图片外空白即可关闭。",
     highlights: [
