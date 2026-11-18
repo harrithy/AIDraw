@@ -706,7 +706,8 @@ export const JobCard = memo(function JobCard({
         {/* 纯图片/视频任务存在多版本历史时，优先展示版本对比条；
             outputAssets 只保存最新一次的资产，直接用 JobResultContent 会丢掉旧版对比。 */}
         {hasRichResult && !(isRichMediaOnly && hasMultipleVersions) ? (
-          <JobResultContent job={job} onPreviewOpenChange={setResultPreviewOpen} />
+          <JobResultContent job={job} onPreviewOpenChange={setResultPreviewOpen} onRetry={onRetry} onEditRetry={onEditRetry}
+            onDelete={onDelete} onUploadLatestMedia={onUploadLatestMedia} onUseImage={onUseImage} />
         ) : currentImageUrl ? (
           hasMultipleVersions ? (
             <div className="job-image-comparison">

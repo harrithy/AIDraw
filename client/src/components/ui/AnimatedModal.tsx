@@ -24,6 +24,8 @@ type AnimatedModalProps = {
   rootClassName?: string;
   /** 面板容器额外 CSS 类 */
   panelClassName?: string;
+  /** 全屏查看器使用淡入淡出，普通弹窗保持原有缩放动画。 */
+  presentation?: "dialog" | "fullscreen";
   /** 是否通过 Portal 渲染到 body */
   portal?: boolean;
   onPointerDown?: PointerEventHandler<HTMLDivElement>;
@@ -46,6 +48,7 @@ export function AnimatedModal({
   children,
   rootClassName,
   panelClassName,
+  presentation = "dialog",
   portal = true,
   onPointerDown
 }: AnimatedModalProps) {
@@ -70,7 +73,8 @@ export function AnimatedModal({
     open,
     scopeRef: rootRef,
     backdropRef,
-    panelRef
+    panelRef,
+    presentation
   });
 
   useEffect(() => {

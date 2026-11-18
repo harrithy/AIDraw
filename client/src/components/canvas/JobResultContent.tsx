@@ -2,14 +2,15 @@ import { Braces, ExternalLink, Maximize2 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import type { DrawJob, GeneratedAsset, GeneratedAssetKind } from "../../types";
-import { MediaPreview } from "../modals/MediaPreview";
+import { JobMediaPreview, type JobPreviewOperations } from "../modals/JobMediaPreview";
 import { RetryingImage } from "../ui/RetryingImage";
 
 /** 通用任务结果组件的属性。 */
 type JobResultContentProps = {
   job: DrawJob;
   onPreviewOpenChange?: (open: boolean) => void;
-};
+  onUseImage?: (url: string) => void;
+} & JobPreviewOperations;
 
 const assetKindLabel: Record<GeneratedAssetKind, string> = {
   image: "图片",
@@ -129,7 +130,7 @@ const AttachmentAsset = ({ asset, index }: { asset: GeneratedAsset; index: numbe
  * 统一显示图片、视频、音频、文件、文本和结构化任务结果。
  * 新任务优先读取 outputAssets，旧任务继续兼容 outputImageUrl(s)。
  */
-export const JobResultContent = memo(function JobResultContent({ job, onPreviewOpenChange }: JobResultContentProps) {
+export const JobResultContent = memo(function JobResultContent({ job, onPreviewOpenChange, onUseImage, ...operations }: JobResultContentProps) {
   const [previewAsset, setPreviewAsset] = useState<GeneratedAsset | null>(null);
   useEffect(() => {
     onPreviewOpenChange?.(Boolean(previewAsset?.url));
@@ -186,9 +187,14 @@ export const JobResultContent = memo(function JobResultContent({ job, onPreviewO
         </details>
       ) : null}
 
-      <MediaPreview
+      <JobMediaPreview
+        {...operations}
+        job={job}
         items={previewAsset?.url ? [{ url: previewAsset.url, alt: previewAsset.name || job.prompt, kind: previewAsset.kind === "video" ? "video" : "image" }] : []}
         onClose={() => setPreviewAsset(null)}
+        onUseImage={onUseImage ? (url) => { setPreviewAsset(null); onUseImage(url); } : undefined}
+        downloadName={previewAsset?.name || job.prompt}
+        title={previewAsset?.name || job.prompt}
         ariaLabel="图片结果预览"
       />
     </section>

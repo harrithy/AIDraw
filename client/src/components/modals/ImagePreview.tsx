@@ -2,14 +2,14 @@ import { formatDate } from "../../lib/format";
 import { isNanoBananaModel, supportsNanoBananaImageSize } from "../../lib/imageModels";
 import { getJobOutputImages, getJobVisualKind } from "../../lib/jobImages";
 import type { DrawJob } from "../../types";
-import { MediaPreview } from "./MediaPreview";
+import { JobMediaPreview, type JobPreviewOperations } from "./JobMediaPreview";
 
 /** 任务预览只负责转换任务数据，弹层、图片和版本对比均复用公共组件。 */
-export function ImagePreview({ job, onClose, onUseImage }: {
+export function ImagePreview({ job, onClose, onUseImage, ...operations }: {
   job: DrawJob | null;
   onClose: () => void;
   onUseImage?: (url: string) => void;
-}) {
+} & JobPreviewOperations) {
   const urls = job ? getJobOutputImages(job) : [];
   const currentUrl = urls[urls.length - 1];
   const isVideo = job && getJobVisualKind(job, currentUrl) === "video";
@@ -22,7 +22,9 @@ export function ImagePreview({ job, onClose, onUseImage }: {
     : undefined;
 
   return (
-    <MediaPreview
+    <JobMediaPreview
+      {...operations}
+      job={job}
       items={job ? urls.map((url, index) => ({
         url,
         alt: urls.length > 1 ? `${job.prompt}，版本 ${index + 1}` : job.prompt,

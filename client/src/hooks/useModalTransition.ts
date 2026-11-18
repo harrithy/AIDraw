@@ -20,6 +20,8 @@ type UseModalTransitionParams = {
   backdropRef: RefObject<HTMLElement | null>;
   /** 面板元素的 ref */
   panelRef: RefObject<HTMLElement | null>;
+  /** 全屏查看器只淡入淡出，避免边缘随缩放露出底层页面。 */
+  presentation?: "dialog" | "fullscreen";
 };
 
 /**
@@ -37,7 +39,8 @@ export function useModalTransition({
   open,
   scopeRef,
   backdropRef,
-  panelRef
+  panelRef,
+  presentation = "dialog"
 }: UseModalTransitionParams) {
   /** 模态框 DOM 是否应该存在（退场动画完成前保持 true） */
   const [isPresent, setIsPresent] = useState(open);
@@ -84,7 +87,7 @@ export function useModalTransition({
         // 首次入场：先 set 初始状态，再动画到目标
         if (!hasEnteredRef.current) {
           gsap.set(backdrop, { autoAlpha: 0 });
-          gsap.set(panel, { autoAlpha: 0, y: 24, scale: 0.96 });
+          gsap.set(panel, { autoAlpha: 0, y: presentation === "fullscreen" ? 0 : 24, scale: presentation === "fullscreen" ? 1 : 0.96 });
         }
 
         hasEnteredRef.current = true;
@@ -95,7 +98,7 @@ export function useModalTransition({
         });
         timeline
           .to(backdrop, { autoAlpha: 1, duration: 0.2, ease: "power1.out", overwrite: "auto" }, 0)
-          .to(panel, { autoAlpha: 1, y: 0, scale: 1, duration: MODAL_ENTER_DURATION, ease: "power3.out", overwrite: "auto" }, 0);
+          .to(panel, { autoAlpha: 1, y: 0, scale: 1, duration: presentation === "fullscreen" ? 0.2 : MODAL_ENTER_DURATION, ease: "power3.out", overwrite: "auto" }, 0);
         animationRef.current = timeline;
         return cleanup;
       }
@@ -111,12 +114,12 @@ export function useModalTransition({
         }
       });
       timeline
-        .to(panel, { autoAlpha: 0, y: 14, scale: 0.975, duration: MODAL_EXIT_DURATION, ease: "power1.in", overwrite: "auto" }, 0)
+        .to(panel, { autoAlpha: 0, y: presentation === "fullscreen" ? 0 : 14, scale: presentation === "fullscreen" ? 1 : 0.975, duration: MODAL_EXIT_DURATION, ease: "power1.in", overwrite: "auto" }, 0)
         .to(backdrop, { autoAlpha: 0, duration: MODAL_EXIT_DURATION, ease: "power1.in", overwrite: "auto" }, 0);
       animationRef.current = timeline;
       return cleanup;
     },
-    { dependencies: [isPresent, open], scope: scopeRef }
+    { dependencies: [isPresent, open, presentation], scope: scopeRef }
   );
 
   return isPresent;

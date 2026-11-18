@@ -1110,6 +1110,10 @@ function App() {
           <ImagePreview
             job={previewJob}
             onClose={() => setPreviewJob(null)}
+            onRetry={retryDrawing}
+            onEditRetry={setEditingRetryJob}
+            onDelete={deleteJob}
+            onUploadLatestMedia={uploadLatestJobMedia}
             onUseImage={(url) => {
               setImageToUse(url);
               setPreviewJob(null);

@@ -1,64 +1,119 @@
-/* 所有大图入口使用同一套尺寸和媒体容器，缩略图不受影响。 */
-.media-preview-panel {
+/* 全屏查看器覆盖浏览器视口，普通弹窗继续使用原来的外观。 */
+.image-preview-backdrop.media-viewer-root { z-index: 100; display: block; padding: 0; background: transparent; backdrop-filter: none; overscroll-behavior: none; }
+.media-viewer-root .animated-modal-backdrop { background: #111813; backdrop-filter: none; }
+.media-preview-panel.media-viewer-panel {
+  --ink: #edf3ed;
+  --muted: #a4b3a8;
+  --panel-strong: #1b241f;
+  --line: rgb(234 246 236 / 17%);
+  --line-strong: rgb(234 246 236 / 30%);
+  --subtle: rgb(234 246 236 / 5%);
+  --green: #b6d0ac;
+  --green-dark: #c2dcb7;
+  --hover: rgb(234 246 236 / 10%);
   display: flex;
   flex-direction: column;
-  min-width: min(640px, calc(100vw - 40px));
+  gap: 0;
+  width: 100%;
+  height: 100dvh;
+  min-width: 0;
   min-height: 0;
-  max-height: calc(100dvh - 40px);
-  border-radius: 14px;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: #111813;
+  color: var(--ink);
+  box-shadow: none;
 }
 
-.media-preview-content {
+.media-viewer-header { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); flex: 0 0 auto; align-items: center; gap: 14px; min-height: 64px; padding: 12px 20px; padding-top: max(12px, env(safe-area-inset-top)); }
+.media-viewer-label { grid-column: 1; font-size: 13px; font-weight: 550; white-space: nowrap; }
+.media-viewer-tools { grid-column: 2; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; min-width: 0; }
+.media-viewer-panel .image-preview-close { grid-column: 3; justify-self: end; }
+.media-viewer-zoom-tools { display: flex; align-items: center; gap: 5px; }
+.media-viewer-zoom-value { width: 54px; color: var(--ink); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.media-viewer-panel .image-preview-actions { position: static; flex-shrink: 0; flex-wrap: wrap; justify-content: center; align-items: center; align-self: auto; max-width: 100%; margin-left: 0; }
+.media-viewer-panel .image-preview-action { width: 36px; height: 36px; box-shadow: none; }
+.media-viewer-panel .image-preview-action:disabled { opacity: 0.35; cursor: default; }
+.media-viewer-panel .image-preview-actions svg { width: 18px; height: 18px; }
+
+.media-viewer-panel .media-preview-content {
+  position: relative;
   display: grid;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   flex: 1 1 auto;
   place-items: center;
   width: 100%;
-  height: min(70dvh, 800px);
+  height: auto;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
 }
 
-.media-preview-content > .retrying-image-wrapper,
-.image-comparison-layer > .retrying-image-wrapper {
+.media-zoom-viewport[data-zoomable="true"] { touch-action: none; cursor: grab; }
+.media-zoom-viewport[data-zoomable="true"].is-dragging { cursor: grabbing; }
+.media-zoom-viewport:focus-visible { outline: 1px solid var(--green); outline-offset: -2px; }
+.media-zoom-transform {
+  position: absolute;
+  inset: 0;
   display: grid;
-  /* 网格轨道允许缩小，避免图片的原始高度撑开容器后被 overflow 裁掉。 */
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
+  transform-origin: center;
+}
+.media-zoom-viewport[data-zoomable="true"] .media-zoom-transform { will-change: transform; }
+.media-zoom-transform > .retrying-image-wrapper {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  width: 100%;
   height: 100%;
   min-height: 0;
   min-width: 0;
 }
 
-.media-preview-content img,
-.media-preview-content video,
-.image-comparison-layer img,
-.image-comparison-layer video {
+.media-viewer-panel .media-zoom-transform img,
+.media-viewer-panel .media-zoom-transform video {
+  display: block;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
+  max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
+.media-viewer-panel .media-zoom-transform img { user-select: none; -webkit-user-drag: none; }
 
-.media-preview-panel .image-comparison-grid { flex: 1 1 auto; height: min(62dvh, 680px); grid-template-rows: minmax(0, 1fr); }
-/* 对比区先扣除版本标题，再让媒体填满剩余轨道。 */
-.media-preview-panel .image-comparison-stage,
-.media-preview-panel .image-comparison-pane .media-preview-content { height: auto; min-height: 0; }
-/* 比例不同产生的留白透出弹层底色，避免旧版本两侧出现额外的色条和框线。 */
-.media-preview-panel .image-comparison-stage {
+.media-viewer-panel .image-comparison-grid { flex: 1 1 auto; height: auto; min-height: 0; grid-template-rows: minmax(0, 1fr); gap: 16px; padding: 0 20px; }
+.media-viewer-panel .image-comparison-pane { min-height: 0; gap: 6px; }
+.media-viewer-panel .image-comparison-pane figcaption { min-height: 24px; }
+.media-viewer-panel .image-comparison-stage {
+  height: auto;
+  min-height: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
-.media-preview-panel .image-version-picker,
-.media-preview-panel .image-preview-caption { flex-shrink: 0; }
-/* 为操作栏保留独立空间，避免关闭按钮遮住图片或当前版本编号。 */
-.media-preview-panel .image-preview-actions { position: static; flex-shrink: 0; align-self: flex-end; }
-.media-preview-panel .image-preview-actions svg { width: 18px; height: 18px; }
-.media-preview-panel .image-version-list video { width: 100%; height: 100%; object-fit: cover; }
+.media-viewer-panel .image-comparison-layer > .media-preview-content { height: 100%; }
+.media-viewer-panel .image-version-picker { flex-shrink: 0; gap: 10px; padding: 12px 20px 0; }
+.media-viewer-panel .image-version-list { min-width: 0; }
+.media-viewer-panel .image-version-list .retrying-image-wrapper,
+.media-viewer-panel .image-version-list img,
+.media-viewer-panel .image-version-list video { width: 100%; height: 100%; object-fit: contain; }
+.media-viewer-footer { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; padding: 12px 20px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.media-viewer-panel .image-preview-caption { display: flex; flex: 1; gap: 12px; min-width: 0; }
+.media-viewer-panel .image-preview-caption:empty { display: none; }
+.media-viewer-panel .image-preview-caption strong { font-size: 13px; font-weight: 500; }
+.media-viewer-panel .image-preview-caption span { flex-shrink: 0; font-size: 11px; }
+.media-viewer-help { flex-shrink: 0; color: var(--muted); font-size: 10px; white-space: nowrap; }
+/* 全屏进出场统一淡入淡出，图片变换层专门负责手势，避免动画叠加影响缩放焦点。 */
+.media-preview-panel.media-viewer-panel .image-preview-actions,
+.media-preview-panel.media-viewer-panel .image-preview-caption,
+.media-preview-panel.media-viewer-panel .retrying-img.is-loaded { animation: none; }
+.media-viewer-panel .image-comparison-stage > .image-comparison-layer { transform: none; transition: opacity 280ms ease, visibility 280ms ease; }
 
 /* 下载菜单独立于预览尺寸，历史较多时在菜单内滚动。 */
 .preview-download-menu {
@@ -84,16 +139,35 @@
 .preview-download-version-tag { color: var(--muted); font-size: calc(10px + var(--ui-font-size-offset)); }
 .preview-download-version-tag.is-current { color: var(--green-dark); }
 .preview-download-item-icon { flex-shrink: 0; margin-left: auto; color: var(--muted); }
+.preview-task-menu { width: min(270px, calc(100vw - 24px)); }
+.preview-task-menu .preview-download-menu-item { font-size: 12px; }
+.preview-delete-description { padding: 0 8px 8px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.media-viewer-panel .preview-delete-action { color: #e69b96; }
+.preview-download-menu-item.is-destructive { color: var(--red); }
 
 /* 将淡入淡出放在包裹层上，加载重试不会重置当前选中的历史版本。 */
 .image-comparison-stage > .image-comparison-layer { transition: opacity 280ms ease, visibility 280ms ease; }
 
 @media (max-width: 720px) {
-  .media-preview-panel { min-width: 0; width: calc(100vw - 20px); max-width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
-  .media-preview-content { height: min(64dvh, 640px); }
-  .media-preview-panel .image-comparison-grid { height: min(56dvh, 520px); }
+  .media-viewer-header { grid-template-columns: 32px minmax(0, 1fr) 32px; min-height: 56px; gap: 6px; padding: 8px 10px; padding-top: max(8px, env(safe-area-inset-top)); }
+  .media-viewer-tools { gap: 6px; }
+  .media-viewer-panel .image-preview-close { align-self: start; }
+  .media-viewer-label { display: none; }
+  .media-viewer-panel .image-preview-action { width: 32px; height: 32px; }
+  .media-viewer-panel .image-preview-actions { gap: 5px; }
+  .media-viewer-zoom-tools { gap: 2px; }
+  .media-viewer-zoom-value { width: 46px; font-size: 11px; }
+  .media-viewer-panel .image-comparison-grid { gap: 8px; padding: 0 10px; }
+  .media-viewer-panel .image-version-picker { padding: 8px 10px 0; }
+  .media-viewer-footer { flex-wrap: wrap; gap: 6px; padding: 8px 10px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .media-viewer-panel .image-preview-caption { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .media-viewer-help { font-size: 9px; }
+}
+
+@media (max-width: 640px) and (orientation: portrait) {
+  .media-viewer-panel .image-comparison-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .image-comparison-stage > .image-comparison-layer { transition: none; }
+  .media-viewer-panel .image-comparison-stage > .image-comparison-layer { transition: none; }
 }

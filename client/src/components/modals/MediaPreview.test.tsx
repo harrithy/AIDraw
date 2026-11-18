@@ -57,6 +57,54 @@ describe("公共媒体预览", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it("使用全屏查看器，打开时锁定页面滚动，关闭后恢复", () => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "auto";
+    act(() => root.render(<MediaPreview items={[image]} onClose={vi.fn()} />));
+    expect(document.querySelector('[role="dialog"]')?.classList.contains("media-viewer-root")).toBe(true);
+    expect(document.querySelector(".media-viewer-panel")).not.toBeNull();
+    expect(document.body.style.overflow).toBe("hidden");
+    act(() => root.render(<MediaPreview items={[]} onClose={vi.fn()} />));
+    expect(document.body.style.overflow).toBe("auto");
+    document.body.style.overflow = previous;
+  });
+
+  it("缩放控件与快捷键可重置，切换版本和任务后适应窗口", () => {
+    const render = (key: string) => act(() => root.render(<MediaPreview items={versions} comparisonKey={key} onClose={vi.fn()} />));
+    const zoom = () => document.querySelector('[aria-label="缩放比例"]')?.textContent;
+    render("first");
+    act(() => findButton("放大图片").click());
+    expect(zoom()).toBe("120%");
+    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "+", bubbles: true })));
+    expect(zoom()).toBe("144%");
+    act(() => findButton("适应窗口").click());
+    expect(zoom()).toBe("100%");
+    act(() => findButton("放大图片").click());
+    act(() => findButton("与当前版本对比 V1").click());
+    expect(zoom()).toBe("100%");
+    act(() => findButton("放大图片").click());
+    render("second");
+    expect(zoom()).toBe("100%");
+    act(() => findButton("放大图片").click());
+    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "0", bubbles: true })));
+    expect(zoom()).toBe("100%");
+  });
+
+  it("关闭重开同一图片，以及切换任务后返回，都从适应窗口开始", () => {
+    const render = (key: string, items = [image]) => act(() => root.render(<MediaPreview items={items} comparisonKey={key} onClose={vi.fn()} />));
+    const zoom = () => document.querySelector('[aria-label="缩放比例"]')?.textContent;
+    render("first");
+    act(() => findButton("放大图片").click());
+    expect(zoom()).toBe("120%");
+    render("first", []);
+    render("first");
+    expect(zoom()).toBe("100%");
+    act(() => findButton("放大图片").click());
+    render("second");
+    render("first");
+    expect(zoom()).toBe("100%");
+  });
+
   it("遮罩和 Escape 都关闭公共弹层，点击内容不误关闭", () => {
     const onClose = vi.fn();
     act(() => root.render(<MediaPreview items={[image]} onClose={onClose} />));
@@ -76,6 +124,17 @@ describe("公共媒体预览", () => {
     act(() => findButton("复制链接").click());
     expect(onUseImage).toHaveBeenCalledExactlyOnceWith(image.url);
     expect(copy).toHaveBeenCalledOnce();
+  });
+
+  it("顶部和底部留白可关闭，点击缩放和版本工具不会穿透关闭", () => {
+    const close = vi.fn();
+    act(() => root.render(<MediaPreview items={versions} onClose={close} title="测试图片" />));
+    act(() => findButton("放大图片").click());
+    act(() => findButton("与当前版本对比 V1").click());
+    expect(close).not.toHaveBeenCalled();
+    act(() => document.querySelector<HTMLElement>(".media-viewer-header")!.click());
+    act(() => document.querySelector<HTMLElement>(".media-viewer-footer")!.click());
+    expect(close).toHaveBeenCalledTimes(2);
   });
 
   it("下载期间阻止重复请求，完成后恢复按钮", async () => {

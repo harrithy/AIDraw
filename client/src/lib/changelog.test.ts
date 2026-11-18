@@ -21,7 +21,7 @@ describe("changelog and release announcement system", () => {
 
   it("should have valid release notes structure", () => {
     expect(INITIAL_RELEASES.length).toBeGreaterThan(0);
-    expect(LATEST_RELEASE.version).toBe("v1.4.28");
+    expect(LATEST_RELEASE.version).toBe("v2.0.0");
     expect(LATEST_RELEASE.title).toBeTruthy();
     expect(LATEST_RELEASE.items.length).toBeGreaterThan(0);
   });
@@ -43,16 +43,17 @@ describe("changelog and release announcement system", () => {
     expect(checkHasUnreadRelease()).toBe(false);
   });
 
-  it("读过上一版的用户仍能看到本次图片边框优化公告", () => {
+  it("读过上一版的用户仍能看到本次全屏预览公告", () => {
     // 模拟旧版本已全部读完，新增公告不会被旧已读记录覆盖。
     INITIAL_RELEASES.slice(1).forEach((release) => markReleaseAsRead(release.version));
     expect(getUnreadReleasesCount()).toBe(1);
     expect(isReleaseRead(LATEST_RELEASE.version)).toBe(false);
-    expect(LATEST_RELEASE.summary).toContain("原比例完整显示");
+    expect(LATEST_RELEASE.summary).toContain("全屏查看器");
+    expect(LATEST_RELEASE.summary).toContain("滚轮缩放");
     expect(LATEST_RELEASE.items.some((item) => item.tag === "图片预览")).toBe(true);
-    const cardUpdate = LATEST_RELEASE.items.find((item) => item.tag === "画布卡片");
-    expect(cardUpdate?.description).toContain("绿色描边");
-    expect(cardUpdate?.description).toContain("保留左下角版本标签");
+    const toolbarUpdate = LATEST_RELEASE.items.find((item) => item.tag === "任务操作");
+    expect(toolbarUpdate?.description).toContain("顶部中央");
+    expect(toolbarUpdate?.description).toContain("关闭按钮独立留在右上角");
   });
 
   it("should accumulate and preserve historical releases in local storage", () => {
