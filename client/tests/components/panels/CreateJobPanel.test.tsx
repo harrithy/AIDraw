@@ -1,0 +1,169 @@
+import React, { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CreateJobPanel } from "@/components/panels/CreateJobPanel";
+import { createCustomProviderTemplate } from "@/lib/customProviders";
+import { writeReferenceImageDrag } from "@/lib/referenceImageDrag";
+import { usePageImageDrop, type ImageDropTarget } from "@/hooks/usePageImageDrop";
+
+vi.mock("@gsap/react", () => ({ useGSAP: () => undefined }));
+vi.mock("@/components/ui/prompt-polish", () => ({ PromptPolish: () => null }));
+
+/** 与页面相同的接线，验证投放到表单外部时仍复用创作面板上传。 */
+const PageDropComposer = (props: React.ComponentProps<typeof CreateJobPanel>) => {
+  const imageDropRef = React.useRef<ImageDropTarget | null>(null);
+  const [collapsed, setCollapsed] = React.useState(true);
+  usePageImageDrop((data) => imageDropRef.current?.addDroppedImages(data));
+  return <CreateJobPanel {...props} imageDropRef={imageDropRef} collapsed={collapsed} onCollapsedChange={setCollapsed} />;
+};
+
+describe("CreateJobPanel 暂停多米能力", () => {
+  it("自定义中转模型可恢复草稿并绑定提交，不被内置模型校验重置", async () => {
+    const config = { ...createCustomProviderTemplate(), baseUrl: "https://relay.example", models: ["my-model"] };
+    localStorage.setItem("aidraw-draft-custom-folder", JSON.stringify({ prompt: "custom prompt", count: 1, model: "my-model" }));
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    await act(async () => root.render(<CreateJobPanel activeFolderId="custom-folder" apiProviderId="duomi" customProvider={{ config, hasApiKey: true, apiKeyMasked: "masked" }} isSubmitting={false} variant="composer" onSubmit={onSubmit} onUploadImage={vi.fn()} />));
+    expect(container.textContent).toContain("my-model");
+    await act(async () => { container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ customProviderId: config.id, model: "my-model", prompt: "custom prompt" });
+  });
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    localStorage.clear();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    localStorage.clear();
+  });
+
+  it("拖到页面空白处会自动展开面板并上传，原输入框投放也只上传一次", async () => {
+    const objectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:page-drop");
+    try {
+      localStorage.setItem("aidraw-draft-page-drop", JSON.stringify({ prompt: "厨房", model: "gpt-image-2" }));
+      const onUpload = vi.fn().mockResolvedValue({ url: "https://example.test/uploaded.png", originalName: "本地图片.png" });
+      const onSubmit = vi.fn().mockResolvedValue(undefined);
+      await act(async () => root.render(<PageDropComposer activeFolderId="page-drop" apiProviderId="duomi"
+        isSubmitting={false} variant="composer" onSubmit={onSubmit} onUploadImage={onUpload} />));
+      expect(container.querySelector("form")).toBeNull();
+      const file = new File(["image"], "本地图片.png", { type: "image/png" });
+      const data = { files: [file], types: ["Files"], getData: () => "" } as unknown as DataTransfer;
+      for (const target of [document.body, null]) {
+        const event = new Event("drop", { bubbles: true, cancelable: true });
+        Object.defineProperty(event, "dataTransfer", { value: data });
+        await act(async () => (target ?? container.querySelector("form")!).dispatchEvent(event));
+        expect(event.defaultPrevented).toBe(true);
+      }
+      expect(onUpload).toHaveBeenCalledTimes(2);
+      expect(onUpload).toHaveBeenNthCalledWith(1, file);
+      expect(onUpload).toHaveBeenNthCalledWith(2, file);
+      expect(container.querySelector("form")).not.toBeNull();
+      expect(container.querySelectorAll('.composer-attachments img[alt="本地图片.png"]')).toHaveLength(2);
+      await act(async () => container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({ prompt: "厨房", inputImageUrls: ["https://example.test/uploaded.png", "https://example.test/uploaded.png"] });
+    } finally {
+      objectUrl.mockRestore();
+    }
+  });
+
+  it.each(["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"])(
+    "%s 可恢复草稿并按所选模型提交",
+    async (model) => {
+      // 确认白名单和草稿恢复不会将新模型重置成默认模型。
+      localStorage.setItem("aidraw-draft-gpt-26", JSON.stringify({ prompt: "山间的小屋", count: 1, model }));
+      const onSubmit = vi.fn().mockResolvedValue(undefined);
+      await act(async () => root.render(
+        <CreateJobPanel
+          activeFolderId="gpt-26"
+          apiProviderId="duomi"
+          isSubmitting={false}
+          variant="composer"
+          onSubmit={onSubmit}
+          onUploadImage={vi.fn()}
+        />
+      ));
+      expect(container.querySelector('[aria-label="模型"]')?.textContent).toContain(model);
+      await act(async () => {
+        container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      });
+      expect(onSubmit).toHaveBeenCalledOnce();
+      expect(onSubmit.mock.calls[0][0]).toMatchObject({ model, prompt: "山间的小屋" });
+    }
+  );
+
+  it("新建表单也接收素材链接，避免浏览器打开拖入地址或重复上传", async () => {
+    const onUpload = vi.fn();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    localStorage.setItem("aidraw-draft-drag-folder", JSON.stringify({ prompt: "厨房", count: 1, model: "gpt-image-2" }));
+    await act(async () => root.render(<CreateJobPanel activeFolderId="drag-folder" apiProviderId="duomi"
+      isSubmitting={false} variant="composer" onSubmit={onSubmit} onUploadImage={onUpload} />));
+    const values = new Map<string, string>();
+    const transfer = {
+      files: [], items: [], get types() { return [...values.keys()]; },
+      setData: (type: string, value: string) => values.set(type, value),
+      getData: (type: string) => values.get(type) ?? ""
+    } as unknown as DataTransfer;
+    writeReferenceImageDrag(transfer, {
+      id: "asset", folderId: "drag-folder", url: "https://example.test/table.png", originalName: "餐桌.png",
+      mimeType: "image/png", byteSize: 1, createdAt: "2026-11-03"
+    });
+    // 连续放入同一素材，应只新增一个参考图并直接将链接交给任务。
+    for (let index = 0; index < 2; index += 1) {
+      const event = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "dataTransfer", { value: transfer });
+      await act(async () => container.querySelector("form")!.dispatchEvent(event));
+      expect(event.defaultPrevented).toBe(true);
+    }
+    expect(container.querySelectorAll('.composer-attachments img[alt="餐桌.png"]')).toHaveLength(1);
+    expect(onUpload).not.toHaveBeenCalled();
+    await act(async () => container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(onSubmit.mock.calls[0][0].inputImageUrls).toEqual(["https://example.test/table.png"]);
+  });
+
+  it.each(["composer", "panel"] as const)("%s 不允许切换，旧能力草稿仍按模型提交", async (variant) => {
+    // 覆盖旧草稿绕过禁用按钮的入口，并确认已有提示词和数量得到保留。
+    localStorage.setItem("aidraw-draft-folder-test", JSON.stringify({
+      prompt: "山间的小屋",
+      count: 2,
+      model: "gpt-image-2",
+      creationMode: "capability",
+      capabilityId: "image.gpt-image-2"
+    }));
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    act(() => root.render(
+      <CreateJobPanel
+        activeFolderId="folder-test"
+        apiProviderId="duomi"
+        isSubmitting={false}
+        variant={variant}
+        onSubmit={onSubmit}
+        onUploadImage={vi.fn()}
+      />
+    ));
+
+    const capabilityButton = Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("多米能力"));
+    expect(capabilityButton?.disabled).toBe(true);
+    act(() => capabilityButton!.click());
+    expect(capabilityButton?.getAttribute("aria-pressed")).toBe("false");
+    expect(container.querySelector(".duomi-capability-panel")).toBeNull();
+
+    await act(async () => {
+      container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      prompt: "山间的小屋",
+      count: 2,
+      model: "gpt-image-2"
+    });
+    expect(onSubmit.mock.calls[0][0].capabilityId).toBeUndefined();
+  });
+});

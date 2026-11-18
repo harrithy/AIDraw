@@ -85,6 +85,7 @@ AIDraw/
 │   │   ├── main.tsx            # Entry point
 │   │   ├── styles.css          # Global styles + Tailwind
 │   │   └── types.ts            # Core type definitions
+│   ├── tests/                  # Tests grouped by components, hooks, lib, and API
 │   ├── index.html              # HTML entry
 │   ├── package.json
 │   ├── tsconfig.json
@@ -139,6 +140,8 @@ npm run check
 ```
 
 ### Tests
+
+Test files live in `client/tests/`, grouped by application module. Run a single file with `npm run test --workspace client -- tests/lib/jobRetry.test.ts`.
 
 ```bash
 npm test

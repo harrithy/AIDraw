@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This npm workspace keeps the application in `client/`. React/TypeScript source lives in `client/src/`: UI in `components/`, interaction logic in `hooks/`, domain utilities in `lib/`, provider adapters in `lib/providers/`, and persistence in `lib/storage/`. Put static files in `client/public/`. API handlers live in `client/api/`; root `api/` files expose them to Vercel. Tests are colocated as `*.test.ts`. Do not edit generated `dist/` directories.
+This npm workspace keeps the application in `client/`. React/TypeScript source lives in `client/src/`: UI in `components/`, interaction logic in `hooks/`, domain utilities in `lib/`, provider adapters in `lib/providers/`, and persistence in `lib/storage/`. Put static files in `client/public/`. API handlers live in `client/api/`; root `api/` files expose them to Vercel. Tests live in `client/tests/`, grouped into `components/`, `hooks/`, `lib/`, and `api/` subdirectories that mirror the application modules. Do not edit generated `dist/` directories.
 
 ## Build, Test, and Development Commands
 
@@ -11,7 +11,7 @@ This npm workspace keeps the application in `client/`. React/TypeScript source l
 - `npm run check` runs the strict TypeScript project check.
 - `npm test` runs all Vitest tests once in the `happy-dom` environment.
 - `npm run build` type-checks and creates the production bundle.
-- `npm run test --workspace client -- src/lib/jobRetry.test.ts` runs one targeted test file. Paths passed to Vitest are relative to `client/`.
+- `npm run test --workspace client -- tests/lib/jobRetry.test.ts` runs one targeted test file. Paths passed to Vitest are relative to `client/`.
 
 Before submitting changes, run `npm run check`, `npm test`, and `npm run build`.
 
@@ -21,7 +21,7 @@ Use two-space indentation, semicolons, double quotes, and surrounding-code conve
 
 ## Testing Guidelines
 
-Vitest discovers `client/src/**/*.test.ts` and `client/api/**/*.test.ts`. Add focused tests beside changed utilities, providers, queue policies, or request guards. Cover success, failure, migration, and retry boundaries when relevant. There is no numeric coverage threshold.
+Vitest discovers `client/tests/**/*.test.ts` and `client/tests/**/*.test.tsx`. Add focused tests in the matching test subdirectory for changed utilities, providers, queue policies, components, hooks, or request guards. Use the `@/` alias to import application source from tests. Cover success, failure, migration, and retry boundaries when relevant. There is no numeric coverage threshold.
 
 ## Commit & Pull Request Guidelines
 

@@ -85,6 +85,7 @@ AIDraw/
 │   │   ├── main.tsx            # 入口文件
 │   │   ├── styles.css          # 全局样式 + Tailwind
 │   │   └── types.ts            # 核心类型定义
+│   ├── tests/                  # 按组件、Hook、工具库和 API 分类的测试
 │   ├── index.html              # HTML 入口
 │   ├── package.json
 │   ├── tsconfig.json
@@ -139,6 +140,8 @@ npm run check
 ```
 
 ### 测试
+
+测试文件统一放在 `client/tests/`，按 `components/`、`hooks/`、`lib/` 和 `api/` 分目录管理。单独运行一个测试文件：`npm run test --workspace client -- tests/lib/jobRetry.test.ts`。
 
 ```bash
 npm test
