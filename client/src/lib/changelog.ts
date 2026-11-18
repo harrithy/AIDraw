@@ -27,10 +27,36 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.28",
+    title: "图片预览与画布卡片边框优化",
+    date: "2026-11-18",
+    badge: "✨ 最新版本",
+    summary:
+      "去掉大图对比预览和画布图片中的多余边框与底色，让不同比例图片的留白融入所在背景；图片继续按原比例完整显示，保留版本标签和任务参数。",
+    highlights: [
+      "大图对比更统一：旧版本图片不再单独显示灰色底框，左右留白与弹窗背景一致",
+      "画布图片更清爽：去掉图片底框、内阴影与当前版本的绿色描边，上下留白自然融入卡片",
+      "保留完整内容：继续等比显示图片，版本标签、历史展开与下方任务参数照常使用"
+    ],
+    items: [
+      {
+        category: "improvement",
+        title: "去除大图对比预览的底框",
+        description: "移除旧版本对比容器的灰色底色和细边框，不同比例图片产生的留白与弹窗背景保持一致，浅色和深色模式均适用；图片保持完整的等比预览。",
+        tag: "图片预览"
+      },
+      {
+        category: "improvement",
+        title: "去除画布图片的多余描边",
+        description: "单图、历史版本和生成结果图片去掉多余的底框、底色及内阴影，当前版本不再使用常驻绿色描边。保留左下角版本标签、历史展开操作和下方任务参数，图片仍完整显示。",
+        tag: "画布卡片"
+      }
+    ]
+  },
+  {
     version: "v1.4.27",
     title: "原创形象馆与 Live2D 互动",
     date: "2026-11-18",
-    badge: "✨ 最新版本",
     summary:
       "新增 AIDraw 原创绘画少女形象馆，提供少女、Q 版、坨坨脸素材和 Live2D 动态陪伴，支持眨眼、点头、歪头等互动与透明 PNG 下载。",
     highlights: [

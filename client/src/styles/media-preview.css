@@ -47,6 +47,12 @@
 /* 对比区先扣除版本标题，再让媒体填满剩余轨道。 */
 .media-preview-panel .image-comparison-stage,
 .media-preview-panel .image-comparison-pane .media-preview-content { height: auto; min-height: 0; }
+/* 比例不同产生的留白透出弹层底色，避免旧版本两侧出现额外的色条和框线。 */
+.media-preview-panel .image-comparison-stage {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
 .media-preview-panel .image-version-picker,
 .media-preview-panel .image-preview-caption { flex-shrink: 0; }
 /* 为操作栏保留独立空间，避免关闭按钮遮住图片或当前版本编号。 */

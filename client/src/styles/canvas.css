@@ -809,6 +809,13 @@
   aspect-ratio: auto;
 }
 
+/* 成品图片透出卡片底色，比例不同时不再显示上下或左右的底框。 */
+.job-image.has-output:not(.has-rich-result),
+.job-image.has-versions {
+  background: transparent;
+  box-shadow: none;
+}
+
 .job-image-button {
   display: block;
   width: 100%;
@@ -843,16 +850,12 @@
   position: relative;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 7px;
   padding: 0;
-  background: var(--subtle);
+  background: transparent;
   color: #ffffff;
   cursor: zoom-in;
-}
-
-.job-image-version.is-latest {
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--green) 76%, transparent);
 }
 
 .job-version-toggle {
@@ -1060,6 +1063,10 @@
 .job-result-image-asset {
   border: 0;
   border-radius: 0;
+  background: transparent;
+}
+
+.job-result-image-asset .job-result-media {
   background: transparent;
 }
 
