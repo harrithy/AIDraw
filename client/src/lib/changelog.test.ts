@@ -21,7 +21,7 @@ describe("changelog and release announcement system", () => {
 
   it("should have valid release notes structure", () => {
     expect(INITIAL_RELEASES.length).toBeGreaterThan(0);
-    expect(LATEST_RELEASE.version).toBe("v1.4.26");
+    expect(LATEST_RELEASE.version).toBe("v1.4.27");
     expect(LATEST_RELEASE.title).toBeTruthy();
     expect(LATEST_RELEASE.items.length).toBeGreaterThan(0);
   });
@@ -43,14 +43,15 @@ describe("changelog and release announcement system", () => {
     expect(checkHasUnreadRelease()).toBe(false);
   });
 
-  it("读过上一版的用户仍能看到本次全页拖拽图片上传公告", () => {
+  it("读过上一版的用户仍能看到本次形象馆与 Live2D 公告", () => {
     // 模拟旧版本已全部读完，新增公告不会被旧已读记录覆盖。
     INITIAL_RELEASES.slice(1).forEach((release) => markReleaseAsRead(release.version));
     expect(getUnreadReleasesCount()).toBe(1);
     expect(isReleaseRead(LATEST_RELEASE.version)).toBe(false);
-    expect(LATEST_RELEASE.summary).toContain("网页任意区域");
-    expect(LATEST_RELEASE.summary).toContain("当前编辑任务");
-    expect(LATEST_RELEASE.items.some((item) => item.title.includes("投放提示"))).toBe(true);
+    expect(LATEST_RELEASE.summary).toContain("形象馆");
+    expect(LATEST_RELEASE.summary).toContain("Live2D");
+    const interaction = LATEST_RELEASE.items.find((item) => item.title.includes("互动动作"));
+    for (const action of ["眨单眼", "摇头", "张望", "开心笑"]) expect(interaction?.description).toContain(action);
   });
 
   it("should accumulate and preserve historical releases in local storage", () => {

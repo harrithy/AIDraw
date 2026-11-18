@@ -1,0 +1,160 @@
+/* 独立展页以纸张、鼠尾草绿和叠层画框延续项目的创作气质。 */
+.mascot-gallery {
+  --mg-bg: #f7f8f3;
+  --mg-paper: #fffef9;
+  --mg-ink: #29372c;
+  --mg-muted: #7b8477;
+  --mg-line: #e2e7db;
+  --mg-green: #426b50;
+  --mg-soft: #e9eedf;
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  background: var(--mg-bg);
+  color: var(--mg-ink);
+  font-family: "Geist Variable", "Microsoft YaHei", sans-serif;
+  scroll-behavior: smooth;
+}
+.mascot-gallery-dark { --mg-bg: #151e19; --mg-paper: #1e2a22; --mg-ink: #eef2e7; --mg-muted: #a3b09f; --mg-line: #344335; --mg-green: #bed2a7; --mg-soft: #2c3c2c; }
+.mascot-gallery * { box-sizing: border-box; }
+.mascot-gallery a { color: inherit; text-decoration: none; }
+.mascot-gallery button, .mascot-gallery a { -webkit-tap-highlight-color: transparent; }
+.mascot-gallery button:focus-visible, .mascot-gallery a:focus-visible { outline: 2px solid var(--mg-green); outline-offset: 5px; }
+.mascot-gallery-inner { max-width: 1380px; margin: 0 auto; padding: 0 64px; }
+.mascot-gallery-header { display: flex; align-items: center; justify-content: space-between; min-height: 116px; border-bottom: 1px solid var(--mg-line); }
+.mascot-gallery-brand { display: flex; align-items: center; gap: 12px; }
+.mascot-gallery-brand > span { display: grid; place-items: center; width: 43px; height: 43px; border: 1px solid var(--mg-line); border-radius: 14px; background: var(--mg-paper); }
+.mascot-gallery-brand strong { display: block; font-size: 23px; letter-spacing: -0.9px; line-height: 1.2; }
+.mascot-gallery-brand small { display: block; margin-top: 5px; color: var(--mg-muted); font-size: 8px; font-weight: 500; letter-spacing: 2px; }
+.mascot-gallery-header nav { display: flex; align-items: center; gap: 30px; }
+.mascot-gallery-back { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--mg-muted) !important; }
+.mascot-theme-button { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; color: var(--mg-ink); border: 1px solid var(--mg-line); border-radius: 50%; background: transparent; cursor: pointer; }
+.mascot-gallery-hero { display: grid; grid-template-columns: 1fr 1.05fr; gap: 36px; align-items: center; padding: 48px 0 72px; }
+.mascot-gallery-intro { padding: 12px 0 0; }
+.mascot-eyebrow { display: flex; align-items: center; gap: 9px; color: var(--mg-muted); font-size: 9px; font-weight: 550; letter-spacing: 1.6px; }
+.mascot-eyebrow > span { width: 6px; height: 6px; border-radius: 50%; background: var(--mg-green); }
+.mascot-gallery-intro h1 { margin: 30px 0 24px; font-size: clamp(35px, 4.1vw, 57px); font-weight: 550; letter-spacing: -2px; line-height: 1.45; }
+.mascot-gallery-intro h1 em { font-style: normal; color: var(--mg-green); }
+.mascot-gallery-lead { margin: 0; color: var(--mg-muted); font-size: 14px; line-height: 2.1; }
+.mascot-identity-tags { display: flex; flex-wrap: wrap; gap: 8px 15px; margin-top: 29px; }
+.mascot-identity-tags span { display: flex; align-items: center; gap: 5px; color: var(--mg-muted); font-size: 10px; }
+.mascot-explore-link { display: inline-flex; align-items: center; gap: 13px; margin-top: 38px; padding-bottom: 9px; border-bottom: 1px solid var(--mg-line); font-size: 12px; }
+.mascot-palette-note { display: flex; align-items: center; gap: 5px; margin-top: 44px; }
+.mascot-palette-note > span { width: 17px; height: 17px; border: 2px solid var(--mg-bg); border-radius: 50%; box-shadow: 0 0 0 1px var(--mg-line); }
+.mascot-color-sage { background: #617959; }
+.mascot-color-ivory { background: #f3e9d7; }
+.mascot-color-mint { background: #c1cdb3; }
+.mascot-palette-note small { margin-left: 8px; color: var(--mg-muted); font-size: 10px; }
+.mascot-art-stage { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 570px; margin: 0; overflow: hidden; border: 1px solid var(--mg-line); border-radius: 100px 22px 22px 22px; background: var(--mg-soft); }
+.mascot-stage-topline { position: absolute; z-index: 3; top: 25px; right: 25px; left: 35px; display: flex; justify-content: space-between; color: var(--mg-muted); font-size: 8px; letter-spacing: 1.5px; }
+.mascot-art-halo { position: absolute; width: 78%; aspect-ratio: 1; border: 1px solid color-mix(in srgb, var(--mg-green) 14%, transparent); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--mg-paper) 80%, transparent), transparent 70%); }
+.mascot-art-halo::after { position: absolute; inset: -26px; border: 1px solid color-mix(in srgb, var(--mg-green) 8%, transparent); border-radius: inherit; content: ""; }
+.mascot-art-layers { position: absolute; inset: 110px 16% 90px; transform: rotate(-9deg); }
+.mascot-art-layers i { position: absolute; inset: 0; border: 1px solid color-mix(in srgb, var(--mg-green) 13%, transparent); border-radius: 24px; background: color-mix(in srgb, var(--mg-paper) 22%, transparent); }
+.mascot-art-layers i:nth-child(2) { transform: translate(17px, 16px); }
+.mascot-art-layers i:nth-child(3) { transform: translate(34px, 32px); }
+.mascot-main-art { position: relative; z-index: 2; display: block; width: 100%; height: 525px; padding: 48px 28px 26px; object-fit: contain; object-position: center bottom; filter: drop-shadow(0 15px 15px rgb(33 48 30 / 9%)); }
+.mascot-main-art-face { padding: 75px 55px 58px; }
+.mascot-live2d-studio { position: relative; z-index: 2; width: 100%; height: 610px; }
+.mascot-live2d-canvas { position: absolute; inset: 62px 0 144px; }
+.mascot-live2d-canvas canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; }
+.mascot-live2d-hint { position: absolute; top: 56px; left: 29px; display: flex; align-items: center; gap: 6px; color: var(--mg-muted); font-size: 9px; pointer-events: none; }
+.mascot-live2d-hint > span { width: 4px; height: 4px; border-radius: 50%; background: var(--mg-green); }
+.mascot-live2d-utilities { position: absolute; top: 48px; right: 23px; display: flex; gap: 5px; }
+.mascot-live2d-utilities button { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--mg-line); border-radius: 50%; background: var(--mg-paper); color: var(--mg-ink); cursor: pointer; }
+.mascot-live2d-actions { position: absolute; bottom: 68px; left: 50%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: calc(100% - 32px); max-width: 384px; transform: translateX(-50%); }
+.mascot-live2d-actions button { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 34px; padding: 7px 4px; border: 1px solid var(--mg-line); border-radius: 999px; background: var(--mg-paper); color: var(--mg-muted); font-size: 10px; white-space: nowrap; cursor: pointer; }
+.mascot-live2d-actions button[aria-pressed="true"] { border-color: var(--mg-green); background: var(--mg-ink); color: var(--mg-bg); }
+.mascot-live2d-studio button:disabled { opacity: 0.45; cursor: default; }
+.mascot-live2d-status { position: absolute; bottom: 152px; right: 25px; font-size: 8px; color: var(--mg-muted); pointer-events: none; }
+.mascot-live2d-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mg-muted); font-size: 12px; }
+.mascot-live2d-fallback { position: absolute; inset: 62px 0 144px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.mascot-live2d-fallback img { width: 100%; height: 90%; object-fit: contain; }
+.mascot-live2d-fallback > div { display: flex; align-items: center; gap: 10px; color: var(--mg-muted); font-size: 10px; }
+.mascot-live2d-fallback button { padding: 6px 12px; border: 1px solid var(--mg-line); border-radius: 999px; background: var(--mg-paper); color: var(--mg-ink); cursor: pointer; }
+.mascot-art-stage figcaption { position: absolute; z-index: 3; right: 25px; bottom: 23px; left: 25px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mascot-art-stage figcaption > span { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid var(--mg-line); border-radius: 999px; background: var(--mg-paper); font-size: 10px; }
+.mascot-art-stage figcaption i { width: 5px; height: 5px; border-radius: 50%; background: var(--mg-green); }
+.mascot-art-stage figcaption small { color: var(--mg-muted); font-size: 7px; letter-spacing: 1.2px; }
+.mascot-collection { scroll-margin-top: 26px; padding: 0 0 60px; }
+.mascot-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 25px; }
+.mascot-section-heading h2, .mascot-icon-copy h2 { margin: 13px 0 0; font-size: clamp(21px, 2.3vw, 29px); font-weight: 500; letter-spacing: -0.9px; line-height: 1.5; }
+.mascot-section-index { color: var(--mg-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.mascot-variant-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.mascot-variant-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 18px 19px 21px; overflow: hidden; border: 1px solid var(--mg-line); border-radius: 18px; color: var(--mg-ink); background: var(--mg-paper); text-align: left; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease; }
+.mascot-variant-card:hover, .mascot-variant-card.is-selected { border-color: var(--mg-green); background: color-mix(in srgb, var(--mg-soft) 55%, var(--mg-paper)); }
+.mascot-variant-topline { display: flex; justify-content: space-between; width: 100%; color: var(--mg-muted); font-size: 10px; }
+.mascot-variant-card.is-selected .mascot-variant-topline { color: var(--mg-green); }
+.mascot-variant-card img { display: block; width: 100%; height: 180px; margin: 8px 0 19px; object-fit: contain; }
+.mascot-variant-title { font-size: 15px; font-weight: 600; }
+.mascot-variant-card > small { margin-top: 7px; color: var(--mg-muted); font-size: 7px; letter-spacing: 1px; }
+.mascot-selected-description { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding-top: 28px; }
+.mascot-selected-description h3 { margin: 10px 0 8px; font-size: 20px; font-weight: 500; line-height: 1.5; }
+.mascot-selected-description p { max-width: 650px; margin: 0; color: var(--mg-muted); font-size: 12px; line-height: 1.9; }
+.mascot-download-button { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 9px; min-height: 43px; padding: 0 19px; border-radius: 999px; color: var(--mg-bg) !important; background: var(--mg-ink); font-size: 12px; }
+.mascot-download-actions { display: flex; flex-shrink: 0; flex-direction: column; gap: 8px; }
+.mascot-icon-section { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 30px; padding: 38px 0 48px; border-top: 1px solid var(--mg-line); }
+.mascot-icon-copy p { max-width: 365px; margin: 15px 0; color: var(--mg-muted); font-size: 12px; line-height: 1.9; }
+.mascot-transparent-label { display: flex; align-items: center; gap: 6px; color: var(--mg-muted); font-size: 10px; }
+.mascot-transparent-label > span { width: 12px; height: 12px; border: 1px solid var(--mg-line); border-radius: 3px; background: conic-gradient(var(--mg-line) 25%, transparent 0 50%, var(--mg-line) 0 75%, transparent 0); background-size: 6px 6px; }
+.mascot-icon-samples { display: flex; justify-content: flex-end; gap: 28px; }
+.mascot-icon-samples figure { margin: 0; text-align: center; }
+.mascot-icon-samples figure > div { display: grid; place-items: center; width: 91px; height: 91px; padding: 6px; overflow: hidden; border: 1px solid var(--mg-line); border-radius: 23px; }
+.mascot-icon-light { background: #fdfbf5; }
+.mascot-icon-dark { background: #25382c; }
+.mascot-icon-sage { background: #ceddc1; }
+.mascot-icon-samples img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.mascot-icon-samples figcaption { margin-top: 10px; color: var(--mg-muted); font-size: 10px; }
+.mascot-gallery-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 28px 0 36px; border-top: 1px solid var(--mg-line); color: var(--mg-muted); font-size: 10px; }
+.mascot-gallery-footer a { display: flex; align-items: center; gap: 8px; color: var(--mg-ink); }
+@media (max-width: 1100px) {
+  .mascot-gallery-inner { padding: 0 36px; }
+  .mascot-gallery-hero { gap: 25px; }
+  .mascot-art-stage { min-height: 490px; }
+  .mascot-live2d-studio { height: 530px; }
+  .mascot-main-art { height: 460px; padding-inline: 12px; }
+  .mascot-main-art-face { padding: 70px 30px 50px; }
+  .mascot-variant-card img { height: 145px; }
+  .mascot-icon-samples { gap: 15px; }
+}
+@media (max-width: 760px) {
+  .mascot-gallery-inner { padding: 0 22px; }
+  .mascot-gallery-header { min-height: 86px; }
+  .mascot-gallery-header nav { gap: 14px; }
+  .mascot-gallery-back { font-size: 10px; }
+  .mascot-gallery-hero { grid-template-columns: 1fr; gap: 30px; padding: 36px 0 46px; }
+  .mascot-gallery-intro h1 { margin: 21px 0 18px; font-size: clamp(34px, 7vw, 48px); }
+  .mascot-gallery-lead { font-size: 13px; }
+  .mascot-identity-tags { margin-top: 23px; }
+  .mascot-explore-link { margin-top: 24px; }
+  .mascot-palette-note { margin-top: 25px; }
+  .mascot-art-stage { min-height: 480px; border-top-left-radius: 75px; }
+  .mascot-live2d-studio { height: 520px; }
+  .mascot-main-art { height: 455px; padding-top: 42px; }
+  .mascot-variant-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .mascot-variant-card { padding: 15px; }
+  .mascot-variant-card img { height: 155px; }
+  .mascot-section-index { display: none; }
+  .mascot-selected-description { flex-direction: column; align-items: flex-start; gap: 22px; }
+  .mascot-icon-section { grid-template-columns: 1fr; gap: 28px; }
+  .mascot-icon-samples { justify-content: flex-start; gap: 20px; }
+  .mascot-gallery-footer { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+@media (max-width: 380px) {
+  .mascot-gallery-inner { padding-inline: 16px; }
+  .mascot-gallery-brand strong { font-size: 20px; }
+  .mascot-gallery-back { gap: 3px; }
+  .mascot-gallery-header nav { gap: 8px; }
+  .mascot-art-stage { min-height: 420px; }
+  .mascot-live2d-studio { height: 460px; }
+  .mascot-main-art { height: 400px; }
+  .mascot-stage-topline { left: 25px; font-size: 7px; letter-spacing: 0.8px; }
+  .mascot-art-stage figcaption small { font-size: 6px; letter-spacing: 0.5px; }
+  .mascot-variant-card img { height: 130px; }
+  .mascot-icon-samples { gap: 14px; }
+  .mascot-icon-samples figure > div { width: 83px; height: 83px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mascot-gallery { scroll-behavior: auto; }
+  .mascot-variant-card { transition: none; }
+}

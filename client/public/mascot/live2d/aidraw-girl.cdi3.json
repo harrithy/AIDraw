@@ -1,0 +1,57 @@
+{
+  "Version": 3,
+  "Parameters": [
+    {
+      "Id": "ParamAngleX",
+      "GroupId": "",
+      "Name": "头部左右"
+    },
+    {
+      "Id": "ParamAngleY",
+      "GroupId": "",
+      "Name": "轻轻点头"
+    },
+    {
+      "Id": "ParamAngleZ",
+      "GroupId": "",
+      "Name": "侧头"
+    },
+    {
+      "Id": "ParamBreath",
+      "GroupId": "",
+      "Name": "呼吸"
+    },
+    {
+      "Id": "ParamHairSway",
+      "GroupId": "",
+      "Name": "发梢轻摆"
+    },
+    {
+      "Id": "ParamEyeBallX",
+      "GroupId": "",
+      "Name": "目光左右"
+    },
+    {
+      "Id": "ParamEyeBallY",
+      "GroupId": "",
+      "Name": "目光上下"
+    },
+    {
+      "Id": "ParamEyeLOpen",
+      "GroupId": "",
+      "Name": "左眼开合"
+    },
+    {
+      "Id": "ParamEyeROpen",
+      "GroupId": "",
+      "Name": "右眼开合"
+    }
+  ],
+  "ParameterGroups": [],
+  "Parts": [
+    {
+      "Id": "OriginalGirl",
+      "Name": "原创绘画少女"
+    }
+  ]
+}

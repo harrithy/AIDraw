@@ -27,10 +27,42 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v1.4.27",
+    title: "原创形象馆与 Live2D 互动",
+    date: "2026-11-18",
+    badge: "✨ 最新版本",
+    summary:
+      "新增 AIDraw 原创绘画少女形象馆，提供少女、Q 版、坨坨脸素材和 Live2D 动态陪伴，支持眨眼、点头、歪头等互动与透明 PNG 下载。",
+    highlights: [
+      "独立形象馆：从左侧入口在新页面认识原创绘画少女，查看多种形象与图标预览",
+      "Live2D 动态陪伴：呼吸、发梢轻摆和目光跟随，搭配眨眼、点头、歪头、眨单眼、摇头、张望、开心笑",
+      "互动与素材：支持暂停、重置、重复播放和透明 PNG 下载，手机端以两行按钮展示动作"
+    ],
+    items: [
+      {
+        category: "feature",
+        title: "原创绘画少女形象馆",
+        description: "工作区左侧新增「形象馆」入口，在新页面展示原创绘画少女。可切换少女、Q 版、坨坨脸与 Live2D，查看浅色、深色及项目图标预览，并下载透明 PNG。",
+        tag: "项目形象"
+      },
+      {
+        category: "feature",
+        title: "Live2D 动态陪伴与互动动作",
+        description: "保留原创少女的画风与神情，加入自然呼吸、发梢轻摆和目光跟随。支持眨眼、点头、歪头、眨单眼、摇头、左右张望及开心笑，动作结束后自动回到陪伴状态。",
+        tag: "Live2D"
+      },
+      {
+        category: "improvement",
+        title: "动作控制与手机布局",
+        description: "动作按钮分两行排列，可暂停、重置或再次点击重播；暂停时选择动作会继续播放。页面不可见时停止动态渲染，系统开启减少动态效果时默认暂停；加载失败时保留立绘并提供重试入口。",
+        tag: "互动体验"
+      }
+    ]
+  },
+  {
     version: "v1.4.26",
     title: "全页拖拽图片上传",
     date: "2026-11-13",
-    badge: "✨ 最新版本",
     summary:
       "选中文件夹后，可将图片拖到网页任意区域上传并加入参考图，折叠的创作面板会自动展开。重新编辑任务时，拖入图片会加入当前编辑任务。",
     highlights: [

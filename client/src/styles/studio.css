@@ -1,4 +1,12 @@
 /* 创作工作台的统一视觉层：使用共享主题变量，兼容三套主题与已有布局偏好。 */
+.mascot-page-loading { min-height: 100dvh; display: grid; place-items: center; background: var(--page-bg); color: var(--muted); }
+
+/* 形象馆在新页面打开，创作工作区与队列继续保持原来的状态。 */
+.sidebar-footer .sidebar-mascot-link { display: grid; grid-template-columns: 34px minmax(0, 1fr) 15px; gap: 10px; align-items: center; padding: 11px; margin: 0 0 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--subtle); color: var(--ink); text-decoration: none; }
+.sidebar-mascot-symbol { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--panel-strong); color: var(--green); }
+.sidebar-mascot-link strong { display: block; font-size: calc(12px + var(--ui-font-size-offset)); font-weight: 600; }
+.sidebar-mascot-link small { display: block; margin-top: 3px; font-size: calc(9px + var(--ui-font-size-offset)); color: var(--muted); }
+.sidebar-footer .sidebar-mascot-link:hover { border-color: var(--line-strong); background: var(--hover); }
 :root {
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;

@@ -1,6 +1,6 @@
 {
   "name": "aidraw-workflow",
-  "version": "1.4.26",
+  "version": "1.4.27",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,6 +12,11 @@
   },
   "workspaces": [
     "client"
-  ]
+  ],
+  "overrides": {
+    "pixi-live2d-display": {
+      "gh-pages": "^6.3.0"
+    }
+  }
 }
 

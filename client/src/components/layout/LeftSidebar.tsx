@@ -1,4 +1,4 @@
-import { ArrowUpRight, Edit2, Folder, FolderPlus, HardDrive, Layers, Trash2 } from "lucide-react";
+import { ArrowUpRight, Edit2, Folder, FolderPlus, HardDrive, Layers, Sparkles, Trash2 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { formatDate } from "../../lib/format";
 import type { GeneratedImageStats } from "../../lib/generatedImageStats";
@@ -159,6 +159,11 @@ export function LeftSidebar({
       </nav>
 
       <div className="sidebar-footer">
+        <a className="sidebar-mascot-link" href="/mascot" target="_blank" rel="noopener noreferrer" title="在新页面打开项目形象馆">
+          <span className="sidebar-mascot-symbol"><Sparkles size={18} /></span>
+          <span><strong>形象馆</strong><small>认识 AIDraw 的绘画少女</small></span>
+          <ArrowUpRight size={15} />
+        </a>
         <div className="sidebar-storage">
           <HardDrive size={17} />
           <div><strong>本地工作区</strong><span>创作记录保存在此浏览器</span></div>

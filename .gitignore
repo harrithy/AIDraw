@@ -8,4 +8,6 @@ output/playwright/
 .env.local
 npm-debug.log*
 client/tsconfig.tsbuildinfo
+__pycache__/
+*.pyc
 .vercel/
