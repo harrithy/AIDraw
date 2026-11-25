@@ -21,7 +21,7 @@ describe("changelog and release announcement system", () => {
 
   it("should have valid release notes structure", () => {
     expect(INITIAL_RELEASES.length).toBeGreaterThan(0);
-    expect(LATEST_RELEASE.version).toBe("v2.0.1");
+    expect(LATEST_RELEASE.version).toBe("v2.0.2");
     expect(LATEST_RELEASE.title).toBeTruthy();
     expect(LATEST_RELEASE.items.length).toBeGreaterThan(0);
   });
@@ -43,16 +43,15 @@ describe("changelog and release announcement system", () => {
     expect(checkHasUnreadRelease()).toBe(false);
   });
 
-  it("读过上一版的用户仍能看到本次深色预览透明度修复公告", () => {
+  it("读过上一版的用户仍能看到多子任务保存与续查修复公告", () => {
     // 模拟旧版本已全部读完，新增公告不会被旧已读记录覆盖。
     INITIAL_RELEASES.slice(1).forEach((release) => markReleaseAsRead(release.version));
     expect(getUnreadReleasesCount()).toBe(1);
     expect(isReleaseRead(LATEST_RELEASE.version)).toBe(false);
-    expect(LATEST_RELEASE.summary).toContain("深色半透明遮罩");
-    const previewFix = LATEST_RELEASE.items.find((item) => item.tag === "图片预览");
-    expect(previewFix?.category).toBe("fix");
-    expect(previewFix?.description).toContain("不透明实色底");
-    expect(previewFix?.description).toContain("点击空白关闭");
+    expect(LATEST_RELEASE.summary).toContain("每个已完成的结果都会立即保存");
+    const queueFix = LATEST_RELEASE.items.find((item) => item.tag === "任务队列");
+    expect(queueFix?.category).toBe("fix");
+    expect(queueFix?.description).toContain("只查询尚未结束的子任务");
   });
 
   it("should accumulate and preserve historical releases in local storage", () => {

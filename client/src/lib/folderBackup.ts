@@ -53,12 +53,13 @@ export type EmergencyBackup = {
   settings: unknown[];
 };
 
-const stripCredentialFields = (job: DrawJob): DrawJob => {
+const stripUnexportedJobFields = (job: DrawJob): DrawJob => {
   const {
     credentialId: _credentialId,
     customCredentialId: _customCredentialId,
     credentialProviderId: _credentialProviderId,
     providerBaseUrl: _providerBaseUrl,
+    remoteTaskResults: _remoteTaskResults,
     ...rest
   } = job;
   return rest;
@@ -84,7 +85,7 @@ export const buildFolderBackup = (
     mode: "remote-urls-only"
   },
   folder,
-  jobs: jobs.map(stripCredentialFields),
+  jobs: jobs.map(stripUnexportedJobFields),
   uploadedImages
 });
 
@@ -109,7 +110,7 @@ export const buildEmergencyBackup = ({
   securityNotice: "Sensitive API credentials (apiKey / savedApiKeys) have been automatically stripped for security.",
   error,
   folders,
-  jobs: jobs.map(stripCredentialFields),
+  jobs: jobs.map(stripUnexportedJobFields),
   uploadedImages,
   settings
 });
@@ -203,7 +204,7 @@ export const parseImportBackups = (raw: unknown): FolderBackup[] => {
     appName: "AIDraw",
     media: { binariesIncluded: false, mode: "remote-urls-only" },
     folder,
-    jobs: jobs.filter((job) => job.folderId === folder.id).map(stripCredentialFields),
+    jobs: jobs.filter((job) => job.folderId === folder.id).map(stripUnexportedJobFields),
     uploadedImages: uploadedImages.filter((image) => image.folderId === folder.id)
   }));
 };
@@ -230,6 +231,7 @@ const stripImportFields = <T extends Record<string, unknown>>(job: T): Partial<T
     providerBaseUrl: _providerBaseUrl,
     remoteTaskId: _remoteTaskId,
     remoteTaskIds: _remoteTaskIds,
+    remoteTaskResults: _remoteTaskResults,
     remoteStatus: _remoteStatus,
     queryUrl: _queryUrl,
     submitTime: _submitTime,

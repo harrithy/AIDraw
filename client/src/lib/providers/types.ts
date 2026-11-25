@@ -1,4 +1,4 @@
-import type { ApiProviderId, DrawJob, GeneratedAsset } from "../../types";
+import type { ApiProviderId, DrawJob, RemoteTaskTerminalResult } from "../../types";
 
 export type StoredSettings = {
   customProviders?: import("../customProviders").StoredCustomProvider[];
@@ -21,14 +21,7 @@ export type CreatedProviderTask = {
 export type ProviderTaskResult =
   | { state: "pending" }
   | { state: "running" }
-  | {
-      state: "succeeded";
-      imageUrl?: string;
-      assets?: GeneratedAsset[];
-      text?: string;
-      data?: unknown;
-    }
-  | { state: "error"; errorMessage: string };
+  | RemoteTaskTerminalResult;
 
 export interface ImageModelProvider {
   /**

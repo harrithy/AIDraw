@@ -27,10 +27,25 @@ export const READ_RELEASES_STORAGE_KEY = "aidraw-read-releases-list";
  */
 export const INITIAL_RELEASES: ReleaseNote[] = [
   {
+    version: "v2.0.2",
+    title: "多子任务结果保存与续查修复",
+    date: "2026-11-25",
+    badge: "✨ 最新版本",
+    summary:
+      "一次生成包含多个子任务时，每个已完成的结果都会立即保存。其他子任务查询中断后，仍可查看已生成的内容。",
+    items: [
+      {
+        category: "fix",
+        title: "保留已生成的结果并补查剩余任务",
+        description: "子任务完成时会保存已返回的媒体、文本和结构化数据。查询中断后点击「继续」，或刷新页面恢复追踪时，系统会沿用原任务 ID，只查询尚未结束的子任务。",
+        tag: "任务队列"
+      }
+    ]
+  },
+  {
     version: "v2.0.1",
     title: "深色预览背景透明度修复",
     date: "2026-11-18",
-    badge: "✨ 最新版本",
     summary:
       "修复全屏预览恢复深色背景后无法透出后方内容的问题，使用深色半透明遮罩和轻微模糊，让图片背后的工作区仍然可见。",
     items: [

@@ -151,6 +151,19 @@ describe("文件夹导入预处理", () => {
     expect(pkg.jobs[0]?.queryUrl).toBeUndefined();
   });
 
+  it("备份保留部分生成结果，导出和导入均排除队列续查记录", () => {
+    const job = makeJob({
+      status: "failed",
+      outputText: "已生成的内容",
+      remoteTaskResults: { "task-1": { state: "succeeded", text: "已生成的内容" } }
+    });
+    const backup = buildFolderBackup(makeFolder(), [job], []);
+    expect(backup.jobs[0]?.remoteTaskResults).toBeUndefined();
+    const pkg = prepareFolderImport({ ...backup, jobs: [job] }, []);
+    expect(pkg.jobs[0]?.remoteTaskResults).toBeUndefined();
+    expect(pkg.jobs[0]?.outputText).toBe("已生成的内容");
+  });
+
   it("同名文件夹自动追加 (导入N) 后缀", () => {
     const backup = buildFolderBackup(makeFolder(), [], []);
     expect(prepareFolderImport(backup, []).folder.name).toBe("测试文件夹");

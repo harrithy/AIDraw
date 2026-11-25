@@ -35,6 +35,11 @@ export type GeneratedAsset = {
   data?: unknown;
 };
 
+/** 已结束的远程子任务结果，供队列在刷新后继续追踪同一批任务。 */
+export type RemoteTaskTerminalResult =
+  | { state: "succeeded"; imageUrl?: string; assets?: GeneratedAsset[]; text?: string; data?: unknown }
+  | { state: "error"; errorMessage: string };
+
 /** 异步上传中参考图的占位符 URL 与注册池 Key 映射 */
 export type PendingUploadItem = {
   placeholderUrl: string;
@@ -206,6 +211,8 @@ export type DrawJob = {
   remoteTaskId?: string;
   /** 一个请求返回多个远程任务时保存全部 ID。 */
   remoteTaskIds?: string[];
+  /** 按远程 ID 保存已结束的子任务，直到整批任务结束或重新提交。 */
+  remoteTaskResults?: Record<string, RemoteTaskTerminalResult>;
   /** 远程状态 */
   remoteStatus?: string;
   /** 后台正在异步上传中的参考图任务 Key 列表，上传成功后回填真实 URL 并移除 */
